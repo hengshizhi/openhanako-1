@@ -398,9 +398,11 @@
         }
         .wc-btn:hover { background: rgba(0,0,0,0.06); }
         .wc-close:hover { background: #e81123; color: #fff; }
-        /* Windows/Linux：无红绿灯，减少 header 顶部 padding */
+        /* Windows/Linux：无红绿灯，减少 header 顶部 padding；
+           取消 drag 让 titlebar 上的 window controls 可点击 */
         html[data-platform="win32"] .header,
         html[data-platform="linux"] .header {
+            -webkit-app-region: no-drag;
             padding-top: 12px;
         }
     </style>

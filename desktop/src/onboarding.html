@@ -57,11 +57,14 @@
         .onboarding-dot.done {
             background: var(--green, #6b9);
         }
-        /* Windows/Linux：无红绿灯，减少顶部 padding */
+        /* Windows/Linux：无红绿灯，减少顶部 padding；
+           取消 drag 让 titlebar 上的 window controls 可点击 */
         html[data-platform="win32"] .onboarding,
         html[data-platform="linux"] .onboarding {
+            -webkit-app-region: no-drag;
             padding-top: 20px;
         }
+        /* Windows/Linux：onboarding 内部交互元素恢复正常（父级已 no-drag，这些规则保持兼容） */
 
         /* ── Step container ── */
         .onboarding-step {
