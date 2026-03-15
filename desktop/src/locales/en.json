@@ -744,6 +744,7 @@
       "copyPath": "Copy Path",
       "delete": "Delete",
       "deleteN": "Delete {n} items",
+      "newMdFile": "New Markdown Document",
       "newFolder": "New Folder"
     },
     "sort": {

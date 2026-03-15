@@ -7,6 +7,7 @@
  */
 import fs from "fs";
 import path from "path";
+import os from "os";
 import YAML from "js-yaml";
 import { createModuleLogger } from "../lib/debug-log.js";
 import {
@@ -55,7 +56,7 @@ export class ConfigCoordinator {
   // ── Home Folder ──
 
   getHomeFolder() {
-    return this._prefs().home_folder || null;
+    return this._prefs().home_folder || path.join(os.homedir(), "Desktop");
   }
 
   setHomeFolder(folder) {

@@ -7,6 +7,7 @@
 
 import fs from "fs";
 import path from "path";
+import os from "os";
 
 /**
  * 确保 ~/.hanako/ 数据目录就绪
@@ -43,7 +44,10 @@ export function ensureFirstRun(hanakoHome, productDir) {
   if (!fs.existsSync(prefsPath)) {
     fs.writeFileSync(
       prefsPath,
-      JSON.stringify({ primaryAgent: "hanako" }, null, 2) + "\n",
+      JSON.stringify({
+        primaryAgent: "hanako",
+        home_folder: path.join(os.homedir(), "Desktop"),
+      }, null, 2) + "\n",
       "utf-8",
     );
   }

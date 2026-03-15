@@ -303,6 +303,7 @@ function showDeskContextMenu(x: number, y: number, file: { name: string; isDir: 
       for (const n of names) await deskRemoveFile(n);
     } });
   } else {
+    items.push({ label: t('desk.ctx.newMdFile'), action: () => deskCreateFile('') });
     items.push({ label: t('desk.ctx.newFolder'), action: () => deskMkdir() });
     items.push({ label: t('desk.ctx.openInFinder'), action: () => { const p = deskCurrentDir(); if (p) (window as any).platform?.showInFinder?.(p); } });
   }
