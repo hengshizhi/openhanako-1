@@ -73,6 +73,17 @@ export default async function providersRoute(app, { engine }) {
       } catch {}
     }
 
+    // Anthropic 格式没有 /models 端点，直接从 Pi SDK 内置模型列表返回
+    if (api === "anthropic-messages") {
+      const registryModels = engine.modelRegistry
+        ? engine.modelRegistry.getAll().filter((m) => m.provider === name)
+        : [];
+      if (registryModels.length > 0) {
+        return { source: "registry", models: normalizeRegistryModels(registryModels) };
+      }
+      return { error: "No built-in models found for this provider", models: [] };
+    }
+
     try {
       const url = base_url.replace(/\/+$/, "") + "/models";
       let headers = { "Content-Type": "application/json" };
@@ -121,6 +132,21 @@ export default async function providersRoute(app, { engine }) {
     }
 
     try {
+      // Anthropic 格式没有 /models 端点，用最小化 messages 请求验证认证
+      if (api === "anthropic-messages") {
+        const baseUrl = base_url.replace(/\/+$/, "");
+        const headers = buildProviderAuthHeaders(api, api_key);
+        const res = await fetch(baseUrl + "/messages", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ model: "test", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }),
+          signal: AbortSignal.timeout(10000),
+        });
+        // 401/403 = key 无效，其他错误（400 model not found 等）说明认证通过了
+        const authOk = res.status !== 401 && res.status !== 403;
+        return { ok: authOk, status: res.status };
+      }
+
       const url = base_url.replace(/\/+$/, "") + "/models";
       let headers = {};
       if (api_key) {

@@ -52,7 +52,7 @@ const PROVIDER_PRESETS = [
   { value: "siliconflow", label: "SiliconFlow",       url: "https://api.siliconflow.cn/v1", api: "openai-completions" },
   { value: "groq",        label: "Groq",              url: "https://api.groq.com/openai/v1", api: "openai-completions" },
   { value: "mistral",     label: "Mistral",           url: "https://api.mistral.ai/v1", api: "openai-completions" },
-  { value: "minimax",     label: "MiniMax",           url: "https://api.minimaxi.com/v1", api: "openai-completions" },
+  { value: "minimax",     label: "MiniMax",           url: "https://api.minimaxi.com/anthropic", api: "anthropic-messages" },
 ];
 
 // ── Server 通信 ──
