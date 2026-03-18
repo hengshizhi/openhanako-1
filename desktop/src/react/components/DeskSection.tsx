@@ -682,6 +682,9 @@ let _cwdSkillsOpen = false;
 let _cwdSkills: CwdSkill[] = [];
 let _cwdSkillsListeners: Set<() => void> = new Set();
 
+/** 共享的 CWD skills 重新加载函数，由 Button 注册 */
+let _reloadCwdSkills: (() => Promise<void>) | null = null;
+
 function useCwdSkillsOpen() {
   const [, force] = useState(0);
   useEffect(() => {
@@ -719,6 +722,12 @@ function DeskCwdSkillsButton() {
       loadedRef.current = deskBasePath;
     } catch {}
   }, [deskBasePath, setSkills]);
+
+  // 注册共享 reload 函数，供 Panel drop handler 调用
+  useEffect(() => {
+    _reloadCwdSkills = loadCwdSkills;
+    return () => { _reloadCwdSkills = null; };
+  }, [loadCwdSkills]);
 
   // 切换文件夹时重新加载
   useEffect(() => {
@@ -798,15 +807,7 @@ function DeskCwdSkillsPanel() {
       }
     }
     // 重新加载 CWD 技能面板
-    try {
-      const cwd = useStore.getState().deskBasePath;
-      if (cwd) {
-        const res = await getDeskCtx().hanaFetch(`/api/desk/skills?dir=${encodeURIComponent(cwd)}`);
-        const data = await res.json();
-        _cwdSkills = data.skills || [];
-        _cwdSkillsListeners.forEach(cb => cb());
-      }
-    } catch {}
+    if (_reloadCwdSkills) await _reloadCwdSkills();
     // 也刷新书桌技能快捷区
     (window as any).__loadDeskSkills?.();
   }, []);
