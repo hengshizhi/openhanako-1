@@ -599,7 +599,7 @@ function CompatPathDrawer({ dirPath, label, exists, isCustom, skills, nameHints,
         </svg>
         <div className="compat-drawer-info">
           <span className="compat-drawer-label">{displayLabel}</span>
-          <span className="compat-drawer-path">{dirPath}</span>
+          {isCustom && <span className="compat-drawer-path">{dirPath}</span>}
         </div>
         <div className="compat-drawer-meta">
           {!exists ? (
