@@ -788,7 +788,7 @@ function DeskCwdSkillsPanel() {
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
     for (const file of files) {
-      const filePath = (file as any).path;
+      const filePath = (window as any).platform?.getFilePath?.(file);
       if (!filePath) continue;
       try {
         const res = await getDeskCtx().hanaFetch('/api/desk/install-skill', {
