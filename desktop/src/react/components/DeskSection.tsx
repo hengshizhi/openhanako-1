@@ -829,6 +829,7 @@ function DeskCwdSkillsPanel() {
     <div className={`desk-cwd-panel-wrap${closing ? ' closing' : ''}`}>
       <div
         className={`desk-cwd-panel${dragging ? ' drag-over' : ''}`}
+        onMouseDown={(e) => e.stopPropagation()}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
