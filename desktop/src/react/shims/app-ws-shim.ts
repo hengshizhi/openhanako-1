@@ -586,12 +586,22 @@ function handleServerMessage(msg: any): void {
 
 // ── Setup ──
 
+/**
+ * 提前锁定 stream resume：切到正在 streaming 的 session 前调用，
+ * 阻止实时事件写 DOM，直到 stream_resume 回放完成。
+ */
+function lockStreamResumeFor(sessionPath: string): void {
+  ++_streamResumeRebuildVersion;
+  _streamResumeRebuildingFor = sessionPath;
+}
+
 export function setupAppWsShim(modules: Record<string, unknown>): void {
   modules.appWs = {
     connectWS,
     handleServerMessage,
     requestStreamResume,
     applyStreamingStatus,
+    lockStreamResumeFor,
     initAppWs: (injected: AppWsCtx) => { ctx = injected; },
   };
 }

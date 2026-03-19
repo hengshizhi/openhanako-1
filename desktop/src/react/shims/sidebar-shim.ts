@@ -68,6 +68,12 @@ async function switchSession(path: string): Promise<void> {
       return;
     }
 
+    // 切到正在 streaming 的 session 时，提前锁住实时事件，防止 resume 前重复渲染
+    if (data.isStreaming) {
+      const ws = (window as any).HanaModules?.appWs;
+      ws?.lockStreamResumeFor(path);
+    }
+
     state().currentSessionPath = path;
     state().pendingNewSession = false;
     state().selectedFolder = null;

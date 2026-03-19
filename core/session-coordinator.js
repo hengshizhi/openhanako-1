@@ -254,6 +254,18 @@ export class SessionCoordinator {
     return true;
   }
 
+  /** 中断所有正在 streaming 的 session */
+  async abortAllStreaming() {
+    const tasks = [];
+    for (const [sp, entry] of this._sessions) {
+      if (entry.session.isStreaming) {
+        tasks.push(entry.session.abort().catch(() => {}));
+      }
+    }
+    await Promise.all(tasks);
+    return tasks.length;
+  }
+
   // ── Session 关闭 ──
 
   async closeSession(sessionPath) {
