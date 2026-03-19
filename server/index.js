@@ -306,11 +306,28 @@ process.on("SIGTERM", gracefulShutdown);
 if (process.platform === "win32") process.on("SIGBREAK", gracefulShutdown);
 
 // 全局未捕获错误（写入持久化日志，防止崩溃无痕）
+let _stdoutBroken = false;
+function _safeConsoleError(...args) {
+  if (_stdoutBroken) return;
+  try {
+    console.error(...args);
+  } catch {
+    _stdoutBroken = true;
+  }
+}
+
 process.on("uncaughtException", (err) => {
+  if (err?.code === "EPIPE" || err?.code === "ERR_IPC_CHANNEL_CLOSED") {
+    if (!_stdoutBroken) {
+      _stdoutBroken = true;
+      dlog.error("server", `stdout pipe broken (${err.code}), suppressing further console output`);
+    }
+    return;
+  }
   dlog.error("server", `uncaughtException: ${err.message}`);
-  console.error("[server] uncaughtException:", err);
+  _safeConsoleError("[server] uncaughtException:", err);
 });
 process.on("unhandledRejection", (reason) => {
   dlog.error("server", `unhandledRejection: ${reason}`);
-  console.error("[server] unhandledRejection:", reason);
+  _safeConsoleError("[server] unhandledRejection:", reason);
 });

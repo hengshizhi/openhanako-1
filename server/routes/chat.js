@@ -331,6 +331,11 @@ export default async function chatRoute(app, { engine, hub }) {
       broadcast({ type: "dm_new_message", from: event.from, to: event.to });
     } else if (event.type === "turn_end") {
       if (!ss) return;
+      // 关闭结构化 thinking（如有）——必须在 flush 之前，否则前端收不到 thinking_end
+      if (ss.isThinking) {
+        ss.isThinking = false;
+        emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
+      }
       // flush 顺序：ThinkTag → Mood → Xing（和 feed 顺序一致）
       // flush 内部的 mood → xing 管线（thinkTag flush 和 mood flush 共用）
       const feedMoodPipeline = (text) => {
@@ -402,7 +407,6 @@ export default async function chatRoute(app, { engine, hub }) {
 
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
       finishSessionStream(ss);
-      ss.isThinking = false;
       ss.thinkTagParser.reset();
       ss.moodParser.reset();
       ss.xingParser.reset();

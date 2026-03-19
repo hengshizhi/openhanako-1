@@ -249,13 +249,13 @@ async function startServer() {
     // 捕获 stdout/stderr 到 buffer（打包后 console 不可见，崩溃时需要这些信息）
     serverProcess.stdout?.on("data", (chunk) => {
       const text = chunk.toString();
-      process.stdout.write(text);
+      try { process.stdout.write(text); } catch {}
       _serverLogs.push(text);
       if (_serverLogs.length > 500) _serverLogs.splice(0, _serverLogs.length - 500);
     });
     serverProcess.stderr?.on("data", (chunk) => {
       const text = chunk.toString();
-      process.stderr.write(text);
+      try { process.stderr.write(text); } catch {}
       _serverLogs.push("[stderr] " + text);
       if (_serverLogs.length > 500) _serverLogs.splice(0, _serverLogs.length - 500);
     });

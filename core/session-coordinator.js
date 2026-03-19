@@ -214,7 +214,7 @@ export class SessionCoordinator {
   async closeAllSessions() {
     if (this._session) {
       const curSp = this._session.sessionManager?.getSessionFile?.();
-      if (curSp) this._d.getAgent()._memoryTicker?.notifySessionEnd(curSp);
+      if (curSp) this._d.getAgent()?._memoryTicker?.notifySessionEnd(curSp);
     }
     for (const [, entry] of this._sessions) {
       if (entry.session.isStreaming) {

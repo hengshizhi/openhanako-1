@@ -389,7 +389,7 @@ function handleServerMessage(msg: any): void {
 
     case 'thinking_end':
       _cr().sealThinking(state._thinkingBuf || '');
-      state._thinkingBuf = '';
+      state._thinkingBuf = undefined;
       break;
 
     case 'tool_start':
@@ -406,6 +406,11 @@ function handleServerMessage(msg: any): void {
       break;
 
     case 'turn_end':
+      // 安全兜底：如果 thinking 块未被 seal，先保留内容再结束
+      if (state._thinkingBuf != null) {
+        _cr().sealThinking(state._thinkingBuf || '');
+        state._thinkingBuf = undefined;
+      }
       _cr().finishAssistantTurn();
       _sb().loadSessions();
       // 每轮结束后刷新 token 用量
