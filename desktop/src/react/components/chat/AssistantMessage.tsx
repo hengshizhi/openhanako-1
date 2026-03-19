@@ -12,7 +12,7 @@ import type { ChatMessage, ContentBlock } from '../../stores/chat-types';
 import { useStore } from '../../stores';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { openFilePreview, openSkillPreview } from '../../utils/file-preview';
-import { openPreview } from '../../shims/artifacts-shim';
+import { openPreview } from '../../stores/artifact-actions';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

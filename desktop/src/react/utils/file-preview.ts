@@ -6,7 +6,7 @@
 
 import { useStore } from '../stores';
 import type { Artifact } from '../types';
-import { openPreview } from '../shims/artifacts-shim';
+import { openPreview } from '../stores/artifact-actions';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

@@ -11,6 +11,7 @@ import { useStore } from '../stores';
 import { hanaFetch, hanaUrl } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
 import { formatSessionDate } from '../utils/format';
+import { switchSession, archiveSession } from '../stores/session-actions';
 import type { Session, Agent } from '../types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -134,14 +135,12 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
   const { t } = useI18n();
 
   const handleClick = useCallback(() => {
-    const sidebar = (window as any).HanaModules?.sidebar;
-    sidebar?.switchSession(s.path);
+    switchSession(s.path);
   }, [s.path]);
 
   const handleArchive = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    const sidebar = (window as any).HanaModules?.sidebar;
-    sidebar?.archiveSession(s.path);
+    archiveSession(s.path);
   }, [s.path]);
 
   // Meta line

@@ -11,6 +11,7 @@ import { useStore } from '../stores';
 import { isImageFile } from '../utils/format';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
+import { ensureSession, loadSessions } from '../stores/session-actions';
 import type { ThinkingLevel } from '../stores/model-slice';
 
 // ── Toast 通知 ──
@@ -152,10 +153,9 @@ function InputAreaInner() {
     if (useStore.getState().isStreaming) return false;
 
     if (pendingNewSession) {
-      const _sb = () => (window as any).HanaModules.sidebar;
-      const ok = await _sb().ensureSession();
+      const ok = await ensureSession();
       if (!ok) return false;
-      _sb().loadSessions();
+      loadSessions();
     }
 
     // 用户消息写入 store，React 渲染
@@ -354,10 +354,9 @@ function InputAreaInner() {
     try {
       const state = window.__hanaState;
       if (pendingNewSession) {
-        const _sb = () => window.HanaModules.sidebar;
-        const ok = await _sb().ensureSession();
+        const ok = await ensureSession();
         if (!ok) return;
-        _sb().loadSessions();
+        loadSessions();
       }
 
       // 分离图片和非图片附件

@@ -3,15 +3,29 @@
  *
  * 替代旧 desk.js 的 renderDeskFiles / initJianEditor / updateDeskEmptyOverlay 逻辑。
  * 通过 portal 渲染到 #jianDeskPortal（在 .jian-sidebar-inner 内部）。
+ *
+ * Phase B: 所有文件操作直接调用 desk-actions，不再经过 window.HanaModules.desk。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../stores';
 import { hanaFetch } from '../hooks/use-hana-fetch';
-import type { DeskFile, Artifact } from '../types';
-import { escapeHtml } from '../utils/format';
+import type { DeskFile } from '../types';
 import { openFilePreview } from '../utils/file-preview';
+import {
+  loadDeskFiles,
+  deskFullPath,
+  deskCurrentDir,
+  deskMoveFiles,
+  deskUploadFiles,
+  deskCreateFile,
+  deskRemoveFile,
+  deskMkdir,
+  deskRenameFile,
+  saveJianContent,
+} from '../stores/desk-actions';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 
 // ── SVG 图标 ──
 
@@ -66,6 +80,13 @@ function getFileIcon(name: string): string {
   return ICONS.file;
 }
 
+// ── 共享 context menu 状态（提升到文件列表级别，供子组件共享） ──
+
+interface CtxMenuState {
+  items: ContextMenuItem[];
+  position: { x: number; y: number };
+}
+
 // ── 子组件 ──
 
 function DeskOpenButton() {
@@ -96,7 +117,7 @@ function DeskBreadcrumb() {
     const parent = cur.includes('/')
       ? cur.substring(0, cur.lastIndexOf('/'))
       : '';
-    getDeskCtx().loadDeskFiles(parent);
+    loadDeskFiles(parent);
   }, []);
 
   if (!deskCurrentPath) return null;
@@ -111,17 +132,22 @@ function DeskBreadcrumb() {
   );
 }
 
-function DeskSortButton({ sortMode, onSort }: { sortMode: SortMode; onSort: (m: SortMode) => void }) {
+function DeskSortButton({ sortMode, onSort, onShowMenu }: {
+  sortMode: SortMode;
+  onSort: (m: SortMode) => void;
+  onShowMenu: (state: CtxMenuState) => void;
+}) {
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const desk = window.HanaModules.desk as Record<string, unknown>;
-    const showMenu = desk.showContextMenu as (x: number, y: number, items: Array<{ label: string; action: () => void }>) => void;
-    showMenu(rect.left, rect.bottom + 4, getSortOptions().map(o => ({
-      label: (o.key === sortMode ? '· ' : '   ') + o.label,
-      action: () => { localStorage.setItem(DESK_SORT_KEY, o.key); onSort(o.key); },
-    })));
-  }, [sortMode, onSort]);
+    onShowMenu({
+      position: { x: rect.left, y: rect.bottom + 4 },
+      items: getSortOptions().map(o => ({
+        label: (o.key === sortMode ? '· ' : '   ') + o.label,
+        action: () => { localStorage.setItem(DESK_SORT_KEY, o.key); onSort(o.key); },
+      })),
+    });
+  }, [sortMode, onSort, onShowMenu]);
 
   return (
     <button className="jian-desk-sort-btn" onClick={handleClick}>
@@ -141,7 +167,6 @@ function sortDeskFiles(files: DeskFile[], mode: SortMode): DeskFile[] {
       case 'name-asc': return a.name.localeCompare(b.name, 'zh');
       case 'name-desc': return b.name.localeCompare(a.name, 'zh');
       case 'size-desc':
-        // dirs 和 files 分别排序（见下方 dirs.sort / regular.sort），此处 isDir 分支仅在 dirs 组内生效
         if (a.isDir) return a.name.localeCompare(b.name, 'zh');
         return (b.size ?? 0) - (a.size ?? 0);
       case 'type-asc': {
@@ -167,7 +192,6 @@ let _deskDragNames: string[] | null = null;
 async function handleExternalDropToFolder(
   e: React.DragEvent,
   folderName: string,
-  moveFn?: (names: string[], dest: string) => Promise<void>,
 ) {
   const s = useStore.getState();
   const basePath = s.deskBasePath;
@@ -203,30 +227,55 @@ async function handleExternalDropToFolder(
 
   if (internalNames.length > 0) {
     const filtered = internalNames.filter(n => n !== folderName);
-    if (filtered.length > 0) await moveFn?.(filtered, folderName);
+    if (filtered.length > 0) await deskMoveFiles(filtered, folderName);
   }
 
   if (externalPaths.length > 0) {
     const subdir = curPath ? curPath + '/' + folderName : folderName;
-    await (getDeskCtx().hanaFetch)('/api/desk/files', {
+    await hanaFetch('/api/desk/files', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'upload', dir: basePath || undefined, subdir, paths: externalPaths }),
     });
-    getDeskCtx().loadDeskFiles(curPath || '');
+    loadDeskFiles(curPath || '');
   }
 }
+
+// ── 文件项 ──
 
 interface DeskFileItemProps {
   file: DeskFile;
   selected: boolean;
   onSelect: (name: string, meta: { multi: boolean; shift: boolean }) => void;
   allSelectedFiles: string[];
+  renamingFile: string | null;
+  renameValue: string;
+  onRenameStart: (name: string) => void;
+  onRenameChange: (value: string) => void;
+  onRenameCommit: () => void;
+  onRenameCancel: () => void;
+  onShowContextMenu: (state: CtxMenuState) => void;
 }
 
-function DeskFileItem({ file, selected, onSelect, allSelectedFiles }: DeskFileItemProps) {
+function DeskFileItem({
+  file, selected, onSelect, allSelectedFiles,
+  renamingFile, renameValue, onRenameStart, onRenameChange, onRenameCommit, onRenameCancel,
+  onShowContextMenu,
+}: DeskFileItemProps) {
   const icon = file.isDir ? ICONS.folder : getFileIcon(file.name);
   const [dropTarget, setDropTarget] = useState(false);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const isRenaming = renamingFile === file.name;
+
+  // 当进入 rename 模式时自动聚焦并选择文件名
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      const dotIdx = file.isDir ? -1 : file.name.lastIndexOf('.');
+      if (dotIdx > 0) renameInputRef.current.setSelectionRange(0, dotIdx);
+      else renameInputRef.current.select();
+    }
+  }, [isRenaming, file.name, file.isDir]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -236,16 +285,13 @@ function DeskFileItem({ file, selected, onSelect, allSelectedFiles }: DeskFileIt
   const handleDragStart = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const filesToDrag = selected ? allSelectedFiles : [file.name];
-    // 记录内部拖拽状态，供文件夹 drop target 使用
-    // 仅在 dragend 清理；不用 mouseup（会在 drop 之前触发导致状态丢失）
     _deskDragNames = filesToDrag;
     const clearDrag = () => { _deskDragNames = null; };
     e.currentTarget.addEventListener('dragend', clearDrag, { once: true });
-    // 安全兜底：若 dragend 未触发（Electron native drag 场景），延迟清理
     setTimeout(clearDrag, 2000);
 
     const paths = filesToDrag
-      .map(n => getDeskCtx().deskFullPath(n))
+      .map(n => deskFullPath(n))
       .filter(Boolean) as string[];
     if (paths.length > 0) {
       window.platform?.startDrag?.(paths.length === 1 ? paths[0] : paths);
@@ -255,15 +301,14 @@ function DeskFileItem({ file, selected, onSelect, allSelectedFiles }: DeskFileIt
   const handleDoubleClick = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     const s = useStore.getState();
-    const ctx = getDeskCtx();
 
     if (file.isDir) {
       const sub = s.deskCurrentPath ? s.deskCurrentPath + '/' + file.name : file.name;
-      ctx.loadDeskFiles(sub);
+      loadDeskFiles(sub);
       return;
     }
 
-    const full = ctx.deskFullPath(file.name);
+    const full = deskFullPath(file.name);
     if (!full) return;
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     openFilePreview(full, file.name, ext);
@@ -272,9 +317,31 @@ function DeskFileItem({ file, selected, onSelect, allSelectedFiles }: DeskFileIt
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const ctx = getDeskCtx();
-    ctx.showDeskContextMenu(e.clientX, e.clientY, file, e.currentTarget as HTMLElement, allSelectedFiles);
-  }, [file, allSelectedFiles]);
+    const tFn = (window as any).t ?? ((p: string) => p);
+    const s = useStore.getState();
+    const bulkNames = allSelectedFiles.length > 1 && allSelectedFiles.includes(file.name)
+      ? allSelectedFiles : null;
+    const items: ContextMenuItem[] = [];
+
+    if (file.isDir) {
+      const sub = s.deskCurrentPath ? s.deskCurrentPath + '/' + file.name : file.name;
+      items.push({ label: tFn('desk.ctx.open'), action: () => loadDeskFiles(sub) });
+      items.push({ label: tFn('desk.ctx.openInFinder'), action: () => { const p = deskFullPath(file.name); if (p) window.platform?.showInFinder?.(p); } });
+    } else {
+      items.push({ label: tFn('desk.ctx.open'), action: () => { const p = deskFullPath(file.name); if (p) window.platform?.openFile?.(p); } });
+    }
+    if (!bulkNames) {
+      items.push({ label: tFn('desk.ctx.rename'), action: () => onRenameStart(file.name) });
+      items.push({ label: tFn('desk.ctx.copyPath'), action: () => { const p = deskFullPath(file.name); if (p) navigator.clipboard.writeText(p).catch(() => {}); } });
+    }
+    items.push({ divider: true });
+    const deleteLabel = bulkNames ? tFn('desk.ctx.deleteN', { n: bulkNames.length }) : tFn('desk.ctx.delete');
+    items.push({ label: deleteLabel, danger: true, action: async () => {
+      const names = bulkNames || [file.name];
+      for (const n of names) await deskRemoveFile(n);
+    } });
+    onShowContextMenu({ position: { x: e.clientX, y: e.clientY }, items });
+  }, [file, allSelectedFiles, onRenameStart, onShowContextMenu]);
 
   // ── 文件夹作为 drop target ──
 
@@ -297,20 +364,27 @@ function DeskFileItem({ file, selected, onSelect, allSelectedFiles }: DeskFileIt
     e.stopPropagation();
     setDropTarget(false);
 
-    const desk = window.HanaModules.desk as Record<string, unknown>;
-    const moveFn = desk.deskMoveFiles as ((names: string[], dest: string) => Promise<void>) | undefined;
-
     // 优先从 module-level 状态读取（跨平台可靠，不依赖 native drag 回路）
     if (_deskDragNames && _deskDragNames.length > 0) {
       const names = _deskDragNames.filter(n => n !== file.name);
       _deskDragNames = null;
-      if (names.length > 0) await moveFn?.(names, file.name);
+      if (names.length > 0) await deskMoveFiles(names, file.name);
       return;
     }
 
     // 回退：从 dataTransfer.files 判断（外部拖入，或 Electron native drag 回到同窗口）
-    await handleExternalDropToFolder(e, file.name, moveFn);
+    await handleExternalDropToFolder(e, file.name);
   }, [file.isDir, file.name]);
+
+  const handleRenameKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !(e.nativeEvent as KeyboardEvent & { isComposing: boolean }).isComposing) {
+      e.preventDefault();
+      onRenameCommit();
+    }
+    if (e.key === 'Escape') {
+      onRenameCancel();
+    }
+  }, [onRenameCommit, onRenameCancel]);
 
   return (
     <div
@@ -326,14 +400,28 @@ function DeskFileItem({ file, selected, onSelect, allSelectedFiles }: DeskFileIt
       onDrop={file.isDir ? handleFolderDrop : undefined}
     >
       <span className="jian-desk-item-icon" dangerouslySetInnerHTML={{ __html: icon }} />
-      <span className="jian-desk-item-name" title={file.name}>{file.name}</span>
+      {isRenaming ? (
+        <input
+          ref={renameInputRef}
+          className="jian-desk-rename-input"
+          type="text"
+          value={renameValue}
+          onChange={(e) => onRenameChange(e.target.value)}
+          onKeyDown={handleRenameKeyDown}
+          onBlur={onRenameCommit}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <span className="jian-desk-item-name" title={file.name}>{file.name}</span>
+      )}
     </div>
   );
 }
 
 const RUBBER_BAND_MIN = 4; // px threshold to start rubber band
 
-function DeskFileList({ sortMode }: { sortMode: SortMode }) {
+function DeskFileList({ sortMode, onShowMenu }: { sortMode: SortMode; onShowMenu: (state: CtxMenuState) => void }) {
   const deskFiles = useStore(s => s.deskFiles);
   const deskCurrentPath = useStore(s => s.deskCurrentPath);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -345,6 +433,10 @@ function DeskFileList({ sortMode }: { sortMode: SortMode }) {
   const listRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
+  // ── 内联 rename 状态 ──
+  const [renamingFile, setRenamingFile] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
   const sorted = useMemo(() => sortDeskFiles(deskFiles, sortMode), [deskFiles, sortMode]);
 
   const allSelectedArr = useMemo(() => Array.from(selectedFiles), [selectedFiles]);
@@ -353,10 +445,34 @@ function DeskFileList({ sortMode }: { sortMode: SortMode }) {
   useEffect(() => {
     setSelectedFiles(new Set());
     lastSelectedRef.current = null;
+    setRenamingFile(null);
   }, [deskCurrentPath]);
 
   // Cleanup rubber band listeners on unmount
   useEffect(() => () => cleanupRef.current?.(), []);
+
+  const handleRenameStart = useCallback((name: string) => {
+    setRenamingFile(name);
+    setRenameValue(name);
+  }, []);
+
+  const handleRenameCommit = useCallback(async () => {
+    if (!renamingFile) return;
+    const newName = renameValue.trim();
+    if (!newName || newName === renamingFile) {
+      setRenamingFile(null);
+      return;
+    }
+    const ok = await deskRenameFile(renamingFile, newName);
+    if (!ok) {
+      // 失败时恢复原名
+    }
+    setRenamingFile(null);
+  }, [renamingFile, renameValue]);
+
+  const handleRenameCancel = useCallback(() => {
+    setRenamingFile(null);
+  }, []);
 
   const handleSelect = useCallback((name: string, meta: { multi: boolean; shift: boolean }) => {
     setSelectedFiles(prev => {
@@ -388,7 +504,6 @@ function DeskFileList({ sortMode }: { sortMode: SortMode }) {
     if (e.button !== 0) return;
 
     const additive = e.metaKey || e.ctrlKey || e.shiftKey;
-    // 非追加模式才清空选择；追加模式保留当前选中，框选的项目叠加上去
     const baseSelection = additive ? new Set(selectedFilesRef.current) : new Set<string>();
     if (!additive) {
       setSelectedFiles(new Set());
@@ -403,7 +518,6 @@ function DeskFileList({ sortMode }: { sortMode: SortMode }) {
       const start = rubberBandRef.current;
       if (!start) return;
 
-      // Only activate rubber band after exceeding threshold
       if (!active) {
         if (Math.abs(me.clientX - start.startX) < RUBBER_BAND_MIN &&
             Math.abs(me.clientY - start.startY) < RUBBER_BAND_MIN) return;
@@ -416,7 +530,6 @@ function DeskFileList({ sortMode }: { sortMode: SortMode }) {
       const h = Math.abs(me.clientY - start.startY);
       setRubberBandRect({ x, y, w, h });
 
-      // Hit test against items
       if (!listRef.current) return;
       const bandRect = { left: x, top: y, right: x + w, bottom: y + h };
       const hit = new Set<string>(baseSelection);
@@ -448,8 +561,22 @@ function DeskFileList({ sortMode }: { sortMode: SortMode }) {
     if ((e.target as HTMLElement).closest('.jian-desk-item')) return;
     e.preventDefault();
     e.stopPropagation();
-    getDeskCtx().showDeskContextMenu(e.clientX, e.clientY, null, null);
-  }, []);
+    const tFn = (window as any).t ?? ((p: string) => p);
+    onShowMenu({
+      position: { x: e.clientX, y: e.clientY },
+      items: [
+        { label: tFn('desk.ctx.newMdFile'), action: () => deskCreateFile('') },
+        { label: tFn('desk.ctx.newFolder'), action: async () => {
+          const name = await deskMkdir();
+          if (name) {
+            // 延迟一帧以确保 store 更新后 React 渲染了新文件夹
+            setTimeout(() => handleRenameStart(name), 50);
+          }
+        } },
+        { label: tFn('desk.ctx.openInFinder'), action: () => { const p = deskCurrentDir(); if (p) window.platform?.showInFinder?.(p); } },
+      ],
+    });
+  }, [onShowMenu, handleRenameStart]);
 
   return (
     <div
@@ -465,6 +592,13 @@ function DeskFileList({ sortMode }: { sortMode: SortMode }) {
           selected={selectedFiles.has(f.name)}
           onSelect={handleSelect}
           allSelectedFiles={allSelectedArr}
+          renamingFile={renamingFile}
+          renameValue={renameValue}
+          onRenameStart={handleRenameStart}
+          onRenameChange={setRenameValue}
+          onRenameCommit={handleRenameCommit}
+          onRenameCancel={handleRenameCancel}
+          onShowContextMenu={onShowMenu}
         />
       ))}
       {rubberBandRect && (
@@ -490,7 +624,6 @@ function JianEditor() {
   const statusRef = useRef<HTMLSpanElement>(null);
   const prevContentRef = useRef(deskJianContent);
 
-  // 外部内容变化时（切 session、loadJianContent）同步到本地
   useEffect(() => {
     if (deskJianContent !== prevContentRef.current) {
       setLocalValue(deskJianContent || '');
@@ -502,15 +635,13 @@ function JianEditor() {
     const value = e.target.value;
     setLocalValue(value);
 
-    // 通过 Proxy 写 Zustand，sidebar float card 的 mini editor 能读到
     const hanaState = window.__hanaState;
     if (hanaState) hanaState.deskJianContent = value;
     prevContentRef.current = value;
 
-    // 延迟保存
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      getDeskCtx().saveJianContent(value);
+      saveJianContent(value);
     }, 800);
   }, []);
 
@@ -550,33 +681,9 @@ function DeskEmptyOverlay() {
   );
 }
 
-// ── desk ctx：暴露给子组件调用的命令式函数 ──
-
-interface DeskCtx {
-  hanaFetch: (path: string, opts?: RequestInit) => Promise<Response>;
-  loadDeskFiles: (subdir: string, overrideDir?: string) => void;
-  deskFullPath: (name: string) => string | null;
-  openPreview: (artifact: Artifact) => void;
-  showDeskContextMenu: (x: number, y: number, file: DeskFile | null, el: HTMLElement | null, selectedNames?: string[]) => void;
-  saveJianContent: (content: string) => void;
-}
-
-function getDeskCtx(): DeskCtx {
-  const desk = window.HanaModules.desk as Record<string, unknown>;
-  return {
-    hanaFetch: (window.__hanaState as Record<string, unknown>).hanaFetch as DeskCtx['hanaFetch']
-      || ((_path: string) => Promise.reject(new Error('hanaFetch not available'))),
-    loadDeskFiles: desk.loadDeskFiles as DeskCtx['loadDeskFiles'],
-    deskFullPath: desk.deskFullPath as DeskCtx['deskFullPath'],
-    openPreview: (window.HanaModules.artifacts as Record<string, unknown>).openPreview as DeskCtx['openPreview'],
-    showDeskContextMenu: desk.showDeskContextMenu as DeskCtx['showDeskContextMenu'],
-    saveJianContent: desk.saveJianContent as DeskCtx['saveJianContent'],
-  };
-}
-
 // ── 拖放处理 ──
 
-function DeskDropZone({ children }: { children: React.ReactNode }) {
+function DeskDropZone({ children, onShowMenu }: { children: React.ReactNode; onShowMenu: (state: CtxMenuState) => void }) {
   const [dragging, setDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -598,8 +705,16 @@ function DeskDropZone({ children }: { children: React.ReactNode }) {
     if ((e.target as HTMLElement).closest('.jian-editor')) return;
     e.preventDefault();
     e.stopPropagation();
-    getDeskCtx().showDeskContextMenu(e.clientX, e.clientY, null, null);
-  }, []);
+    const tFn = (window as any).t ?? ((p: string) => p);
+    onShowMenu({
+      position: { x: e.clientX, y: e.clientY },
+      items: [
+        { label: tFn('desk.ctx.newMdFile'), action: () => deskCreateFile('') },
+        { label: tFn('desk.ctx.newFolder'), action: () => deskMkdir() },
+        { label: tFn('desk.ctx.openInFinder'), action: () => { const p = deskCurrentDir(); if (p) window.platform?.showInFinder?.(p); } },
+      ],
+    });
+  }, [onShowMenu]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
@@ -611,7 +726,6 @@ function DeskDropZone({ children }: { children: React.ReactNode }) {
 
     const files = e.dataTransfer.files;
     const text = e.dataTransfer.getData('text/plain');
-    const desk = window.HanaModules.desk as Record<string, unknown>;
 
     if (files && files.length > 0) {
       const paths: string[] = [];
@@ -620,12 +734,10 @@ function DeskDropZone({ children }: { children: React.ReactNode }) {
         if (p) paths.push(p);
       }
       if (paths.length > 0) {
-        const uploadFn = desk.deskUploadFiles as ((paths: string[]) => Promise<void>) | undefined;
-        await uploadFn?.(paths);
+        await deskUploadFiles(paths);
       }
     } else if (text) {
-      const createFn = desk.deskCreateFile as ((text: string) => Promise<void>) | undefined;
-      await createFn?.(text);
+      await deskCreateFile(text);
     }
   }, []);
 
@@ -659,7 +771,6 @@ async function loadCwdSkills() {
   } catch {}
 }
 
-// 旧接口兼容（useCwdSkillsOpen 保留给不直接用 store 的地方）
 function useCwdSkillsOpen() {
   const cwdSkills = useStore(s => s.cwdSkills);
   const cwdSkillsOpen = useStore(s => s.cwdSkillsOpen);
@@ -676,7 +787,6 @@ function DeskCwdSkillsButton() {
   const { open, skills, toggle } = useCwdSkillsOpen();
   const loadedRef = useRef('');
 
-  // 切换文件夹时重新加载
   useEffect(() => {
     if (deskBasePath && deskBasePath !== loadedRef.current) {
       loadCwdSkills().then(() => { loadedRef.current = deskBasePath; });
@@ -730,7 +840,6 @@ function DeskCwdSkillsPanel() {
   const [cmPos, setCmPos] = useState<{ x: number; y: number } | null>(null);
   const [cmSkill, setCmSkill] = useState<CwdSkill | null>(null);
 
-  // 点击任意位置关闭右键菜单
   useEffect(() => {
     if (!cmPos) return;
     const close = () => { setCmPos(null); setCmSkill(null); };
@@ -754,7 +863,6 @@ function DeskCwdSkillsPanel() {
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
-    // 不 stopPropagation：让书桌的 drop handler 也执行（它会检测 .desk-cwd-panel 跳过复制）
     setDragging(false);
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
@@ -784,7 +892,6 @@ function DeskCwdSkillsPanel() {
       }
     }
     if (installed) await loadCwdSkills();
-    // 也刷新书桌技能快捷区
     (window as any).__loadDeskSkills?.();
   }, []);
 
@@ -809,7 +916,6 @@ function DeskCwdSkillsPanel() {
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { handleDrop(e); }}
       >
-        {/* 说明文案 + 装饰线 */}
         <div className="desk-cwd-desc-line">
           <span className="desk-cwd-desc-deco" />
           <span className="desk-cwd-desc-text">{t('desk.cwdSkillsDesc') || '技能跟随工作空间'}</span>
@@ -858,7 +964,6 @@ function DeskCwdSkillsPanel() {
             <p className="desk-cwd-hint">{t('desk.cwdSkillsDrop') || '拖入文件夹或 .zip 安装技能'}</p>
           </>
         )}
-        {/* 右键菜单 */}
         {cmPos && (
           <div className="desk-cwd-ctx-menu" style={{ position: 'fixed', left: cmPos.x, top: cmPos.y, zIndex: 9999 }}>
             <button onClick={() => {
@@ -893,9 +998,9 @@ function DeskSkillsSection() {
     () => localStorage.getItem(DESK_SKILLS_KEY) === '1',
   );
 
-  const loadDeskSkills = useCallback(async () => {
+  const loadDeskSkillsFn = useCallback(async () => {
     try {
-      const res = await getDeskCtx().hanaFetch('/api/skills');
+      const res = await hanaFetch('/api/skills');
       const data = await res.json();
       const all = (data.skills || []) as Array<{
         name: string; enabled: boolean; hidden?: boolean;
@@ -913,11 +1018,10 @@ function DeskSkillsSection() {
   }, []);
 
   useEffect(() => {
-    loadDeskSkills();
-    // 挂到 window 上供 app.js 事件驱动刷新
-    (window as any).__loadDeskSkills = loadDeskSkills;
+    loadDeskSkillsFn();
+    (window as any).__loadDeskSkills = loadDeskSkillsFn;
     return () => { delete (window as any).__loadDeskSkills; };
-  }, [loadDeskSkills]);
+  }, [loadDeskSkillsFn]);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed(prev => {
@@ -928,7 +1032,6 @@ function DeskSkillsSection() {
   }, []);
 
   const toggleSkill = useCallback(async (name: string, enable: boolean) => {
-    // 乐观更新
     const prev = useStore.getState().deskSkills;
     useStore.getState().setDeskSkills(
       prev.map(s => s.name === name ? { ...s, enabled: enable } : s),
@@ -938,13 +1041,12 @@ function DeskSkillsSection() {
     try {
       const state = (window as any).__hanaState || {};
       const agentId = state.currentAgentId || '';
-      await getDeskCtx().hanaFetch(`/api/agents/${agentId}/skills`, {
+      await hanaFetch(`/api/agents/${agentId}/skills`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: enabledList }),
       });
     } catch {
-      // 回滚
       useStore.getState().setDeskSkills(prev);
     }
   }, []);
@@ -990,11 +1092,21 @@ function DeskSkillsSection() {
 // ── 主组件 ──
 
 export function DeskSection() {
-  // 订阅 deskFiles：初始化后会变化，驱动重渲染以获取正确的 t() 翻译
   useStore(s => s.deskFiles);
   const [sortMode, setSortMode] = useState<SortMode>(
     () => (localStorage.getItem(DESK_SORT_KEY) as SortMode) || 'mtime-desc',
   );
+
+  // ── 共享 context menu 状态 ──
+  const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
+
+  const handleShowMenu = useCallback((state: CtxMenuState) => {
+    setCtxMenu(state);
+  }, []);
+
+  const handleCloseMenu = useCallback(() => {
+    setCtxMenu(null);
+  }, []);
 
   const portalTarget = document.getElementById('jianDeskPortal');
   if (!portalTarget) {
@@ -1005,22 +1117,31 @@ export function DeskSection() {
   const t = window.t ?? ((p: string) => p);
 
   return createPortal(
-    <DeskDropZone>
-      <div className="jian-desk-header">
-        <div className="jian-section-title">{t('desk.title')}</div>
-        <DeskCwdSkillsButton />
-      </div>
-      <DeskOpenButton />
-      <DeskCwdSkillsPanel />
-      <DeskSkillsSection />
-      <div className="jian-desk-toolbar">
-        <DeskBreadcrumb />
-        <DeskSortButton sortMode={sortMode} onSort={setSortMode} />
-      </div>
-      <DeskFileList sortMode={sortMode} />
-      <JianEditor />
-      <DeskEmptyOverlay />
-    </DeskDropZone>,
+    <>
+      <DeskDropZone onShowMenu={handleShowMenu}>
+        <div className="jian-desk-header">
+          <div className="jian-section-title">{t('desk.title')}</div>
+          <DeskCwdSkillsButton />
+        </div>
+        <DeskOpenButton />
+        <DeskCwdSkillsPanel />
+        <DeskSkillsSection />
+        <div className="jian-desk-toolbar">
+          <DeskBreadcrumb />
+          <DeskSortButton sortMode={sortMode} onSort={setSortMode} onShowMenu={handleShowMenu} />
+        </div>
+        <DeskFileList sortMode={sortMode} onShowMenu={handleShowMenu} />
+        <JianEditor />
+        <DeskEmptyOverlay />
+      </DeskDropZone>
+      {ctxMenu && (
+        <ContextMenu
+          items={ctxMenu.items}
+          position={ctxMenu.position}
+          onClose={handleCloseMenu}
+        />
+      )}
+    </>,
     portalTarget,
   );
 }

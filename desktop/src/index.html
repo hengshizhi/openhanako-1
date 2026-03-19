@@ -37,7 +37,6 @@
     <div class="app">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-inner">
-                <!-- 聊天 tab 内容 -->
                 <div class="sidebar-chat-content" id="sidebarChatContent">
                     <div class="sidebar-header">
                         <span class="sidebar-title"></span>
@@ -128,7 +127,6 @@
         </aside>
 
         <div class="main-content">
-            <!-- 浏览器浮动卡片：已迁移到 React (BrowserCard) -->
             <div id="browserCardPortal"></div>
             <div class="drop-overlay" id="dropOverlay">
                 <div class="drop-overlay-inner">
@@ -147,7 +145,6 @@
                 <div id="inputAreaPortal" style="display:contents"></div>
             </div>
 
-            <!-- 频道视图（IM 模式） -->
             <div class="channel-view" id="channelView">
                 <div class="channel-header" id="channelHeader">
                     <div class="channel-header-info">
@@ -190,25 +187,17 @@
                 </div>
             </div>
 
-            <!-- 助手活动 + 任务计划面板：已迁移到 React (ActivityPanel / AutomationPanel) -->
-
-            <!-- 接入面板（bridge）：已迁移到 React (BridgePanel) -->
-
         </div>
 
-        <!-- Artifact 预览面板：已迁移到 React (PreviewPanel) -->
         <div id="previewPortal" style="display:contents"></div>
 
-        <!-- 笺（Jian）右侧 sidebar -->
         <aside class="jian-sidebar" id="jianSidebar">
             <div class="resize-handle resize-handle-left" id="jianResizeHandle"></div>
             <div class="jian-sidebar-inner">
-                <!-- 聊天 tab：书桌内容（已迁移到 React DeskSection） -->
                 <div class="jian-chat-content" id="jianChatContent">
                     <div id="jianDeskPortal" style="display:contents"></div>
                 </div>
 
-                <!-- 频道 tab：频道信息 -->
                 <div class="jian-channel-content hidden" id="jianChannelContent">
                     <div class="jian-card">
                         <div class="channel-info-section">
@@ -231,7 +220,6 @@
         <span class="status-text"></span>
     </div>
 
-    <!-- 新建频道弹窗 -->
     <div class="agent-create-overlay" id="channelCreateOverlay">
         <div class="agent-create-card">
             <h3 class="agent-create-title">新建频道</h3>
@@ -261,11 +249,6 @@
     <script src="modules/platform.js"></script>
     <script src="modules/icons.js"></script>
     <script src="modules/utils.js"></script>
-    <!-- file-cards.js + artifacts.js: 已迁移到 React -->
-    <!-- chat-render.js: 已迁移到 bridge.ts (Phase 3e) -->
-    <!-- activity.js + bridge.js: 已迁移到 React -->
-    <!-- desk.js: 已迁移到 React (DeskSection + bridge.ts desk shim) -->
-    <!-- sidebar.js + channels.js: 已迁移到 shims/sidebar-shim.ts + channels-shim.ts (Phase 3f) -->
     <script src="app.js"></script>
     <script type="module" src="./main.tsx"></script>
 </body>

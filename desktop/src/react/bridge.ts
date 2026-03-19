@@ -4,20 +4,24 @@
  * 核心机制：app.js 的 state 是 Proxy，React mount 后激活，
  * 读写直接走 Zustand，不再需要双向同步。
  *
- * 每迁移完一个模块，就从 bridge 里移除对应 shim。全部迁完后 bridge 删除。
+ * setupLegacyShims() 把已迁移到 React 的模块注册到 window.HanaModules，
+ * 供 app.js init() 和残留旧代码通过懒引用调用。
  */
 
 import { useStore, type StoreState } from './stores';
 import { hanaFetch } from './hooks/use-hana-fetch';
-import { setupSidebarShim } from './shims/sidebar-shim';
-// channels-shim 已迁移到 React (ChannelsPanel)
-import { setupAppMessagesShim } from './shims/app-messages-shim';
-import { setupAppAgentsShim } from './shims/app-agents-shim';
-import { setupAppWsShim } from './shims/app-ws-shim';
-import { setupAppUiShim } from './shims/app-ui-shim';
-import { setupArtifactsShim } from './shims/artifacts-shim';
-import { setupDeskShim } from './shims/desk-shim';
-// chat-render-shim 和 panel-manager 已删除，聊天渲染由 React ChatArea 管理
+import * as sessionActions from './stores/session-actions';
+import { loadMessages } from './stores/session-actions';
+import { applyTbToggleState, hideFloatCard, updateLayout, toggleSidebar } from './components/SidebarLayout';
+import * as agentActions from './stores/agent-actions';
+import { yuanFallbackAvatar, randomWelcome, yuanPlaceholder } from './utils/agent-helpers';
+import { parseMoodFromContent, parseXingFromContent, parseUserAttachments, cleanMoodText, moodLabel } from './utils/message-parser';
+import { connectWebSocket } from './services/websocket';
+import { handleServerMessage, applyStreamingStatus } from './services/ws-message-handler';
+import { requestStreamResume } from './services/stream-resume';
+import { setStatus, showError, loadModels, applyStaticI18n } from './utils/ui-helpers';
+import * as artifactActions from './stores/artifact-actions';
+import * as deskActions from './stores/desk-actions';
 
 declare global {
   interface Window {
@@ -37,66 +41,178 @@ function activateProxy(): void {
     () => useStore.getState(),
     (patch) => useStore.setState(patch),
   );
-  // 暴露 store 给非 React 代码（sidebar-shim 等）
+  // 暴露 store 给非 React 代码
   (window as any).__zustandStore = { getState: () => useStore.getState() };
 }
 
 /**
  * 兼容 shim：已迁移到 React 的模块仍被旧代码引用
- * sidebar.js 的 switchSession / createNewSession 需要关闭浮动面板
  */
 function setupLegacyShims(): void {
   const modules = ((window as unknown as Record<string, unknown>).HanaModules ||= {}) as Record<string, unknown>;
 
-  // activity.js + automation（Phase 3a 迁移到 React）
-  if (!modules.activity) {
-    modules.activity = {
-      isActivityVisible: () => useStore.getState().activePanel === 'activity',
-      hideActivityPanel: () => useStore.getState().setActivePanel(null),
-      closeActivityDetail: () => { /* detail 由 React 内部 state 管理，关面板即清 */ },
-      isAutomationVisible: () => useStore.getState().activePanel === 'automation',
-      hideAutomationPanel: () => useStore.getState().setActivePanel(null),
-    };
-  }
+  // activity / automation 面板状态
+  modules.activity = {
+    isActivityVisible: () => useStore.getState().activePanel === 'activity',
+    hideActivityPanel: () => useStore.getState().setActivePanel(null),
+    closeActivityDetail: () => {},
+    isAutomationVisible: () => useStore.getState().activePanel === 'automation',
+    hideAutomationPanel: () => useStore.getState().setActivePanel(null),
+  };
 
-  // bridge.js（Phase 3b 迁移到 React）
-  if (!modules.bridge) {
-    modules.bridge = {
-      isBridgeVisible: () => useStore.getState().activePanel === 'bridge',
-      hideBridgePanel: () => useStore.getState().setActivePanel(null),
-    };
-  }
+  // bridge 面板状态
+  modules.bridge = {
+    isBridgeVisible: () => useStore.getState().activePanel === 'bridge',
+    hideBridgePanel: () => useStore.getState().setActivePanel(null),
+  };
 
-  // artifacts（Phase 3c）
-  setupArtifactsShim(modules);
+  // artifacts
+  modules.artifacts = {
+    handleArtifact: (data: any) => artifactActions.handleArtifact(data),
+    renderBrowserCard: () => {},
+    openPreview: (a: any) => artifactActions.openPreview(a),
+    closePreview: () => artifactActions.closePreview(),
+    initArtifacts: () => {},
+  };
+  artifactActions.initEditorEvents();
 
-  // desk（Phase 3d）
-  setupDeskShim(modules);
+  // desk
+  let _ctxMenuCleanup: (() => void) | null = null;
+  modules.desk = {
+    initJian: () => deskActions.initJian(),
+    toggleJianSidebar: (...a: [boolean?]) => deskActions.toggleJianSidebar(...a),
+    loadDeskFiles: (...a: [string?, string?]) => deskActions.loadDeskFiles(...a),
+    renderDeskFiles: () => {},
+    deskFullPath: (n: string) => deskActions.deskFullPath(n),
+    deskCurrentDir: () => deskActions.deskCurrentDir(),
+    showContextMenu: (x: number, y: number, items: Array<{ label?: string; action?: () => void; danger?: boolean; divider?: boolean }>) => {
+      // 命令式 DOM 菜单：给 ChannelsPanel 等尚未迁移到 React ContextMenu 的调用者使用
+      (modules.desk as any).hideContextMenu();
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      for (const item of items) {
+        if (item.divider) { const d = document.createElement('div'); d.className = 'context-menu-divider'; menu.appendChild(d); continue; }
+        const el = document.createElement('div');
+        el.className = 'context-menu-item' + (item.danger ? ' danger' : '');
+        el.textContent = item.label || '';
+        el.addEventListener('click', (ev) => { ev.stopPropagation(); (modules.desk as any).hideContextMenu(); item.action?.(); });
+        menu.appendChild(el);
+      }
+      document.body.appendChild(menu);
+      const rect = menu.getBoundingClientRect();
+      if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 4;
+      if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 4;
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+      (window as any).__ctxMenu = menu;
+      setTimeout(() => {
+        if ((window as any).__ctxMenu !== menu) return;
+        const close = (ev: MouseEvent) => {
+          if ((window as any).__ctxMenu?.contains(ev.target as Node)) return;
+          (modules.desk as any).hideContextMenu();
+        };
+        document.addEventListener('click', close, true);
+        document.addEventListener('contextmenu', close, true);
+        _ctxMenuCleanup = () => {
+          document.removeEventListener('click', close, true);
+          document.removeEventListener('contextmenu', close, true);
+        };
+      });
+    },
+    hideContextMenu: () => {
+      const m = (window as any).__ctxMenu;
+      if (m) { m.remove(); (window as any).__ctxMenu = null; }
+      if (_ctxMenuCleanup) { _ctxMenuCleanup(); _ctxMenuCleanup = null; }
+    },
+    showDeskContextMenu: () => {},
+    toggleMemory: () => deskActions.toggleMemory(),
+    updateMemoryToggle: () => {},
+    selectFolder: () => {},
+    applyFolder: (f: string) => deskActions.applyFolder(f),
+    updateFolderButton: () => {},
+    updateDeskContextBtn: () => deskActions.updateDeskContextBtn(),
+    saveJianContent: (c?: string) => deskActions.saveJianContent(c),
+    deskUploadFiles: (p: string[]) => deskActions.deskUploadFiles(p),
+    deskCreateFile: (t: string) => deskActions.deskCreateFile(t),
+    deskRemoveFile: (n: string) => deskActions.deskRemoveFile(n),
+    deskMoveFiles: (ns: string[], d: string) => deskActions.deskMoveFiles(ns, d),
+    deskMkdir: () => deskActions.deskMkdir(),
+    initDesk: () => {},
+  };
 
-  // sidebar（Phase 3f）
-  setupSidebarShim(modules);
+  // sidebar
+  modules.sidebar = {
+    loadSessions: () => sessionActions.loadSessions(),
+    switchSession: (p: string) => sessionActions.switchSession(p),
+    createNewSession: () => sessionActions.createNewSession(),
+    ensureSession: () => sessionActions.ensureSession(),
+    archiveSession: (p: string) => sessionActions.archiveSession(p),
+    toggleSidebar: (forceOpen?: boolean) => toggleSidebar(forceOpen),
+    updateTbToggleState: () => applyTbToggleState(),
+    updateLayout: () => updateLayout(),
+    initSidebar: () => {},
+    initSidebarResize: () => {},
+    initSidebarModule: () => {},
+    dismissFloat: () => hideFloatCard(),
+  };
 
-  // channels（已迁移到 React ChannelsPanel，只保留兼容 shim 给 _ch() 调用者）
-  if (!modules.channels) {
-    modules.channels = {
-      initChannels: () => {},
-      switchTab: (tab: string) => useStore.getState().setCurrentTab(tab as any),
-      loadChannels: () => useStore.getState().loadChannels(),
-      updateChannelTabBadge: () => {},
-      renderChannelList: () => {},
-      renderChannelMessages: () => {},
-      openChannel: (id: string, isDM?: boolean) => useStore.getState().openChannel(id, isDM),
-    };
-  }
+  // channels
+  modules.channels = {
+    initChannels: () => {},
+    switchTab: (tab: string) => useStore.getState().setCurrentTab(tab as any),
+    loadChannels: () => useStore.getState().loadChannels(),
+    updateChannelTabBadge: () => {},
+    renderChannelList: () => {},
+    renderChannelMessages: () => {},
+    openChannel: (id: string, isDM?: boolean) => useStore.getState().openChannel(id, isDM),
+  };
 
-  // app.js 分解（Phase 4）
-  setupAppMessagesShim(modules);
-  setupAppAgentsShim(modules);
-  setupAppWsShim(modules);
-  setupAppUiShim(modules);
+  // appMessages
+  modules.appMessages = {
+    cleanMoodText,
+    moodLabel,
+    parseMoodFromContent,
+    parseXingFromContent,
+    parseUserAttachments,
+    loadMessages: () => loadMessages(),
+    initAppMessages: () => {},
+  };
 
-  // Phase 6A: input shim — 大部分逻辑已移入 React InputArea，
-  // 只保留拖拽附件（事件绑定在 mainContent 上，不在 portal 内）
+  // appAgents
+  modules.appAgents = {
+    yuanFallbackAvatar: (yuan: string) => yuanFallbackAvatar(yuan),
+    randomWelcome: (name?: string, yuan?: string) => randomWelcome(name, yuan),
+    yuanPlaceholder: (yuan?: string) => yuanPlaceholder(yuan),
+    renderWelcomeAgentSelector: () => {},
+    clearChat: () => agentActions.clearChat(),
+    applyAgentIdentity: (opts: any) => agentActions.applyAgentIdentity(opts),
+    loadAgents: () => agentActions.loadAgents(),
+    loadAvatars: (info?: Record<string, boolean>) => agentActions.loadAvatars(info),
+    initAppAgents: () => {},
+  };
+
+  // appWs
+  modules.appWs = {
+    connectWS: () => connectWebSocket(),
+    handleServerMessage: (msg: any) => handleServerMessage(msg),
+    requestStreamResume: (sp?: string, opts?: any) => requestStreamResume(sp, opts),
+    applyStreamingStatus: (s: boolean) => applyStreamingStatus(s),
+    initAppWs: () => {},
+  };
+
+  // appUi
+  modules.appUi = {
+    scrollToBottom: () => {},
+    resetScroll: () => {},
+    initScrollListener: () => {},
+    setStatus: (text: string, connected: boolean) => setStatus(text, connected),
+    showError: (msg: string) => showError(msg),
+    loadModels: () => loadModels(),
+    applyStaticI18n: () => applyStaticI18n(),
+    initAppUi: () => {},
+  };
+
+  // appInput（拖拽附件绑定在 mainContent 上，不在 portal 内）
   {
     let dragCounter = 0;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

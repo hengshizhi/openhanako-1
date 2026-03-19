@@ -1,12 +1,10 @@
 /**
- * artifacts-shim.ts — Artifact 预览管理
+ * artifact-actions.ts — Artifact 预览管理
  *
- * DOM 渲染函数（appendArtifactCard / appendBrowserScreenshot）已删除，
- * 由 React ContentBlock 组件替代。
- * 保留：openPreview / closePreview / handleArtifact（store 操作）+ 编辑器事件。
+ * 从 artifacts-shim.ts 迁移。纯 Zustand store 操作 + updateLayout。
  */
 
-import { useStore } from '../stores';
+import { useStore } from './index';
 import type { Artifact } from '../types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -37,7 +35,7 @@ export function closePreview(): void {
 }
 
 /** 注册 artifact 到全局 store（流式事件 + 点击卡片都走这里） */
-function handleArtifact(data: Record<string, unknown>): void {
+export function handleArtifact(data: Record<string, unknown>): void {
   const id = (data.artifactId as string) || `artifact-${++_artifactCounter}`;
   const artifact: Artifact = {
     id,
@@ -54,16 +52,11 @@ function handleArtifact(data: Record<string, unknown>): void {
   s.setArtifacts(arts);
 }
 
-export function setupArtifactsShim(modules: Record<string, unknown>): void {
-  modules.artifacts = {
-    handleArtifact,
-    renderBrowserCard: () => {},
-    openPreview,
-    closePreview,
-    initArtifacts: () => {},
-  };
-
-  // 编辑器窗口 dock 回来时，重新在主窗口打开预览
+/**
+ * 注册编辑器 dock/detach 事件监听
+ * 在 App mount 时调用一次
+ */
+export function initEditorEvents(): void {
   window.platform?.onEditorDockFile?.((data: any) => {
     const s = useStore.getState();
     const existing = s.artifacts.find(a => a.filePath === data.filePath);
@@ -86,7 +79,6 @@ export function setupArtifactsShim(modules: Record<string, unknown>): void {
     useStore.getState().setEditorDetached(false);
   });
 
-  // 编辑器窗口关闭/隐藏时，同步状态
   window.platform?.onEditorDetached?.((detached: boolean) => {
     useStore.getState().setEditorDetached(detached);
   });

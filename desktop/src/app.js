@@ -1,102 +1,27 @@
 /**
- * Hanako Desktop — 前端主入口
+ * Hanako Desktop — 前端主入口（Vanilla JS 残留层）
  *
- * 纯 Vanilla JS，与 Hana Server 通过 HTTP + WebSocket 通信。
- * Phase 5 后只保留：state、DOM 引用、markdown-it、工具函数、
- * initModules 编排、init 启动。
+ * 大部分逻辑已迁移到 React（stores / services / components）。
+ * 此文件保留：
+ * - state Proxy（旧代码 ↔ Zustand 桥接，大量模块仍通过 __hanaState 访问）
+ * - hanaFetch / __hanaLog（init 启动流程 + 错误上报）
+ * - init()（加载 config / health / agent / WS / sessions 的编排入口）
+ * - 全局 drag 阻止、panel 事件绑定、settings 快捷键
  */
 
 // ── 阻止 Electron 默认的文件拖入导航行为 ──
 document.addEventListener("dragover", (e) => e.preventDefault());
 document.addEventListener("drop", (e) => e.preventDefault());
 
-// ── 拆分模块引用 ──
-const { escapeHtml, injectCopyButtons } = window.HanaModules.utils;
-const _ch = () => window.HanaModules.channels;
-const _ar = () => window.HanaModules.artifacts;
+// ── 模块懒引用（bridge.ts setupLegacyShims 注入） ──
 const _sb = () => window.HanaModules.sidebar;
 const _dk = () => window.HanaModules.desk;
-// app.js 分解（Phase 4 + 5）
-const _msg = () => window.HanaModules.appMessages;
 const _ag = () => window.HanaModules.appAgents;
 const _ws = () => window.HanaModules.appWs;
 const _ui = () => window.HanaModules.appUi;
 
-// Activity / Automation / Bridge：React 渲染，这里只 toggle store state
-const _setPanel = (p) => { const s = _zustandGet?.(); if (s?.setActivePanel) s.setActivePanel(p); else state.activePanel = p; };
-const showActivityPanel = () => _setPanel("activity");
-const hideActivityPanel = () => { if (state.activePanel === "activity") _setPanel(null); };
-const isActivityVisible = () => state.activePanel === "activity";
-const showAutomationPanel = () => _setPanel("automation");
-const hideAutomationPanel = () => { if (state.activePanel === "automation") _setPanel(null); };
-const isAutomationVisible = () => state.activePanel === "automation";
-const renderActivityPanel = () => {};
-const closeActivityDetail = () => {};
-async function loadAutomationBadge() {
-  try {
-    const res = await hanaFetch("/api/desk/cron");
-    const data = await res.json();
-    const count = (data.jobs || []).length;
-    const badge = document.getElementById("automationCountBadge");
-    if (badge) badge.textContent = count > 0 ? count : "";
-  } catch {}
-}
-
-// ── DOM 引用 ──
+// ── DOM 工具 ──
 const $ = (sel) => document.querySelector(sel);
-const settingsBtn = $("#settingsBtn");
-
-// ── Markdown 渲染器 ──
-const md = window.markdownit({
-  html: false,
-  breaks: true,
-  linkify: true,
-  typographer: true,
-});
-
-// GFM task list: [ ] → unchecked checkbox, [x] → checked checkbox
-md.core.ruler.after("inline", "gfm-task-list", (mdState) => {
-  const tokens = mdState.tokens;
-  for (let i = 2; i < tokens.length; i++) {
-    if (tokens[i].type !== "inline" || !tokens[i].children?.length) continue;
-    if (tokens[i - 1].type !== "paragraph_open") continue;
-    if (tokens[i - 2].type !== "list_item_open") continue;
-    const first = tokens[i].children[0];
-    if (first.type !== "text") continue;
-    const m = first.content.match(/^\[([ xX])\]\s?/);
-    if (!m) continue;
-    const checked = m[1] !== " ";
-    first.content = first.content.slice(m[0].length);
-    const cb = new mdState.Token("html_inline", "", 0);
-    cb.content = `<input type="checkbox" disabled${checked ? " checked" : ""}> `;
-    tokens[i].children.unshift(cb);
-    tokens[i - 2].attrJoin("class", "task-list-item");
-  }
-});
-
-// 安全加固：所有链接添加 target="_blank" + rel="noopener noreferrer"
-const _defaultLinkOpen = md.renderer.rules.link_open ||
-  function (tokens, idx, options, _env, self) { return self.renderToken(tokens, idx, options); };
-
-md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
-  const hrefIdx = tokens[idx].attrIndex("href");
-  if (hrefIdx >= 0) {
-    const href = tokens[idx].attrs[hrefIdx][1] || "";
-    if (!/^https?:\/\//i.test(href) && !href.startsWith("/") && !href.startsWith("#")) {
-      tokens[idx].attrs[hrefIdx][1] = "#";
-    }
-  }
-  tokens[idx].attrSet("target", "_blank");
-  tokens[idx].attrSet("rel", "noopener noreferrer");
-  return _defaultLinkOpen(tokens, idx, options, env, self);
-};
-
-/** 构建带认证 token 的 URL */
-function hanaUrl(path) {
-  const sep = path.includes("?") ? "&" : "?";
-  const tokenParam = state.serverToken ? `${sep}token=${state.serverToken}` : "";
-  return `http://127.0.0.1:${state.serverPort}${path}${tokenParam}`;
-}
 
 /** 带认证的 fetch 封装（30s 超时 + res.ok 校验） */
 async function hanaFetch(path, opts = {}) {
@@ -139,13 +64,8 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 // ── 状态 ──
-// DOM ref / 流式渲染字段，只存本地，不同步到 Zustand
-const LOCAL_ONLY_KEYS = new Set([
-  'currentGroup', 'currentAssistantEl', 'currentTextEl',
-  'currentTextBuffer', 'currentMoodEl', 'currentMoodWrapper',
-  'inMood', 'lastRole', 'currentToolGroup', 'ws',
-  'inXing', 'xingTitle', 'xingCardEl', '_xingBuf',
-]);
+// ws 字段只存本地，不同步到 Zustand
+const LOCAL_ONLY_KEYS = new Set(['ws']);
 
 const _stateLocal = {
   serverPort: null,
@@ -155,20 +75,6 @@ const _stateLocal = {
   isStreaming: false,
   models: [],
   currentModel: null,
-
-  currentGroup: null,
-  currentAssistantEl: null,
-  currentTextEl: null,
-  currentTextBuffer: "",
-  currentMoodEl: null,
-  currentMoodWrapper: null,
-  inMood: false,
-  inXing: false,
-  xingTitle: null,
-  xingCardEl: null,
-  _xingBuf: '',
-
-  lastRole: null,
 
   sessions: [],
   currentSessionPath: null,
@@ -193,8 +99,6 @@ const _stateLocal = {
   currentAgentId: null,
   selectedAgentId: null,
   settingsAgentId: null,
-
-  currentToolGroup: null,
 
   sessionTodos: [],
 
@@ -244,7 +148,7 @@ const state = new Proxy(_stateLocal, {
   },
 });
 
-// bridge 用：暴露 state Proxy 供 DOM ref 访问（currentAssistantEl 等）
+// bridge 用：暴露 state Proxy 供旧代码访问
 window.__hanaState = state;
 // 暴露 helper 给 bridge.ts desk shim（late-binding）
 state.clearChat = (...a) => _ag().clearChat(...a);
@@ -263,51 +167,6 @@ window.__hanaActivateProxy = function(getState, setState) {
   if (Object.keys(patch).length > 0) setState(patch);
 };
 
-// ── 初始化模块 ──
-function initModules() {
-  const _inp = () => window.HanaModules.appInput;
-
-  const sharedCtx = {
-    state, $, hanaFetch, hanaUrl,
-    yuanFallbackAvatar: (...a) => _ag().yuanFallbackAvatar(...a),
-  };
-
-  // Phase 5: UI shim (model/planMode/todo/scroll init removed — now React)
-  _ui().initAppUi({
-    state, $, hanaFetch,
-    connectionStatus: $("#connectionStatus"),
-    settingsBtn,
-    _dk,
-  });
-
-  // Phase 4: app.js 分解 shim
-  _msg().initAppMessages({
-    state, hanaFetch,
-    renderTodoDisplay: () => {},
-  });
-  _ag().initAppAgents({
-    state, hanaFetch, hanaUrl,
-    renderTodoDisplay: () => {},
-    _ar,
-  });
-  _ws().initAppWs({
-    state,
-    setStatus: (...a) => _ui().setStatus(...a),
-    showError: (...a) => _ui().showError(...a),
-    platform,
-    _ar, _sb, _ch, _dk, _msg, _ag,
-  });
-
-  _sb().initSidebarModule({
-    ...sharedCtx,
-    clearChat: (...a) => _ag().clearChat(...a),
-    loadMessages: (...a) => _msg().loadMessages(...a),
-    loadDeskFiles: (...a) => _dk().loadDeskFiles(...a),
-    updateFolderButton: (...a) => _dk().updateFolderButton(...a),
-    loadAvatars: (...a) => _ag().loadAvatars(...a),
-  });
-}
-
 // ── 初始化 ──
 async function init() {
   state.serverPort = await platform.getServerPort();
@@ -318,12 +177,10 @@ async function init() {
     return;
   }
 
-  initModules();
-
   try {
     const [healthRes, configRes] = await Promise.all([
-      hanaFetch(`/api/health`),
-      hanaFetch(`/api/config`),
+      hanaFetch("/api/health"),
+      hanaFetch("/api/config"),
     ]);
     const healthData = await healthRes.json();
     const configData = await configRes.json();
@@ -339,7 +196,6 @@ async function init() {
       state.cwdHistory = configData.cwd_history;
     }
     _ui().applyStaticI18n();
-    // 用 health 返回的 avatars 信息，避免 HEAD 请求 404
     _ag().loadAvatars(healthData.avatars);
   } catch (err) {
     console.error("[init] i18n/health/config failed:", err);
@@ -353,44 +209,38 @@ async function init() {
   state.pendingNewSession = true;
   await _ag().loadAgents();
   await _sb().loadSessions();
-  _ag().renderWelcomeAgentSelector();
-
-  _sb().initSidebar();
-  _sb().initSidebarResize();
-
-  $("#memoryToggleBtn")?.addEventListener("click", () => _dk().toggleMemory());
-  _dk().updateMemoryToggle();
 
   _dk().initJian();
-
   _inp().initDragDrop();
-
-  // channels 已迁移到 React (ChannelsPanel)，initChannels 为 no-op
-  _ch().initChannels();
-
   _sb().updateLayout();
 
   // 浮动面板按钮
-  $("#activityBar")?.addEventListener("click", () => {
-    if (isActivityVisible()) hideActivityPanel();
-    else showActivityPanel();
-  });
-  $("#automationBar")?.addEventListener("click", () => {
-    if (isAutomationVisible()) hideAutomationPanel();
-    else showAutomationPanel();
-  });
-  $("#bridgeBar")?.addEventListener("click", () => {
-    if (state.activePanel === "bridge") _setPanel(null);
-    else _setPanel("bridge");
-  });
+  const _togglePanel = (panel) => {
+    const s = _zustandGet?.();
+    if (s?.setActivePanel) {
+      s.setActivePanel(s.activePanel === panel ? null : panel);
+    } else {
+      state.activePanel = state.activePanel === panel ? null : panel;
+    }
+  };
+  $("#activityBar")?.addEventListener("click", () => _togglePanel("activity"));
+  $("#automationBar")?.addEventListener("click", () => _togglePanel("automation"));
+  $("#bridgeBar")?.addEventListener("click", () => _togglePanel("bridge"));
 
-  loadAutomationBadge();
+  // 任务计划 badge
+  try {
+    const res = await hanaFetch("/api/desk/cron");
+    const data = await res.json();
+    const count = (data.jobs || []).length;
+    const badge = document.getElementById("automationCountBadge");
+    if (badge) badge.textContent = count > 0 ? count : "";
+  } catch {}
 
   $("#browserBgBar")?.addEventListener("click", () => {
     platform?.openBrowserViewer?.();
   });
 
-  if (settingsBtn) settingsBtn.addEventListener("click", () => platform.openSettings());
+  $("#settingsBtn")?.addEventListener("click", () => platform.openSettings());
 
   document.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === ",") {
@@ -424,7 +274,6 @@ async function init() {
       case "agent-created":
       case "agent-deleted":
         _ag().loadAgents();
-        _ag().renderWelcomeAgentSelector();
         break;
       case "agent-updated":
         _ag().applyAgentIdentity({

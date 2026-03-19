@@ -12,8 +12,12 @@ import { SessionList } from './components/SessionList';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ChatArea } from './components/chat/ChatArea';
 import { ChannelsPanel } from './components/ChannelsPanel';
+import { SidebarLayout } from './components/SidebarLayout';
+import { useSidebarResize } from './hooks/use-sidebar-resize';
 
 function App() {
+  useSidebarResize();
+
   useEffect(() => {
     const cleanupBridge = initBridge();
 
@@ -29,6 +33,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <SidebarLayout />
       <ActivityPanel />
       <AutomationPanel />
       <BridgePanel />
