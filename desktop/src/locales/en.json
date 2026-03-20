@@ -1162,6 +1162,7 @@
     "installSkillSizeLimit": "Skill content exceeds size limit ({size}KB > {max}KB)",
     "installSkillNoUtility": "Safety review unavailable: utility model not configured. Please configure it in settings.",
     "installSkillUtilityIncomplete": "Safety review unavailable: utility model config incomplete (missing API key or base URL). Please complete it in settings.",
+    "installSkillSafetyPassed": "✓ Safety review passed",
     "installSkillSafetyEmpty": "Safety review returned empty response",
     "installSkillSafetyUnexpected": "Safety review returned unexpected format: {reply}",
     "installSkillSafetyTimeout": "Safety review timeout or network error",

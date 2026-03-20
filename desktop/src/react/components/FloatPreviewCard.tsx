@@ -61,10 +61,12 @@ export function FloatPreviewCard({
   state,
   onMouseEnter,
   onMouseLeave,
+  onAction,
 }: {
   state: FloatCardState;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onAction: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -88,14 +90,14 @@ export function FloatPreviewCard({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {state.side === 'left' ? <SessionListCard /> : <DeskListCard />}
+      {state.side === 'left' ? <SessionListCard onAction={onAction} /> : <DeskListCard />}
     </div>
   );
 }
 
 // ── 左侧：Session 列表 ──
 
-function SessionListCard() {
+function SessionListCard({ onAction }: { onAction: () => void }) {
   const sessions = useStore(s => s.sessions);
   const currentSessionPath = useStore(s => s.currentSessionPath);
   const agents = useStore(s => s.agents);
@@ -112,7 +114,7 @@ function SessionListCard() {
           <div
             key={sess.path}
             className={`float-card-item${sess.path === currentSessionPath ? ' active' : ''}`}
-            onClick={() => switchSession(sess.path)}
+            onClick={() => { onAction(); switchSession(sess.path); }}
           >
             <SessionAvatar sess={sess} agents={agents} agentYuan={agentYuan} />
             <span className="float-card-item-text">{sess.title || t('session.untitled')}</span>
@@ -120,14 +122,14 @@ function SessionListCard() {
         ))}
       </div>
       <div className="float-card-bar">
-        <div className="float-card-bar-btn" onClick={() => createNewSession()}>
+        <div className="float-card-bar-btn" onClick={() => { onAction(); createNewSession(); }}>
           + {t('sidebar.newChat')}
         </div>
         <span className="float-card-bar-divider" />
         <div
           className="float-card-bar-btn float-card-bar-icon"
           title={t('settings.title')}
-          onClick={() => (window as any).platform?.openSettings()}
+          onClick={() => { onAction(); (window as any).platform?.openSettings(); }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"></circle>

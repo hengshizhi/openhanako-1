@@ -15,7 +15,7 @@ export const createConnectionSlice = (
   serverPort: null,
   serverToken: null,
   connected: false,
-  statusKey: '',
+  statusKey: 'status.connecting',
   statusVars: {},
   setServerPort: (port) => set({ serverPort: port }),
   setServerToken: (token) => set({ serverToken: token }),

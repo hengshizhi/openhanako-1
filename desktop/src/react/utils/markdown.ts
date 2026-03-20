@@ -28,7 +28,7 @@ export function getMd(): MarkdownIt {
 const _cache = new Map<string, MarkdownIt>();
 
 /** 获取自定义选项的 md 实例（缓存复用） */
-export function getMdWithOpts(opts: markdownit.Options): MarkdownIt {
+export function getMdWithOpts(opts: Parameters<typeof markdownit>[0]): MarkdownIt {
   const key = JSON.stringify(opts);
   let inst = _cache.get(key);
   if (!inst) {

@@ -1162,6 +1162,7 @@
     "installSkillSizeLimit": "技能内容超过大小上限（{size}KB > {max}KB）",
     "installSkillNoUtility": "安全审查不可用：未配置 utility 模型，请在设置中配置辅助模型",
     "installSkillUtilityIncomplete": "安全审查不可用：辅助模型配置不完整（缺少 API key 或 base URL），请在设置中补全",
+    "installSkillSafetyPassed": "✓ 安全审查已通过",
     "installSkillSafetyEmpty": "安全审查返回空响应",
     "installSkillSafetyUnexpected": "安全审查返回未预期的格式: {reply}",
     "installSkillSafetyTimeout": "安全审查超时或网络错误",
