@@ -10,6 +10,7 @@ import os from "os";
 import path from "path";
 import YAML from "js-yaml";
 import { loadGlobalProviders, resolveApiKeyFromAuth } from "../lib/memory/config-loader.js";
+import { t } from "../server/i18n.js";
 
 /** @deprecated 仅作为 fallback，调用方应通过 opts.modelsJsonPath 传入 */
 function getDefaultModelsJsonPath() {
@@ -179,16 +180,16 @@ export function syncFavoritesToModelsJson(configPath, opts = {}) {
     const { baseUrl, apiKey, api } = resolveProviderCredentials(provName, rawConfig, opts);
 
     if (!baseUrl) {
-      throw new Error(`provider "${provName}" 缺少 Base URL`);
+      throw new Error(t("error.providerMissingBaseUrl", { provider: provName }));
     }
     if (!api) {
-      throw new Error(`provider "${provName}" 缺少 API 协议配置`);
+      throw new Error(t("error.providerMissingApi", { provider: provName }));
     }
 
     // 本地服务（localhost）不需要 apiKey，给个占位符让 Pi SDK 通过 hasAuth
     const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(baseUrl);
     if (!apiKey && !isLocal) {
-      throw new Error(`provider "${provName}" 缺少 API Key`);
+      throw new Error(t("error.providerMissingApiKey", { provider: provName }));
     }
     const effectiveApiKey = apiKey || "local";
 

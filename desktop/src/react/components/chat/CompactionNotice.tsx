@@ -9,6 +9,7 @@ interface Props {
 }
 
 export const CompactionNotice = memo(function CompactionNotice({ yuan }: Props) {
+  const t = window.t ?? ((p: string) => p);
   return (
     <div className="compaction-notice" data-yuan={yuan}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -17,7 +18,7 @@ export const CompactionNotice = memo(function CompactionNotice({ yuan }: Props) 
         <polyline points="7 23 3 19 7 15" />
         <path d="M21 13v2a4 4 0 0 1-4 4H3" />
       </svg>
-      上下文压缩中
+      {t('chat.compacting')}
       <span className="thinking-dots"><span /><span /><span /></span>
     </div>
   );

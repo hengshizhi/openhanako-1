@@ -8,6 +8,7 @@
 import { useEffect, useState, useCallback } from 'react';
 
 export function WindowControls() {
+  const t = (window as any).t ?? ((p: string) => p);
   const [isWin, setIsWin] = useState(false);
   const [maximized, setMaximized] = useState(false);
 
@@ -31,10 +32,10 @@ export function WindowControls() {
 
   return (
     <div className="window-controls">
-      <button className="wc-btn wc-minimize" title="最小化" onClick={minimize}>
+      <button className="wc-btn wc-minimize" title={t('window.minimize')} onClick={minimize}>
         <svg width="12" height="12" viewBox="0 0 12 12"><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" strokeWidth="1"/></svg>
       </button>
-      <button className="wc-btn wc-maximize" title="最大化" onClick={maximize}>
+      <button className="wc-btn wc-maximize" title={t('window.maximize')} onClick={maximize}>
         <svg width="12" height="12" viewBox="0 0 12 12">
           {maximized
             ? <><rect x="3" y="1" width="7" height="7" fill="none" stroke="currentColor" strokeWidth="1"/><rect x="1" y="3" width="7" height="7" fill="none" stroke="currentColor" strokeWidth="1"/></>
@@ -42,7 +43,7 @@ export function WindowControls() {
           }
         </svg>
       </button>
-      <button className="wc-btn wc-close" title="关闭" onClick={close}>
+      <button className="wc-btn wc-close" title={t('window.close')} onClick={close}>
         <svg width="12" height="12" viewBox="0 0 12 12"><line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" strokeWidth="1"/><line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1"/></svg>
       </button>
     </div>

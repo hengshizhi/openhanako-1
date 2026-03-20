@@ -11,6 +11,7 @@ import YAML from "js-yaml";
 import { Agent } from "./agent.js";
 import { createModuleLogger } from "../lib/debug-log.js";
 import { clearConfigCache } from "../lib/memory/config-loader.js";
+import { t } from "../server/i18n.js";
 import { ActivityStore } from "../lib/desk/activity-store.js";
 import {
   generateAgentId as _generateAgentId,
@@ -82,6 +83,8 @@ export class AgentManager {
 
     const sharedModels = this._d.getSharedModels();
     const getOwnerIds = () => this._d.getPrefs().getPreferences()?.bridge?.owner || {};
+    const resolveModel = (bareId, agentConfig) =>
+      this._d.getModels().resolveModelWithCredentials(bareId, agentConfig);
 
     const entries = this._scanAgentDirs();
     const initOne = async (agentId) => {
@@ -90,6 +93,7 @@ export class AgentManager {
       await ag.init(
         agentId === this._activeAgentId ? log : () => {},
         sharedModels,
+        resolveModel,
       );
       this._agents.set(agentId, ag);
     };
@@ -177,14 +181,14 @@ export class AgentManager {
   // ── Create ──
 
   async createAgent({ name, id, yuan }) {
-    if (!name?.trim()) throw new Error("助手名字不能为空");
+    if (!name?.trim()) throw new Error(t("error.agentNameEmpty"));
 
     const agentId = id?.trim() || await this._generateAgentId(name);
-    if (/[\/\\]|\.\./.test(agentId)) throw new Error("助手 ID 包含非法字符");
+    if (/[\/\\]|\.\./.test(agentId)) throw new Error(t("error.agentIdInvalid"));
     const agentDir = path.join(this._d.agentsDir, agentId);
 
     if (fs.existsSync(agentDir)) {
-      throw new Error(`助手 "${agentId}" 已存在`);
+      throw new Error(t("error.agentAlreadyExists", { id: agentId }));
     }
 
     // 创建目录结构
@@ -218,7 +222,7 @@ export class AgentManager {
       const tmpl = fs.readFileSync(identityTemplate, "utf-8");
       const filled = tmpl
         .replace(/\{\{agentName\}\}/g, name.trim())
-        .replace(/\{\{userName\}\}/g, currentAgent?.userName || "用户");
+        .replace(/\{\{userName\}\}/g, currentAgent?.userName || t("error.fallbackUserName"));
       fs.writeFileSync(path.join(agentDir, "identity.md"), filled, "utf-8");
     }
 
@@ -234,8 +238,10 @@ export class AgentManager {
     // 初始化并加入长驻 Map
     const getOwnerIds = () => this._d.getPrefs().getPreferences()?.bridge?.owner || {};
     const ag = this._createAgentInstance(agentDir, getOwnerIds);
+    const resolveModel = (bareId, agentConfig) =>
+      this._d.getModels().resolveModelWithCredentials(bareId, agentConfig);
     try {
-      await ag.init(() => {}, this._d.getSharedModels());
+      await ag.init(() => {}, this._d.getSharedModels(), resolveModel);
     } catch (err) {
       // init 失败：回滚已创建的目录，防止孤儿残留
       try { fs.rmSync(agentDir, { recursive: true, force: true }); } catch {}
@@ -261,9 +267,9 @@ export class AgentManager {
   // ── Switch ──
 
   async switchAgentOnly(agentId) {
-    if (this._switching) throw new Error("正在切换助手，请稍后再试");
+    if (this._switching) throw new Error(t("error.agentSwitching"));
     if (!this._agents.has(agentId)) {
-      throw new Error(`助手 "${agentId}" 不存在或未初始化`);
+      throw new Error(t("error.agentNotFound", { id: agentId }));
     }
     this._switching = true;
     const prevAgentId = this._activeAgentId;
@@ -280,7 +286,7 @@ export class AgentManager {
       if (preferredId) {
         const model = models.availableModels.find(m => m.id === preferredId);
         if (!model) {
-          throw new Error(`agent "${agentId}" 配置的模型 "${preferredId}" 不在可用列表中`);
+          throw new Error(t("error.agentModelNotAvailable", { id: agentId, model: preferredId }));
         }
         models.defaultModel = model;
       }
@@ -317,12 +323,12 @@ export class AgentManager {
 
   async deleteAgent(agentId) {
     if (agentId === this._activeAgentId) {
-      throw new Error("不能删除当前正在使用的助手");
+      throw new Error(t("error.agentDeleteActive"));
     }
 
     const agentDir = path.join(this._d.agentsDir, agentId);
     if (!fs.existsSync(agentDir)) {
-      throw new Error(`助手 "${agentId}" 不存在`);
+      throw new Error(t("error.agentNotExists", { id: agentId }));
     }
 
     const ag = this._agents.get(agentId);
@@ -365,7 +371,7 @@ export class AgentManager {
   setPrimaryAgent(agentId) {
     const agentDir = path.join(this._d.agentsDir, agentId);
     if (!fs.existsSync(path.join(agentDir, "config.yaml"))) {
-      throw new Error(`助手 "${agentId}" 不存在`);
+      throw new Error(t("error.agentNotExists", { id: agentId }));
     }
     this._d.getPrefs().savePrimaryAgent(agentId);
   }

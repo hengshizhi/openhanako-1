@@ -274,7 +274,7 @@ export function SkillsTab() {
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          <span>{t('settings.skills.dropzone') || '拖入 .skill 或 .zip 文件'}</span>
+          <span>{t('settings.skills.dropzone')}</span>
         </div>
 
         {userSkills.length === 0 ? (
@@ -296,7 +296,7 @@ export function SkillsTab() {
 
       {/* 自学 Skills：权限 + 已学技能 */}
       <section className="settings-section">
-        <h2 className="settings-section-title">{t('settings.toolCaps.title') || '自学 Skills'}</h2>
+        <h2 className="settings-section-title">{t('settings.toolCaps.title')}</h2>
 
         {learnedSkills.length > 0 && (
           <div className="skills-list-block skills-list-block-spaced">
@@ -315,8 +315,8 @@ export function SkillsTab() {
         <div className="tool-caps-group">
           <div className="tool-caps-item">
             <div className="tool-caps-label">
-              <span className="tool-caps-name">自行创建 / 安装技能</span>
-              <span className="tool-caps-desc">允许 Agent 编写新技能或通过工具调用安装到自己的目录</span>
+              <span className="tool-caps-name">{t('settings.skills.learnCreate')}</span>
+              <span className="tool-caps-desc">{t('settings.skills.learnCreateDesc')}</span>
             </div>
             <Toggle
               on={learnEnabled}
@@ -339,8 +339,8 @@ export function SkillsTab() {
           {learnEnabled && (
             <div className="tool-caps-item tool-caps-sub">
               <div className="tool-caps-label">
-                <span className="tool-caps-name">从 GitHub / ClawHub 主动获取技能</span>
-                <span className="tool-caps-desc warn">开启后 Agent 会在执行专业任务时主动搜索并安装合适的技能，请谨慎</span>
+                <span className="tool-caps-name">{t('settings.skills.fetchRemote')}</span>
+                <span className="tool-caps-desc warn">{t('settings.skills.fetchRemoteDesc')}</span>
               </div>
               <Toggle
                 on={githubEnabled}
@@ -351,8 +351,8 @@ export function SkillsTab() {
           {learnEnabled && (
             <div className="tool-caps-item tool-caps-sub">
               <div className="tool-caps-label">
-                <span className="tool-caps-name">安装前安全审查</span>
-                <span className="tool-caps-desc">安装技能前通过 AI 检测 prompt injection 等安全风险</span>
+                <span className="tool-caps-name">{t('settings.skills.safetyReview')}</span>
+                <span className="tool-caps-desc">{t('settings.skills.safetyReviewDesc')}</span>
               </div>
               <Toggle
                 on={safetyReviewEnabled}
@@ -376,8 +376,8 @@ export function SkillsTab() {
 
       {/* 兼容技能 */}
       <section className="settings-section">
-        <h2 className="settings-section-title">{t('settings.skills.compatTitle') || '兼容技能'}</h2>
-        <p className="settings-desc">{t('settings.skills.compatDesc') || '自动发现其他 AI 工具安装的技能'}</p>
+        <h2 className="settings-section-title">{t('settings.skills.compatTitle')}</h2>
+        <p className="settings-desc">{t('settings.skills.compatDesc')}</p>
 
         <div className="compat-paths-group">
           {discoveredPaths.map(d => (
@@ -410,7 +410,7 @@ export function SkillsTab() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            <span>{t('settings.skills.compatAddPath') || '添加目录'}</span>
+            <span>{t('settings.skills.compatAddPath')}</span>
           </button>
         </div>
       </section>
@@ -418,25 +418,22 @@ export function SkillsTab() {
       {showGithubWarning && (
         <div className="hana-warning-overlay" onClick={() => setShowGithubWarning(false)}>
           <div className="hana-warning-box" onClick={(e) => e.stopPropagation()}>
-            <h3 className="hana-warning-title">关于主动获取技能</h3>
+            <h3 className="hana-warning-title">{t('settings.skills.fetchWarning.title')}</h3>
             <div className="hana-warning-body">
-              <p>开启后，Agent 在执行专业任务时会主动从 GitHub 和 ClawHub 搜索、下载并安装合适的技能。</p>
+              <p>{t('settings.skills.fetchWarning.body1')}</p>
+              <p>{t('settings.skills.fetchWarning.body2')}</p>
               <p>
-                虽然安装前会进行自动安全审查和 star 数门槛检查，
-                但仍存在以下风险：
-              </p>
-              <p>
-                1. 技能内容未经人工审核，可能包含不当指令<br />
-                2. Agent 可能安装与预期不符的技能<br />
-                3. 恶意技能可能尝试操控 Agent 行为
+                1. {t('settings.skills.fetchWarning.risk1')}<br />
+                2. {t('settings.skills.fetchWarning.risk2')}<br />
+                3. {t('settings.skills.fetchWarning.risk3')}
               </p>
             </div>
             <div className="hana-warning-actions">
               <button className="hana-warning-cancel" onClick={() => setShowGithubWarning(false)}>
-                取消
+                {t('common.cancel')}
               </button>
               <button className="hana-warning-confirm" onClick={confirmGithubFetch}>
-                我了解风险，开启
+                {t('settings.skills.fetchWarning.confirm')}
               </button>
             </div>
           </div>
@@ -446,19 +443,19 @@ export function SkillsTab() {
       {showSafetyWarning && (
         <div className="hana-warning-overlay" onClick={() => setShowSafetyWarning(false)}>
           <div className="hana-warning-box" onClick={(e) => e.stopPropagation()}>
-            <h3 className="hana-warning-title">关闭安全审查</h3>
+            <h3 className="hana-warning-title">{t('settings.skills.safetyWarning.title')}</h3>
             <div className="hana-warning-body">
-              <p>安全审查会在安装技能前检测潜在的恶意内容，包括：</p>
+              <p>{t('settings.skills.safetyWarning.body1')}</p>
               <p>
-                1. Prompt injection（越权指令）<br />
-                2. 过于宽泛的触发条件<br />
-                3. 社会工程和权限提升尝试
+                1. {t('settings.skills.safetyWarning.risk1')}<br />
+                2. {t('settings.skills.safetyWarning.risk2')}<br />
+                3. {t('settings.skills.safetyWarning.risk3')}
               </p>
-              <p>关闭后，所有技能将不经审查直接安装。</p>
+              <p>{t('settings.skills.safetyWarning.body2')}</p>
             </div>
             <div className="hana-warning-actions">
               <button className="hana-warning-cancel" onClick={() => setShowSafetyWarning(false)}>
-                取消
+                {t('common.cancel')}
               </button>
               <button className="hana-warning-confirm" onClick={async () => {
                 setShowSafetyWarning(false);
@@ -468,7 +465,7 @@ export function SkillsTab() {
                 );
                 await loadSettingsConfig();
               }}>
-                我了解风险，关闭审查
+                {t('settings.skills.safetyWarning.confirm')}
               </button>
             </div>
           </div>
@@ -606,7 +603,7 @@ function CompatPathDrawer({ dirPath, label, exists, isCustom, skills, nameHints,
         </div>
         <div className="compat-drawer-meta">
           {!exists ? (
-            <span className="compat-path-badge muted">{t('settings.skills.compatNotInstalled') || '未安装'}</span>
+            <span className="compat-path-badge muted">{t('settings.skills.compatNotInstalled')}</span>
           ) : skillCount > 0 ? (
             <span className="compat-path-badge">{skillCount}</span>
           ) : (
@@ -616,7 +613,7 @@ function CompatPathDrawer({ dirPath, label, exists, isCustom, skills, nameHints,
             <button
               className="compat-path-remove"
               onClick={(e) => { e.stopPropagation(); onRemove(dirPath); }}
-              title={t('settings.skills.compatRemove') || '移除'}
+              title={t('settings.skills.compatRemove')}
               style={{ opacity: 1 }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

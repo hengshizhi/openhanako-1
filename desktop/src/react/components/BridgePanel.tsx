@@ -167,7 +167,7 @@ export function BridgePanel() {
               onClick={() => switchTab('feishu')}
             >
               <span className={'bridge-tab-dot' + dotClass(fsStatus)} />
-              <span>{t('settings.bridge.feishu') || '飞书'}</span>
+              <span>{t('settings.bridge.feishu')}</span>
             </button>
             <button
               className={'bridge-tab' + (platform === 'telegram' ? ' active' : '')}
@@ -208,14 +208,14 @@ export function BridgePanel() {
                   <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
                 <div className="bridge-overlay-text">
-                  {t('bridge.notConfigured', { platform: platform === 'telegram' ? 'Telegram' : platform === 'whatsapp' ? 'WhatsApp' : platform === 'qq' ? 'QQ' : (t('settings.bridge.feishu') || '飞书') })}
+                  {t('bridge.notConfigured', { platform: platform === 'telegram' ? 'Telegram' : platform === 'whatsapp' ? 'WhatsApp' : platform === 'qq' ? 'QQ' : t('settings.bridge.feishu') })}
                 </div>
                 <button className="bridge-overlay-btn" onClick={() => window.platform.openSettings('bridge')}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="3" />
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                   </svg>
-                  <span>{t('bridge.goToSettings') || '前往设置'}</span>
+                  <span>{t('bridge.goToSettings')}</span>
                 </button>
               </div>
             </div>
@@ -223,7 +223,7 @@ export function BridgePanel() {
           <div className="bridge-sidebar" id="bridgeSidebar">
             <div className="bridge-contact-list" id="bridgeContactList">
               {sessions.length === 0 ? (
-                <div className="bridge-contact-empty">{t('bridge.noSessions') || '暂无会话'}</div>
+                <div className="bridge-contact-empty">{t('bridge.noSessions')}</div>
               ) : (
                 sessions.map(s => {
                   const name = s.displayName || s.chatId;
@@ -262,7 +262,7 @@ export function BridgePanel() {
                 </div>
                 <div className="bridge-chat-messages" ref={messagesRef} id="bridgeChatMessages">
                   {messages.length === 0 ? (
-                    <div className="bridge-chat-no-msg">{t('bridge.noMessages') || '暂无消息'}</div>
+                    <div className="bridge-chat-no-msg">{t('bridge.noMessages')}</div>
                   ) : (
                     messages.map((m, i) => <ChatBubble key={i} message={m} />)
                   )}
@@ -270,7 +270,7 @@ export function BridgePanel() {
               </>
             ) : (
               <div className="bridge-chat-empty" id="bridgeChatEmpty">
-                <span>{t('bridge.selectChat') || '选择一个对话'}</span>
+                <span>{t('bridge.selectChat')}</span>
               </div>
             )}
           </div>

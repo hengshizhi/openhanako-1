@@ -11,6 +11,7 @@ import fs from "fs";
 import path from "path";
 import { createAgentSession, SessionManager, SettingsManager } from "@mariozechner/pi-coding-agent";
 import { debugLog } from "../lib/debug-log.js";
+import { t } from "../server/i18n.js";
 
 /**
  * 以指定 agentId 的身份跑一次临时会话。
@@ -32,7 +33,7 @@ export async function runAgentSession(agentId, rounds, { engine, signal, session
   // 1. 从长驻 Map 获取 Agent 实例
   const agent = engine.getAgent(agentId);
   if (!agent) {
-    throw new Error(`agent "${agentId}" 不存在或未初始化`);
+    throw new Error(t("error.agentExecNotInit", { id: agentId }));
   }
   const agentDir = agent.agentDir;
 

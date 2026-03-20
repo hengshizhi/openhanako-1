@@ -12,6 +12,7 @@ import { SettingsConfirmCard } from './SettingsConfirmCard';
 import type { ChatMessage, ContentBlock } from '../../stores/chat-types';
 import { useStore } from '../../stores';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
+import { useI18n } from '../../hooks/use-i18n';
 import { openFilePreview, openSkillPreview } from '../../utils/file-preview';
 import { openPreview } from '../../stores/artifact-actions';
 
@@ -45,6 +46,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
 
   const blocks = message.blocks || [];
 
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     const textBlocks = blocks.filter((b): b is ContentBlock & { type: 'text' } => b.type === 'text');
@@ -89,7 +91,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
         {blocks.map((block, i) => (
           <ContentBlockView key={i} block={block} agentName={displayName} yuan={displayYuan} />
         ))}
-        <button className={`msg-copy-btn${copied ? ' copied' : ''}`} onClick={handleCopy} title="复制文本">
+        <button className={`msg-copy-btn${copied ? ' copied' : ''}`} onClick={handleCopy} title={t('common.copyText')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             {copied
               ? <polyline points="20 6 9 17 4 12" />
@@ -175,7 +177,7 @@ const FileOutputCard = memo(function FileOutputCard({ filePath, label, ext }: { 
         <div className="file-output-name">{displayName}</div>
         <div className="file-output-type">{typeLabel}{ext ? ` \u00b7 ${ext.toUpperCase()}` : ''}</div>
       </div>
-      <button className="file-output-open" onClick={handleOpen} title="用默认应用打开">
+      <button className="file-output-open" onClick={handleOpen} title={(window as any).t('desk.openWithDefault')}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
           <polyline points="15 3 21 3 21 9" />
@@ -230,7 +232,7 @@ const BrowserScreenshot = memo(function BrowserScreenshot({ base64, mimeType }: 
     const artifact = {
       id: artId,
       type: 'image',
-      title: '浏览器截图',
+      title: (window as any).t('chat.browserScreenshot'),
       content: base64,
       ext: mimeType === 'image/jpeg' ? 'jpg' : 'png',
     };
@@ -243,7 +245,7 @@ const BrowserScreenshot = memo(function BrowserScreenshot({ base64, mimeType }: 
 
   return (
     <div className="browser-screenshot" onClick={handleClick} style={{ cursor: 'pointer' }}>
-      <img src={`data:${mimeType};base64,${base64}`} alt="浏览器截图" />
+      <img src={`data:${mimeType};base64,${base64}`} alt={(window as any).t('chat.browserScreenshot')} />
     </div>
   );
 });
@@ -291,7 +293,7 @@ const CronConfirmCard = memo(function CronConfirmCard({ confirmId, jobData, stat
       <div className="cron-confirm-card">
         <div className="cron-confirm-title">{label}</div>
         <div className={`cron-confirm-status ${status}`}>
-          {status === 'approved' ? '已批准' : '已拒绝'}
+          {status === 'approved' ? (window as any).t('common.approved') : (window as any).t('common.rejected')}
         </div>
       </div>
     );
@@ -301,8 +303,8 @@ const CronConfirmCard = memo(function CronConfirmCard({ confirmId, jobData, stat
     <div className="cron-confirm-card">
       <div className="cron-confirm-title">{label}</div>
       <div className="cron-confirm-actions">
-        <button className="cron-confirm-btn approve" onClick={handleApprove}>批准</button>
-        <button className="cron-confirm-btn reject" onClick={handleReject}>拒绝</button>
+        <button className="cron-confirm-btn approve" onClick={handleApprove}>{(window as any).t('common.approve')}</button>
+        <button className="cron-confirm-btn reject" onClick={handleReject}>{(window as any).t('common.reject')}</button>
       </div>
     </div>
   );

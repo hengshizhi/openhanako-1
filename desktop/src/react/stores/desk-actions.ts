@@ -114,7 +114,8 @@ export async function deskUploadFiles(paths: string[]): Promise<void> {
 export async function deskCreateFile(text: string): Promise<void> {
   const s = useStore.getState();
   const ts = new Date().toISOString().slice(5, 16).replace(/[T:]/g, '-');
-  const prefix = (window as any).i18n?.locale === 'en' ? 'note' : '备注';
+  const locale = (window as any).i18n?.locale || 'zh';
+  const prefix = locale.startsWith('zh') ? '备注' : locale.startsWith('ja') ? 'メモ' : locale.startsWith('ko') ? '메모' : 'note';
   const name = `${prefix}_${ts}.md`;
   try {
     const res = await hanaFetch('/api/desk/files', {

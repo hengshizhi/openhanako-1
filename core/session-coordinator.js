@@ -15,6 +15,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { createModuleLogger } from "../lib/debug-log.js";
 import { BrowserManager } from "../lib/browser/browser-manager.js";
+import { t, getLocale } from "../server/i18n.js";
 
 const log = createModuleLogger("session");
 
@@ -27,7 +28,10 @@ export const PATROL_TOOLS_DEFAULT = [
   "present_files", "message_agent",
 ];
 
-const STEER_PREFIX = "（插话，无需 MOOD）\n";
+function getSteerPrefix() {
+  const isZh = getLocale().startsWith("zh");
+  return isZh ? "（插话，无需 MOOD）\n" : "(Interjection, no MOOD needed)\n";
+}
 const MAX_CACHED_SESSIONS = 20;
 
 export class SessionCoordinator {
@@ -79,7 +83,7 @@ export class SessionCoordinator {
     log.log(`createSession cwd=${effectiveCwd} (传入: ${cwd || "未指定"})`);
 
     if (!models.currentModel) {
-      throw new Error("没有可用的模型，请先在设置中配置 API key 和模型");
+      throw new Error(t("error.noAvailableModel"));
     }
 
     if (!sessionMgr) {
@@ -195,7 +199,7 @@ export class SessionCoordinator {
   }
 
   async prompt(text, opts) {
-    if (!this._session) throw new Error("没有活跃的 session，请先调用 createSession()");
+    if (!this._session) throw new Error(t("error.noActiveSessionPrompt"));
     this._sessionStarted = true;
     const sp = this._session.sessionManager?.getSessionFile?.();
     if (sp) {
@@ -224,7 +228,7 @@ export class SessionCoordinator {
       const entry = this._sessions.get(sp);
       if (entry) entry.lastTouchedAt = Date.now();
     }
-    this._session.steer(STEER_PREFIX + text);
+    this._session.steer(getSteerPrefix() + text);
     return true;
   }
 
@@ -232,7 +236,7 @@ export class SessionCoordinator {
 
   async promptSession(sessionPath, text, opts) {
     const entry = this._sessions.get(sessionPath);
-    if (!entry) throw new Error(`session "${sessionPath}" 不在缓存中`);
+    if (!entry) throw new Error(t("error.sessionNotInCache", { path: sessionPath }));
     entry.lastTouchedAt = Date.now();
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
@@ -245,7 +249,7 @@ export class SessionCoordinator {
     const entry = this._sessions.get(sessionPath);
     if (!entry?.session.isStreaming) return false;
     entry.lastTouchedAt = Date.now();
-    entry.session.steer(STEER_PREFIX + text);
+    entry.session.steer(getSteerPrefix() + text);
     return true;
   }
 
@@ -407,7 +411,7 @@ export class SessionCoordinator {
             return models.defaultModel;
           }
           log.error(`[resolveModel] agentConfig 未指定 models.chat，也没有默认模型`);
-          throw new Error("resolveModel: 未指定 models.chat，无法选择模型");
+          throw new Error(t("error.resolveModelNoChatModel"));
         }
         const found = models.availableModels.find(m => m.id === id);
         if (!found) {
@@ -421,7 +425,7 @@ export class SessionCoordinator {
             ? `hasAuth("${models.inferModelProvider?.(id) || "?"}")=unknown`
             : "no registry";
           log.error(`[resolveModel] 找不到模型 "${id}"。availableModels=[${available}]。${hasAuth}`);
-          throw new Error(`resolveModel: 模型 "${id}" 不在可用列表中`);
+          throw new Error(t("error.resolveModelNotAvailable", { id }));
         }
         return found;
       },
@@ -449,7 +453,7 @@ export class SessionCoordinator {
 
   async executeIsolated(prompt, opts = {}) {
     const targetAgent = opts.agentId ? this._d.getAgentById(opts.agentId) : this._d.getAgent();
-    if (!targetAgent) throw new Error(`agent "${opts.agentId}" 不存在或未初始化`);
+    if (!targetAgent) throw new Error(t("error.agentNotInitialized", { id: opts.agentId }));
 
     // abort signal：提前中止检查
     if (opts.signal?.aborted) {
@@ -486,7 +490,7 @@ export class SessionCoordinator {
         }
         if (!resolvedModel) {
           log.error(`[executeIsolated] agent "${targetAgent.agentName}" 未指定 models.chat，也没有可用的默认模型`);
-          throw new Error(`executeIsolated: agent "${targetAgent.agentName}" 无可用模型`);
+          throw new Error(t("error.executeIsolatedNoModel", { name: targetAgent.agentName }));
         }
         if (modelId && resolvedModel.id !== modelId) {
           log.log(`[executeIsolated] 模型 "${modelId}" 不可用，fallback → ${resolvedModel.id}`);

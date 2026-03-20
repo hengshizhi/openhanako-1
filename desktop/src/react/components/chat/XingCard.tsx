@@ -14,6 +14,7 @@ interface Props {
 }
 
 export const XingCard = memo(function XingCard({ title, content, sealed, agentName }: Props) {
+  const t = window.t ?? ((p: string) => p);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,11 +38,11 @@ export const XingCard = memo(function XingCard({ title, content, sealed, agentNa
             className="xing-card-body"
             dangerouslySetInnerHTML={{ __html: html }}
           />
-          <button className="xing-card-copy" onClick={handleCopy}>复制</button>
+          <button className="xing-card-copy" onClick={handleCopy}>{t('common.copy')}</button>
         </>
       ) : (
         <div className="xing-card-status">
-          {agentName || 'Hanako'} 正在思考
+          {t('xing.thinking', { name: agentName || 'Hanako' })}
           <span className="thinking-dots"><span /><span /><span /></span>
         </div>
       )}

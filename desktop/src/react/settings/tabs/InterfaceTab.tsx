@@ -15,7 +15,11 @@ export function InterfaceTab() {
   const serifEnabled = localStorage.getItem('hana-font-serif') !== '0';
 
   const locale = settingsConfig?.locale || 'zh-CN';
-  const localeVal = locale.startsWith('en') ? 'en' : 'zh-CN';
+  const localeVal = ['zh-CN', 'zh-TW', 'ja', 'ko', 'en'].includes(locale) ? locale
+    : locale.startsWith('zh') ? 'zh-CN'
+    : locale.startsWith('ja') ? 'ja'
+    : locale.startsWith('ko') ? 'ko'
+    : 'en';
 
   // 时区
   const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -119,7 +123,10 @@ export function InterfaceTab() {
           <label className="settings-field-label">{t('settings.locale.language')}</label>
           <SelectWidget
             options={[
-              { value: 'zh-CN', label: '中文' },
+              { value: 'zh-CN', label: '简体中文' },
+              { value: 'zh-TW', label: '繁體中文' },
+              { value: 'ja', label: '日本語' },
+              { value: 'ko', label: '한국어' },
               { value: 'en', label: 'English' },
             ]}
             value={localeVal}

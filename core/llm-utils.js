@@ -7,6 +7,7 @@
 import fs from "fs";
 import path from "path";
 import { callProviderText } from "../lib/llm/provider-client.js";
+import { getLocale } from "../server/i18n.js";
 
 /** Pi SDK content block 是否为工具调用（兼容 tool_use / toolCall 两种格式） */
 export const isToolCallBlock = (b) => (b.type === "tool_use" || b.type === "toolCall") && !!b.name;
@@ -70,9 +71,13 @@ function parseSessionContent(sessionPath, { userLimit = 1000, assistantLimit = 1
  * 从 session 内容生成本地兜底摘要（不依赖外部 API）
  */
 export function buildLocalSummary(assistantText, toolCalls) {
+  const isZh = getLocale().startsWith("zh");
   const uniqueTools = [...new Set(toolCalls)];
   if (uniqueTools.length > 0) {
-    return `执行了 ${uniqueTools.slice(0, 3).join("、")}${uniqueTools.length > 3 ? " 等" : ""}`;
+    if (isZh) {
+      return `执行了 ${uniqueTools.slice(0, 3).join("、")}${uniqueTools.length > 3 ? " 等" : ""}`;
+    }
+    return `Ran ${uniqueTools.slice(0, 3).join(", ")}${uniqueTools.length > 3 ? ", etc." : ""}`;
   }
   if (assistantText) {
     const clean = assistantText.replace(/[#*_`>\-[\]()]/g, "").trim();
@@ -87,30 +92,42 @@ export function buildLocalSummary(assistantText, toolCalls) {
  */
 export async function summarizeTitle(utilConfig, userText, assistantText) {
   try {
+    const isZh = getLocale().startsWith("zh");
     const { utility: model, api_key, base_url, api } = utilConfig;
     if (!api_key || !base_url || !api) return null;
-    return await callLlm({
-      model, api, api_key, base_url,
-      messages: [
-        {
-          role: "system",
-          content: `你是一个对话标题生成器。根据用户和助手的第一轮对话，用一句极短的话概括对话主题。
+
+    const systemContent = isZh
+      ? `你是一个对话标题生成器。根据用户和助手的第一轮对话，用一句极短的话概括对话主题。
 
 规则：
 1. 标题长度严格控制在 10 个字以内（中文）或 5 个单词以内（英文）
 2. 语言必须和用户说的第一句话一致：用户说中文就用中文，用户说英文就用英文
 3. 不要加引号、句号或其他标点
-4. 直接输出标题，不要解释`,
-        },
+4. 直接输出标题，不要解释`
+      : `You are a conversation title generator. Based on the first exchange between user and assistant, summarize the topic in a very short phrase.
+
+Rules:
+1. Keep the title under 5 words (English) or 10 characters (Chinese)
+2. The title language must match the user's first message
+3. No quotes, periods, or other punctuation
+4. Output the title directly, no explanation`;
+
+    const userLabel = isZh ? "用户" : "User";
+    const assistantLabel = isZh ? "助手" : "Assistant";
+
+    return await callLlm({
+      model, api, api_key, base_url,
+      messages: [
+        { role: "system", content: systemContent },
         {
           role: "user",
-          content: `用户：${(userText || "").slice(0, 500)}\n助手：${(assistantText || "").slice(0, 500)}`,
+          content: `${userLabel}：${(userText || "").slice(0, 500)}\n${assistantLabel}：${(assistantText || "").slice(0, 500)}`,
         },
       ],
       max_tokens: 50,
     });
   } catch (err) {
-    console.error("[llm-utils] summarizeTitle 失败:", err.message);
+    console.error("[llm-utils] summarizeTitle failed:", err.message);
     return null;
   }
 }
@@ -125,12 +142,15 @@ export async function translateSkillNames(utilConfig, names, lang) {
   try {
     const { utility: model, api_key, base_url, api } = utilConfig;
     if (!api_key || !base_url || !api) return {};
+    const isZh = getLocale().startsWith("zh");
     const text = await callLlm({
       model, api, api_key, base_url,
       messages: [
         {
           role: "system",
-          content: `将下列 kebab-case 英文技能名翻译成简短的${label}名称（2-4 个字）。直接输出 JSON 对象，key 为原名，value 为翻译。不解释。`,
+          content: isZh
+            ? `将下列 kebab-case 英文技能名翻译成简短的${label}名称（2-4 个字）。直接输出 JSON 对象，key 为原名，value 为翻译。不解释。`
+            : `Translate the following kebab-case English skill names into short ${label} names (2-4 characters). Output a JSON object directly, key = original name, value = translation. No explanation.`,
         },
         { role: "user", content: JSON.stringify(names) },
       ],
@@ -154,21 +174,45 @@ export async function translateSkillNames(utilConfig, names, lang) {
  */
 export async function summarizeActivity(utilConfig, sessionPath, emitDevLog) {
   const log = emitDevLog || (() => {});
+  const isZh = getLocale().startsWith("zh");
   try {
     const { userText, assistantText, toolCalls } = parseSessionContent(sessionPath);
     if (!userText && !assistantText) {
-      log("[summarize] session 无内容，跳过摘要");
+      log("[summarize] session empty, skipping");
       return null;
     }
 
     const toolInfo = toolCalls.length > 0
-      ? `\n\n调用的工具：${[...new Set(toolCalls)].join("、")}`
+      ? (isZh
+          ? `\n\n调用的工具：${[...new Set(toolCalls)].join("、")}`
+          : `\n\nTools used: ${[...new Set(toolCalls)].join(", ")}`)
       : "";
     const { utility_large: model, large_api_key: api_key, large_base_url: base_url, large_api: api } = utilConfig;
     if (!api_key || !base_url || !api) {
-      log("[summarize] utility_large 配置不完整，跳过摘要");
+      log("[summarize] utility_large config incomplete, skipping");
       return null;
     }
+
+    const systemContent = isZh
+      ? `你是一个执行摘要生成器。根据 Agent 的巡检上下文、执行结果和使用的工具，概括它做了什么。
+
+规则：
+1. 用中文，50 字以内
+2. 直接输出摘要，不要前缀、不要解释
+3. 说清楚做了什么具体动作（拆解待办、搜索信息、标记完成、读取文件等）
+4. 如果调用了工具，提一下工具名称和做了什么
+5. 如果 Agent 回复了「一切正常」或没有执行动作，就说「巡检完毕，一切正常」`
+      : `You are an execution summary generator. Based on the Agent's patrol context, execution results, and tools used, summarize what it did.
+
+Rules:
+1. In English, under 30 words
+2. Output the summary directly, no prefix or explanation
+3. Be specific about what actions were taken (broke down tasks, searched info, marked complete, read files, etc.)
+4. If tools were called, mention the tool names and what they did
+5. If the Agent reported "all clear" or took no action, say "Patrol complete, all clear"`;
+
+    const contextLabel = isZh ? "巡检上下文" : "Patrol context";
+    const replyLabel = isZh ? "Agent 回复" : "Agent reply";
 
     const text = await callProviderText({
       api,
@@ -176,20 +220,10 @@ export async function summarizeActivity(utilConfig, sessionPath, emitDevLog) {
       api_key,
       base_url,
       messages: [
-        {
-          role: "system",
-          content: `你是一个执行摘要生成器。根据 Agent 的巡检上下文、执行结果和使用的工具，概括它做了什么。
-
-规则：
-1. 用中文，50 字以内
-2. 直接输出摘要，不要前缀、不要解释
-3. 说清楚做了什么具体动作（拆解待办、搜索信息、标记完成、读取文件等）
-4. 如果调用了工具，提一下工具名称和做了什么
-5. 如果 Agent 回复了「一切正常」或没有执行动作，就说「巡检完毕，一切正常」`,
-        },
+        { role: "system", content: systemContent },
         {
           role: "user",
-          content: `巡检上下文：\n${userText.slice(0, 600)}\n\nAgent 回复：\n${assistantText.slice(0, 600)}${toolInfo}`,
+          content: `${contextLabel}：\n${userText.slice(0, 600)}\n\n${replyLabel}：\n${assistantText.slice(0, 600)}${toolInfo}`,
         },
       ],
       temperature: 0.3,
@@ -198,8 +232,8 @@ export async function summarizeActivity(utilConfig, sessionPath, emitDevLog) {
 
     return text;
   } catch (err) {
-    log(`[summarize] 异常: ${err.message}`);
-    console.error("[llm-utils] summarizeActivity 失败:", err.message);
+    log(`[summarize] error: ${err.message}`);
+    console.error("[llm-utils] summarizeActivity failed:", err.message);
     return null;
   }
 }
@@ -211,6 +245,7 @@ export async function summarizeActivity(utilConfig, sessionPath, emitDevLog) {
  */
 export async function summarizeActivityQuick(utilConfig, sessionPath) {
   if (!fs.existsSync(sessionPath)) return null;
+  const isZh = getLocale().startsWith("zh");
   try {
     const { userText, assistantText } = parseSessionContent(sessionPath, {
       userLimit: 800, assistantLimit: 800,
@@ -220,26 +255,30 @@ export async function summarizeActivityQuick(utilConfig, sessionPath) {
     const { utility: model, api_key, base_url, api } = utilConfig;
     if (!api_key || !base_url || !api) return null;
 
+    const systemContent = isZh
+      ? `根据 Agent 的巡检上下文和执行结果，用一两句话概括它做了什么。30 字以内，中文，直接输出。`
+      : `Based on the Agent's patrol context and execution results, summarize what it did in one or two sentences. Under 15 words, English, output directly.`;
+
+    const contextLabel = isZh ? "巡检上下文" : "Patrol context";
+    const replyLabel = isZh ? "Agent 回复" : "Agent reply";
+
     return await callProviderText({
       api,
       model,
       api_key,
       base_url,
       messages: [
-        {
-          role: "system",
-          content: `根据 Agent 的巡检上下文和执行结果，用一两句话概括它做了什么。30 字以内，中文，直接输出。`,
-        },
+        { role: "system", content: systemContent },
         {
           role: "user",
-          content: `巡检上下文：\n${userText.slice(0, 400)}\n\nAgent 回复：\n${assistantText.slice(0, 400)}`,
+          content: `${contextLabel}：\n${userText.slice(0, 400)}\n\n${replyLabel}：\n${assistantText.slice(0, 400)}`,
         },
       ],
       temperature: 0.3,
       max_tokens: 80,
     });
   } catch (err) {
-    console.error("[llm-utils] summarizeActivityQuick 失败:", err.message);
+    console.error("[llm-utils] summarizeActivityQuick failed:", err.message);
     return null;
   }
 }
@@ -252,13 +291,15 @@ export async function summarizeActivityQuick(utilConfig, sessionPath) {
  */
 export async function generateAgentId(utilConfig, name, agentsDir) {
   try {
+    const isZh = getLocale().startsWith("zh");
     const { utility: model, api_key, base_url, api } = utilConfig;
     const text = await callLlm({
       model, api, api_key, base_url,
       messages: [
         {
           role: "system",
-          content: `根据给定的助手名字，生成一个简短的英文小写 ID（用于文件夹名）。
+          content: isZh
+            ? `根据给定的助手名字，生成一个简短的英文小写 ID（用于文件夹名）。
 规则：
 1. 纯小写英文字母，可以用连字符
 2. 2~12 个字符
@@ -269,6 +310,18 @@ export async function generateAgentId(utilConfig, name, agentsDir) {
 - "花子" → "hanako"
 - "ミク" → "miku"
 - "小助手" → "helper"
+- "Alice" → "alice"`
+            : `Given an assistant's display name, generate a short lowercase English ID (for use as a folder name).
+Rules:
+1. Lowercase English letters only, hyphens allowed
+2. 2–12 characters
+3. Prefer a transliteration or abbreviation of the name
+4. Output the ID directly, no explanation
+
+Examples:
+- "花子" → "hanako"
+- "ミク" → "miku"
+- "Helper" → "helper"
 - "Alice" → "alice"`,
         },
         { role: "user", content: name },

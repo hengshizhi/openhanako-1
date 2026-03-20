@@ -90,9 +90,7 @@ function copyLegacyFiles(): Plugin {
       const outDir = path.resolve(__dirname, 'desktop/dist-renderer');
 
       const dirs = ['lib', 'modules', 'themes', 'assets', 'locales'];
-      const files = ['app.js', 'styles.css',
-        'splash.html', 'onboarding.html', 'onboarding.js',
-        'browser-viewer.html', 'skill-viewer.html', 'devtools.html'];
+      const files = ['styles.css'];
 
       for (const dir of dirs) {
         const src = path.join(srcDir, dir);
@@ -135,6 +133,9 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'desktop/src/index.html'),
         settings: path.resolve(__dirname, 'desktop/src/settings.html'),
+        onboarding: path.resolve(__dirname, 'desktop/src/onboarding.html'),
+        splash: path.resolve(__dirname, 'desktop/src/splash.html'),
+        'browser-viewer': path.resolve(__dirname, 'desktop/src/browser-viewer.html'),
         'editor-window': path.resolve(__dirname, 'desktop/src/editor-window.html'),
       },
     },

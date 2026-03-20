@@ -51,7 +51,7 @@ export function applyTbToggleState(): void {
   if (tbToggleRight) {
     tbToggleRight.title = s.currentTab === 'channels'
       ? ((window as any).t('channel.info'))
-      : ((window as any).t('sidebar.jian') || '书桌');
+      : ((window as any).t('sidebar.jian'));
   }
 }
 
@@ -187,8 +187,8 @@ export function SidebarLayout() {
         navigator.clipboard.writeText(artifact.content).then(() => {
           const btn = document.getElementById('previewCopyBtn');
           if (btn) {
-            btn.title = '已复制';
-            setTimeout(() => { btn.title = '复制'; }, 1500);
+            btn.title = (window as any).t('common.copied');
+            setTimeout(() => { btn.title = (window as any).t('common.copy'); }, 1500);
           }
         });
       }
@@ -310,7 +310,7 @@ function buildSessionList(card: HTMLElement): void {
   const s = useStore.getState();
   const sessions = s.sessions || [];
   if (sessions.length === 0) {
-    card.innerHTML = `<div class="float-card-empty">暂无对话</div>`;
+    card.innerHTML = `<div class="float-card-empty">${(window as any).t('common.noChats')}</div>`;
     return;
   }
   const list = document.createElement('div');
@@ -338,7 +338,7 @@ function buildSessionList(card: HTMLElement): void {
 
     const text = document.createElement('span');
     text.className = 'float-card-item-text';
-    text.textContent = sess.title || '新对话';
+    text.textContent = sess.title || (window as any).t('session.untitled');
     item.appendChild(text);
 
     item.addEventListener('click', () => {
@@ -382,7 +382,7 @@ function buildDeskList(card: HTMLElement): void {
   const s = useStore.getState();
   const files = s.deskFiles || [];
   if (files.length === 0) {
-    card.innerHTML = `<div class="float-card-empty">书桌为空</div>`;
+    card.innerHTML = `<div class="float-card-empty">${(window as any).t('desk.emptyTitle')}</div>`;
   } else {
     const list = document.createElement('div');
     list.className = 'float-card-list';
@@ -400,12 +400,12 @@ function buildDeskList(card: HTMLElement): void {
   jianWrap.className = 'float-card-jian';
   const jianLabel = document.createElement('div');
   jianLabel.className = 'float-card-jian-label';
-  jianLabel.textContent = '笺';
+  jianLabel.textContent = (window as any).t('desk.jianLabel');
   jianWrap.appendChild(jianLabel);
 
   const textarea = document.createElement('textarea');
   textarea.className = 'float-card-jian-input';
-  textarea.placeholder = '写点什么…';
+  textarea.placeholder = (window as any).t('desk.jianPlaceholder');
   textarea.spellcheck = false;
   textarea.value = s.deskJianContent || '';
 

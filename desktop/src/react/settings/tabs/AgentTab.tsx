@@ -173,20 +173,6 @@ export function AgentTab() {
             });
             input.click();
           }}
-          onAvatarRemove={async () => {
-            const agentId = store.getSettingsAgentId();
-            if (!agentId) return;
-            try {
-              await hanaFetch(`/api/agents/${agentId}/avatar`, { method: 'DELETE' });
-              await loadAgents();
-              if (agentId === currentAgentId) {
-                platform?.settingsChanged?.('agent-updated', { agentId });
-              }
-              store.showToast(t('settings.agent.avatarRemoved'), 'success');
-            } catch (err: any) {
-              store.showToast(err.message, 'error');
-            }
-          }}
         >
           <div className="agent-stack-actions">
             {isViewingOther && (
@@ -482,7 +468,7 @@ function ExperienceBlock({ category, onSave, onDelete }: {
         <div className="exp-block-actions">
           <button
             className="exp-block-action"
-            title="编辑"
+            title={t('settings.experience.edit')}
             onClick={startEdit}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -492,7 +478,7 @@ function ExperienceBlock({ category, onSave, onDelete }: {
           </button>
           <button
             className="exp-block-action delete"
-            title="删除分类"
+            title={t('settings.experience.deleteCategory')}
             onClick={onDelete}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -632,13 +618,12 @@ function YuanSelector({ currentYuan, onChange }: { currentYuan: string; onChange
   );
 }
 
-function AgentCardStack({ agents, selectedId, currentAgentId, onSelect, onAvatarClick, onAvatarRemove, children }: {
+function AgentCardStack({ agents, selectedId, currentAgentId, onSelect, onAvatarClick, children }: {
   agents: any[];
   selectedId: string | null;
   currentAgentId: string | null;
   onSelect: (id: string) => void;
   onAvatarClick: () => void;
-  onAvatarRemove: () => void;
   children?: React.ReactNode;
 }) {
   const cardsRef = useRef<HTMLDivElement>(null);
@@ -796,15 +781,6 @@ function AgentCardStack({ agents, selectedId, currentAgentId, onSelect, onAvatar
                 {isSelected && (
                   <div className="agent-card-overlay">
                     <span>{t('settings.agent.changeAvatar')}</span>
-                    <button
-                      className="agent-avatar-remove-btn"
-                      title={t('settings.agent.removeAvatar')}
-                      onClick={(e) => { e.stopPropagation(); onAvatarRemove(); }}
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
                   </div>
                 )}
               </div>

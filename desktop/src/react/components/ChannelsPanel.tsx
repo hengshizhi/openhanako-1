@@ -223,9 +223,16 @@ export function ChannelsPanel() {
 // ══════════════════════════════════════════════════════
 
 function useTabSlider(currentTab: string) {
+  const locale = useStore(s => s.locale);
+
   useEffect(() => {
     moveSlider(currentTab, true);
   }, [currentTab]);
+
+  // Re-position slider when locale changes (tab text width changes)
+  useEffect(() => {
+    moveSlider(useStore.getState().currentTab || 'chat', false);
+  }, [locale]);
 
   // Initial slider position (no animation)
   useEffect(() => {
@@ -959,7 +966,7 @@ export function ChannelInput() {
       <textarea
         ref={inputRef}
         className="channel-input-box"
-        placeholder="发消息..."
+        placeholder={(window as any).t?.('channel.inputPlaceholder') || 'Send a message...'}
         rows={1}
         spellCheck={false}
         value={inputValue}
@@ -996,7 +1003,7 @@ export function ChannelReadonly() {
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
       </svg>
-      {(window as any).t?.('channel.dmReadonly') || '这是 Agent 之间的私信，仅可查看'}
+      {(window as any).t?.('channel.readOnly') || '这是 Agent 之间的私信，仅可查看'}
     </span>
   );
 }
@@ -1107,14 +1114,14 @@ export function ChannelCreate() {
 
   return (
     <div className="agent-create-card">
-      <h3 className="agent-create-title">{t('channel.createTitle') || '新建频道'}</h3>
+      <h3 className="agent-create-title">{t('channel.createTitle')}</h3>
       <div className="settings-field">
-        <label className="settings-field-label">{t('channel.createName') || '频道名称'}</label>
+        <label className="settings-field-label">{t('channel.createName')}</label>
         <input
           ref={nameRef}
           className="settings-input"
           type="text"
-          placeholder={nameError ? (t('channel.nameExists') || '名称已存在') : (t('channel.createNamePlaceholder') || '例如：design-team')}
+          placeholder={nameError ? t('channel.nameExists') : t('channel.createNamePlaceholder')}
           autoComplete="off"
           value={name}
           onChange={(e) => { setName(e.target.value); setNameError(false); }}
@@ -1123,7 +1130,7 @@ export function ChannelCreate() {
         />
       </div>
       <div className="settings-field">
-        <label className="settings-field-label">{t('channel.createMembers') || '成员'}</label>
+        <label className="settings-field-label">{t('channel.createMembers')}</label>
         <div
           className="channel-create-members"
           style={membersError ? { outline: '1.5px solid var(--danger, #c44)' } : undefined}
@@ -1146,15 +1153,15 @@ export function ChannelCreate() {
       </div>
       <div className="settings-field">
         <label className="settings-field-label">
-          {t('channel.createIntro') || '频道介绍'}{' '}
+          {t('channel.createIntro')}{' '}
           <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>
-            {t('channel.createIntroOptional') || '（可选）'}
+            {t('channel.createIntroOptional')}
           </span>
         </label>
         <textarea
           className="settings-input channel-create-intro"
           rows={2}
-          placeholder={t('channel.createIntroPlaceholder') || '描述一下这个频道的用途...'}
+          placeholder={t('channel.createIntroPlaceholder')}
           style={{ resize: 'vertical', minHeight: '2.4rem' }}
           value={intro}
           onChange={(e) => setIntro(e.target.value)}
@@ -1162,10 +1169,10 @@ export function ChannelCreate() {
       </div>
       <div className="agent-create-actions">
         <button className="agent-create-cancel" onClick={handleCancel}>
-          {t('channel.createCancel') || '取消'}
+          {t('channel.createCancel')}
         </button>
         <button className="agent-create-confirm" onClick={handleSubmit} disabled={creating}>
-          {t('channel.createConfirm') || '创建'}
+          {t('channel.createConfirm')}
         </button>
       </div>
     </div>

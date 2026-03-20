@@ -5,13 +5,16 @@
  * 所有初始化逻辑从 app.js / bridge.ts 迁移至此。
  */
 
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { useStore } from './stores';
 import { hanaFetch } from './hooks/use-hana-fetch';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ActivityPanel } from './components/ActivityPanel';
 import { AutomationPanel } from './components/AutomationPanel';
 import { BridgePanel } from './components/BridgePanel';
+
+const DevToolsPanel = lazy(() => import('./components/DevToolsPanel').then(m => ({ default: m.DevToolsPanel })));
+const SkillViewerOverlay = lazy(() => import('./components/SkillViewerOverlay').then(m => ({ default: m.SkillViewerOverlay })));
 import { PreviewPanel } from './components/PreviewPanel';
 import { BrowserCard } from './components/BrowserCard';
 import { DeskSection } from './components/DeskSection';
@@ -30,6 +33,7 @@ import { toSlash, baseName } from './utils/format';
 import { initJian } from './stores/desk-actions';
 import { initEditorEvents } from './stores/artifact-actions';
 import { WindowControls } from './components/WindowControls';
+import { initTheme, initDragPrevention } from './bootstrap';
 
 declare const i18n: {
   locale: string;
@@ -40,13 +44,9 @@ declare function t(key: string, vars?: Record<string, string | number>): string;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// ── 主题加载 ──
-loadSavedTheme();
-loadSavedFont();
-
-// ── 全局 drag 阻止（防止 Electron 默认文件拖入导航） ──
-document.addEventListener('dragover', (e) => e.preventDefault());
-document.addEventListener('drop', (e) => e.preventDefault());
+// ── 主题 + drag 阻止 ──
+initTheme();
+initDragPrevention();
 
 // ── __hanaLog：前端日志上报 ──
 window.__hanaLog = function (level: string, module: string, message: string) {
@@ -94,11 +94,12 @@ async function init(): Promise<void> {
 
     // 3. 加载 i18n
     await i18n.load(configData.locale || 'zh-CN');
+    useStore.setState({ locale: i18n.locale });
 
     // 4. 应用 agent 身份
     await applyAgentIdentity({
       agentName: healthData.agent || 'Hanako',
-      userName: healthData.user || '用户',
+      userName: healthData.user || t('common.user'),
       ui: { avatars: false, agents: false, welcome: true },
     });
 
@@ -195,6 +196,7 @@ async function init(): Promise<void> {
       case 'locale-changed':
         i18n.load(data.locale).then(() => {
           i18n.defaultName = useStore.getState().agentName;
+          useStore.setState({ locale: i18n.locale });
           applyStaticI18n();
         });
         break;
@@ -221,7 +223,18 @@ async function init(): Promise<void> {
     }
   });
 
-  // 20. 通知 app ready
+  // 20. DevTools 面板切换（主进程快捷键 → 渲染进程）
+  (window as any).hana?.onToggleDevtools?.(() => {
+    const s = useStore.getState();
+    s.setActivePanel(s.activePanel === 'devtools' ? null : 'devtools');
+  });
+
+  // 21. Skill Viewer overlay（主进程 / 设置窗口 → 渲染进程）
+  (window as any).hana?.onShowSkillViewer?.((data: any) => {
+    useStore.setState({ skillViewerData: data });
+  });
+
+  // 21. 通知 app ready
   platform.appReady();
 }
 
@@ -322,6 +335,8 @@ function initDragDrop(): void {
 
 function App() {
   useSidebarResize();
+  // 订阅 locale 变化，驱动整棵树重渲染
+  useStore(s => s.locale);
 
   useEffect(() => {
     init().catch((err: unknown) => {
@@ -338,7 +353,7 @@ function App() {
 
       {/* ── Titlebar ── */}
       <div className="titlebar">
-        <button className="tb-toggle tb-toggle-left" id="tbToggleLeft" title="侧边栏">
+        <button className="tb-toggle tb-toggle-left" id="tbToggleLeft" title={t('sidebar.toggle')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="9" y1="3" x2="9" y2="21"></line>
@@ -346,13 +361,13 @@ function App() {
         </button>
         <div className="tb-tabs" id="tbTabs">
           <div className="tb-tabs-slider" id="tbSlider"></div>
-          <button className="tb-tab active" data-tab="chat">聊天</button>
+          <button className="tb-tab active" data-tab="chat">{t('channel.chatTab')}</button>
           <button className="tb-tab" data-tab="channels">
-            频道
+            {t('channel.tab')}
             <span className="tb-tab-badge hidden" id="channelTabBadge"></span>
           </button>
         </div>
-        <button className="tb-toggle tb-toggle-right" id="tbToggleRight" title="书桌">
+        <button className="tb-toggle tb-toggle-right" id="tbToggleRight" title={t('sidebar.jian')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="15" y1="3" x2="15" y2="21"></line>
@@ -394,30 +409,30 @@ function App() {
                   <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                   <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                 </svg>
-                <span id="bridgeBarLabel">接入</span>
+                <span id="bridgeBarLabel">{t('sidebar.bridgeShort')}</span>
                 <span className="sidebar-bridge-dot" id="bridgeDot"></span>
               </button>
               <button className="sidebar-activity-bar" id="activityBar">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                 </svg>
-                <span id="activityBarLabel">助手活动</span>
+                <span id="activityBarLabel">{t('sidebar.activity')}</span>
               </button>
               <button className="sidebar-activity-bar" id="automationBar">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"></circle>
                   <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                <span>任务计划</span>
+                <span>{t('automation.title')}</span>
                 <span className="automation-count-badge" id="automationCountBadge"></span>
               </button>
-              <button className="sidebar-activity-bar browser-bg-bar hidden" id="browserBgBar" title="后台浏览器运行中，点击查看">
+              <button className="sidebar-activity-bar browser-bg-bar hidden" id="browserBgBar" title={t('browser.backgroundHint')}>
                 <svg className="browser-bg-globe" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="2" y1="12" x2="22" y2="12"></line>
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                 </svg>
-                <span>后台浏览器</span>
+                <span>{t('browser.background')}</span>
               </button>
               <div className="session-list" id="sessionList">
                 <SessionList />
@@ -427,9 +442,9 @@ function App() {
             {/* 频道 tab 内容 */}
             <div className="sidebar-channel-content hidden" id="sidebarChannelContent">
               <div className="sidebar-header">
-                <span className="sidebar-title">频道 <span className="beta-badge">Beta</span></span>
+                <span className="sidebar-title">{t('channel.tab')} <span className="beta-badge">Beta</span></span>
                 <div className="sidebar-header-actions">
-                  <button className="sidebar-action-btn" id="channelCreateBtn" title="新建频道">
+                  <button className="sidebar-action-btn" id="channelCreateBtn" title={t('channel.createTitle')}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="12" y1="5" x2="12" y2="19"></line>
                       <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -447,10 +462,10 @@ function App() {
                   <ChannelList />
                 </div>
                 <div className="channel-disabled-overlay hidden" id="channelDisabledOverlay">
-                  <span>频道功能已关闭</span>
+                  <span>{t('channel.disabled')}</span>
                 </div>
                 <div className="channel-toggle-bar">
-                  <span className="channel-toggle-bar-label">频道功能开关</span>
+                  <span className="channel-toggle-bar-label">{t('channel.toggleLabel')}</span>
                   <button className="hana-toggle on" id="channelToggle"></button>
                 </div>
               </div>
@@ -488,14 +503,14 @@ function App() {
                 <span className="channel-header-members" id="channelHeaderMembers"></span>
               </div>
               <div className="channel-header-actions">
-                <button className="channel-header-action-btn" id="channelInfoToggle" title="频道信息">
+                <button className="channel-header-action-btn" id="channelInfoToggle" title={t('channel.info')}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="12" y1="16" x2="12" y2="12"></line>
                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
                   </svg>
                 </button>
-                <button className="channel-header-action-btn" id="channelMenuBtn" title="更多">
+                <button className="channel-header-action-btn" id="channelMenuBtn" title={t('common.more')}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <circle cx="12" cy="5" r="1"></circle>
                     <circle cx="12" cy="12" r="1"></circle>
@@ -519,6 +534,7 @@ function App() {
           <ActivityPanel />
           <AutomationPanel />
           <BridgePanel />
+          <Suspense fallback={null}><DevToolsPanel /></Suspense>
         </div>
 
         <PreviewPanel />
@@ -534,11 +550,11 @@ function App() {
             <div className="jian-channel-content hidden" id="jianChannelContent">
               <div className="jian-card">
                 <div className="channel-info-section">
-                  <div className="channel-info-label">频道信息</div>
+                  <div className="channel-info-label">{t('channel.info')}</div>
                   <div className="channel-info-name" id="channelInfoName"></div>
                 </div>
                 <div className="channel-info-section">
-                  <div className="channel-info-label">成员</div>
+                  <div className="channel-info-label">{t('channel.members')}</div>
                   <div className="channel-members-list" id="channelMembersList">
                     <ChannelMembers />
                   </div>
@@ -559,6 +575,9 @@ function App() {
       <div className="agent-create-overlay" id="channelCreateOverlay">
         <ChannelCreate />
       </div>
+
+      {/* Skill viewer overlay */}
+      <Suspense fallback={null}><SkillViewerOverlay /></Suspense>
     </ErrorBoundary>
   );
 }

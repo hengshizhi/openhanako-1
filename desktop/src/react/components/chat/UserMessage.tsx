@@ -17,7 +17,8 @@ interface Props {
 
 export const UserMessage = memo(function UserMessage({ message, showAvatar }: Props) {
   const userAvatarUrl = useStore(s => s.userAvatarUrl);
-  const userName = useStore(s => s.userName) || '我';
+  const t = window.t ?? ((p: string) => p);
+  const userName = useStore(s => s.userName) || t('common.me');
   const [avatarFailed, setAvatarFailed] = useState(false);
 
   useEffect(() => {
@@ -112,7 +113,7 @@ const UserAttachmentsView = memo(function UserAttachmentsView({ attachments, des
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
-          <span className="attach-file-name">书桌 ({deskContext.fileCount})</span>
+          <span className="attach-file-name">{(window.t ?? ((p: string) => p))('sidebar.jian')} ({deskContext.fileCount})</span>
         </div>
       )}
     </div>

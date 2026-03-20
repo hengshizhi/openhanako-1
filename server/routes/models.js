@@ -109,7 +109,7 @@ export default async function modelsRoute(app, { engine }) {
 
       // OpenAI Codex Responses API：无法通过简单请求检测（Cloudflare 反爬），跳过
       if (api === "openai-codex-responses") {
-        return { ok: true, status: 0, provider: model.provider, skipped: "codex API 不支持健康检测" };
+        return { ok: true, status: 0, provider: model.provider, skipped: t("error.codexNoHealthCheck") };
       }
 
       // OpenAI 兼容 API：用 /models 端点

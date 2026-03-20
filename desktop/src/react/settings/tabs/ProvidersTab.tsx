@@ -156,7 +156,7 @@ export function ProvidersTab() {
             );
           })() : (
             <div className="pv-empty">
-              {t('settings.providers.selectHint') || '选择一个供应商查看详情'}
+              {t('settings.providers.selectHint')}
             </div>
           )}
         </div>
@@ -534,7 +534,7 @@ function FavoritedModels({ providerId, summary }: {
   return (
     <div className="pv-fav-section">
       <div className="pv-fav-title">
-        {t('settings.api.addedModels') || '已添加模型'}
+        {t('settings.api.addedModels')}
         <span className="pv-models-count">{favModels.length}</span>
       </div>
       <div className="pv-fav-list">
@@ -712,7 +712,7 @@ function ProviderModelList({ providerId, summary, onRefresh }: {
       {/* 添加模型行：下拉 + 读取按钮 同一行等高 */}
       <div className="pv-models-action-row">
         <button ref={triggerRef} className="pv-model-dropdown-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
-          <span>{t('settings.api.addModel') || '添加模型'}</span>
+          <span>{t('settings.api.addModel')}</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9" />
           </svg>
@@ -734,7 +734,7 @@ function ProviderModelList({ providerId, summary, onRefresh }: {
             <input
               className="pv-model-dropdown-search"
               type="text"
-              placeholder={t('settings.api.searchModel') || '搜索模型...'}
+              placeholder={t('settings.api.searchModel')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               autoFocus
@@ -756,7 +756,7 @@ function ProviderModelList({ providerId, summary, onRefresh }: {
                 );
               })}
               {filtered.length === 0 && (
-                <div className="pv-model-dropdown-empty">{t('settings.providers.noModels') || '无模型'}</div>
+                <div className="pv-model-dropdown-empty">{t('settings.providers.noModels')}</div>
               )}
             </div>
             {/* 自定义模型输入 */}
@@ -764,7 +764,7 @@ function ProviderModelList({ providerId, summary, onRefresh }: {
               <input
                 className="pv-model-dropdown-custom-input"
                 type="text"
-                placeholder={t('settings.oauth.customModelPlaceholder') || '输入模型 ID...'}
+                placeholder={t('settings.oauth.customModelPlaceholder')}
                 value={customInput}
                 onChange={(e) => setCustomInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { addCustomModel(); } }}
@@ -828,7 +828,7 @@ function ModelEditPanel({ modelId, anchorEl, onClose }: {
         <span className="pv-model-edit-id">{modelId}</span>
       </div>
       <div className="pv-model-edit-field">
-        <label className="pv-model-edit-label">{t('settings.api.displayName') || '模型名称'}</label>
+        <label className="pv-model-edit-label">{t('settings.api.displayName')}</label>
         <input
           className="settings-input"
           type="text"
@@ -895,7 +895,7 @@ function AddCustomButton({ adding, onToggle, onDone, onCancel }: {
   return (
     <div className="pv-add-wrapper">
       <button ref={btnRef} className="pv-add-btn" onClick={onToggle}>
-        + {t('settings.providers.addCustom') || '添加自定义供应商'}
+        + {t('settings.providers.addCustom')}
       </button>
       {adding && (
         <div ref={popRef} className="pv-add-popover" style={style}>
@@ -945,7 +945,7 @@ function AddProviderForm({ onDone, onCancel }: { onDone: () => void; onCancel: (
   return (
     <div className="pv-add-form">
       <div className="pv-add-form-field">
-        <label className="pv-add-form-label">{t('settings.providers.customName') || '名称'}</label>
+        <label className="pv-add-form-label">{t('settings.providers.customName')}</label>
         <input className="settings-input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-provider" />
       </div>
       <div className="pv-add-form-field">
@@ -957,7 +957,7 @@ function AddProviderForm({ onDone, onCancel }: { onDone: () => void; onCancel: (
         <KeyInput value={apiKey} onChange={setApiKey} placeholder={t('settings.api.apiKeyPlaceholder')} />
       </div>
       <div className="pv-add-form-field">
-        <label className="pv-add-form-label">{t('settings.providers.apiFormat') || 'API 类型'}</label>
+        <label className="pv-add-form-label">{t('settings.providers.apiFormat')}</label>
         <SelectWidget options={API_FORMAT_OPTIONS} value={api} onChange={setApi} placeholder="API Format" />
       </div>
       <div className="pv-add-form-actions">
@@ -1005,7 +1005,7 @@ function ProviderDeleteButton({ providerId, onRefresh }: { providerId: string; o
           <div className="pv-model-edit-overlay" onClick={() => setConfirming(false)} />
           <div className="pv-confirm-dialog">
             <p className="pv-confirm-text">
-              {t('settings.providers.deleteConfirm', { name: providerId }) || `确定删除供应商 ${providerId}？相关模型和收藏将一并清除。`}
+              {t('settings.providers.deleteConfirm', { name: providerId })}
             </p>
             <div className="pv-confirm-actions">
               <button className="pv-add-form-btn" onClick={() => setConfirming(false)}>{t('settings.api.cancel')}</button>

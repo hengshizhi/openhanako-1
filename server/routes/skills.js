@@ -11,6 +11,7 @@ import fs from "fs";
 import { extractZip } from "../../lib/extract-zip.js";
 import { saveConfig } from "../../lib/memory/config-loader.js";
 import { sanitizeSkillName, safetyReview } from "../../lib/tools/install-skill.js";
+import { t } from "../i18n.js";
 
 function validateId(id) {
   return id && !id.includes("..") && !id.includes("/") && !id.includes("\\");
@@ -99,12 +100,12 @@ export default async function skillsRoute(app, { engine }) {
       const { path: srcPath } = req.body || {};
       if (!srcPath || !path.isAbsolute(srcPath)) {
         reply.code(400);
-        return { error: "需要绝对路径" };
+        return { error: t("error.skillNeedAbsolutePath") };
       }
 
       if (!fs.existsSync(srcPath)) {
         reply.code(400);
-        return { error: "路径不存在" };
+        return { error: t("error.skillPathNotExists") };
       }
 
       const userDir = engine.userSkillsDir;
@@ -116,7 +117,7 @@ export default async function skillsRoute(app, { engine }) {
         // 直接是文件夹
         if (!fs.existsSync(path.join(srcPath, "SKILL.md"))) {
           reply.code(400);
-          return { error: "文件夹中缺少 SKILL.md" };
+          return { error: t("error.skillMissingSkillMd") };
         }
         skillDir = srcPath;
       } else {
@@ -124,7 +125,7 @@ export default async function skillsRoute(app, { engine }) {
         const ext = path.extname(srcPath).toLowerCase();
         if (ext !== ".zip" && ext !== ".skill") {
           reply.code(400);
-          return { error: "仅支持 .zip 或 .skill 文件" };
+          return { error: t("error.skillUnsupportedFormat") };
         }
 
         // 解压到临时目录
@@ -145,13 +146,13 @@ export default async function skillsRoute(app, { engine }) {
             } else {
               rmDirSync(tmpDir);
               reply.code(400);
-              return { error: "压缩包中缺少 SKILL.md" };
+              return { error: t("error.skillMissingSkillMdInZip") };
             }
           }
         } catch (err) {
           rmDirSync(tmpDir);
           reply.code(400);
-          return { error: "解压失败: " + err.message };
+          return { error: t("error.skillExtractFailed", { msg: err.message }) };
         }
       }
 
@@ -161,14 +162,14 @@ export default async function skillsRoute(app, { engine }) {
         // 清理临时目录
         if (skillDir !== srcPath) rmDirSync(path.dirname(skillDir) === userDir ? skillDir : path.join(userDir, ".tmp-install-" + Date.now()));
         reply.code(400);
-        return { error: "SKILL.md 中缺少 name 字段" };
+        return { error: t("error.skillMissingName") };
       }
 
       // 安全校验名称
       const safeName = sanitizeSkillName(skillName);
       if (!safeName) {
         reply.code(400);
-        return { error: `技能名称无效（"${skillName}"）。仅允许字母、数字、下划线和短横线。` };
+        return { error: t("error.skillNameInvalid", { name: skillName }) };
       }
 
       // 手动安装（用户行为）不做安全审查，直接放行
@@ -243,11 +244,11 @@ export default async function skillsRoute(app, { engine }) {
       for (const p of paths) {
         if (!path.isAbsolute(p)) {
           reply.code(400);
-          return { error: `路径必须是绝对路径: ${p}` };
+          return { error: t("error.skillPathMustBeAbsolute", { path: p }) };
         }
         if (path.resolve(p) === path.resolve(engine.skillsDir)) {
           reply.code(400);
-          return { error: "不能添加 Hanako 自身的技能目录" };
+          return { error: t("error.skillCannotAddSelfDir") };
         }
       }
       await engine.setExternalSkillPaths(paths);
@@ -264,7 +265,7 @@ export default async function skillsRoute(app, { engine }) {
       const { name } = req.params;
       if (!sanitizeSkillName(name)) {
         reply.code(400);
-        return { error: "无效的技能名称" };
+        return { error: t("error.skillInvalidName") };
       }
 
       // 外部技能不可删除
@@ -272,7 +273,7 @@ export default async function skillsRoute(app, { engine }) {
       const target = allSkills.find(s => s.name === name);
       if (target?.readonly) {
         reply.code(403);
-        return { error: "外部兼容技能无法从此处删除" };
+        return { error: t("error.skillExternalCannotDelete") };
       }
 
       // 优先查用户技能目录，再查 agent 自学目录
@@ -287,7 +288,7 @@ export default async function skillsRoute(app, { engine }) {
         skillPath = learnedSkillPath;
       } else {
         reply.code(404);
-        return { error: "技能不存在" };
+        return { error: t("error.skillNotExists") };
       }
 
       // 删除目录

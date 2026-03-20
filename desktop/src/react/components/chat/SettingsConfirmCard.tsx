@@ -7,6 +7,7 @@
 
 import { memo, useState, useCallback } from 'react';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
+import { useI18n } from '../../hooks/use-i18n';
 
 interface Props {
   confirmId: string;
@@ -20,14 +21,15 @@ interface Props {
   status: 'pending' | 'confirmed' | 'rejected' | 'timeout';
 }
 
-function toggleLabel(from: string, to: string): string {
-  const f = from === 'true' ? '开' : '关';
-  const t = to === 'true' ? '开' : '关';
-  return `${f} → ${t}`;
+function toggleLabel(from: string, to: string, t: (k: string) => string): string {
+  const f = from === 'true' ? t('common.on') : t('common.off');
+  const toLabel = to === 'true' ? t('common.on') : t('common.off');
+  return `${f} → ${toLabel}`;
 }
 
 export const SettingsConfirmCard = memo(function SettingsConfirmCard(props: Props) {
   const { confirmId, cardType, currentValue, proposedValue, options, label, description, status: initialStatus } = props;
+  const { t } = useI18n();
   const [status, setStatus] = useState(initialStatus);
   const [editValue, setEditValue] = useState(proposedValue);
 
@@ -64,13 +66,13 @@ export const SettingsConfirmCard = memo(function SettingsConfirmCard(props: Prop
               <div className="hana-toggle-thumb" />
             </div>
           </div>
-          <div className="settings-confirm-note">{toggleLabel(currentValue, editValue)}</div>
+          <div className="settings-confirm-note">{toggleLabel(currentValue, editValue, t)}</div>
         </div>
       );
     }
     const statusText = status === 'confirmed' ? `${label} → ${editValue}`
-      : status === 'rejected' ? `${label} 修改已取消`
-      : `${label} 确认超时`;
+      : status === 'rejected' ? t('common.changeRejected').replace('{label}', label)
+      : t('common.changeTimeout').replace('{label}', label);
     const statusClass = status === 'confirmed' ? 'confirmed' : 'rejected';
     return (
       <div className="settings-confirm-card done">
@@ -93,7 +95,7 @@ export const SettingsConfirmCard = memo(function SettingsConfirmCard(props: Prop
               <div className="hana-toggle-thumb" />
             </div>
           </div>
-          <div className="settings-confirm-note">{toggleLabel(currentValue, editValue)}</div>
+          <div className="settings-confirm-note">{toggleLabel(currentValue, editValue, t)}</div>
         </>
       ) : (
         <>
@@ -126,8 +128,8 @@ export const SettingsConfirmCard = memo(function SettingsConfirmCard(props: Prop
       )}
 
       <div className="settings-confirm-actions">
-        <button className="settings-confirm-btn confirm" onClick={handleConfirm}>确认</button>
-        <button className="settings-confirm-btn reject" onClick={handleReject}>取消</button>
+        <button className="settings-confirm-btn confirm" onClick={handleConfirm}>{t('common.confirm')}</button>
+        <button className="settings-confirm-btn reject" onClick={handleReject}>{t('common.cancel')}</button>
       </div>
     </div>
   );

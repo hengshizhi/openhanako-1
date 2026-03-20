@@ -13,6 +13,7 @@ import {
 import { registerOAuthProvider } from "@mariozechner/pi-ai/oauth";
 import { minimaxOAuthProvider } from "../lib/oauth/minimax-portal.js";
 import { clearConfigCache, loadGlobalProviders, resolveApiKeyFromAuth } from "../lib/memory/config-loader.js";
+import { t } from "../server/i18n.js";
 
 function isLocalBaseUrl(url) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(String(url || ""));
@@ -73,8 +74,19 @@ export class ModelManager {
     for (const [provider, modelIds] of Object.entries(custom)) {
       if (!Array.isArray(modelIds) || modelIds.length === 0) continue;
       // 找同 provider 的模板模型（继承 baseUrl、api、cost 等）
-      const template = this._availableModels.find(m => m.provider === provider);
-      if (!template) continue;
+      let template = this._availableModels.find(m => m.provider === provider);
+      if (!template) {
+        // 无已有模型时从 providers.yaml 构建最小模板
+        const gp = loadGlobalProviders().providers?.[provider];
+        if (!gp?.base_url || !gp?.api) continue;
+        template = {
+          provider,
+          baseUrl: gp.base_url,
+          api: gp.api,
+          input: ["text", "image"],
+          contextWindow: 128_000,
+        };
+      }
       const existing = new Set(this._availableModels.filter(m => m.provider === provider).map(m => m.id));
       for (const id of modelIds) {
         if (existing.has(id)) continue;
@@ -118,7 +130,7 @@ export class ModelManager {
    */
   setModel(modelId) {
     const model = this._availableModels.find(m => m.id === modelId);
-    if (!model) throw new Error(`找不到模型: ${modelId}`);
+    if (!model) throw new Error(t("error.modelNotFound", { id: modelId }));
     this._sessionModel = model;
     return model;
   }
@@ -137,7 +149,7 @@ export class ModelManager {
     const ref = modelRef.trim();
     if (!ref) return this.currentModel;
     const model = this._availableModels.find(m => m.id === ref || m.name === ref);
-    if (!model) throw new Error(`找不到模型: ${ref}`);
+    if (!model) throw new Error(t("error.modelNotFound", { id: ref }));
     return model;
   }
 
@@ -177,6 +189,35 @@ export class ModelManager {
   }
 
   /**
+   * 统一解析：模型引用 → { model, provider, api, api_key, base_url }
+   * 所有消费方（chat、utility、memory、diary）都应通过此方法获取模型+凭证
+   * @param {string|object} modelRef - 模型 ID / name / 对象
+   * @param {object} [agentConfig] - agent config（用于 per-agent provider 回退）
+   * @returns {{ model: string, provider: string, api: string, api_key: string, base_url: string }}
+   */
+  resolveModelWithCredentials(modelRef, agentConfig) {
+    const entry = this.resolveExecutionModel(modelRef);
+    const provider = entry?.provider;
+    if (!provider) {
+      throw new Error(t("error.modelNoProvider", { role: "resolve", model: String(modelRef) }));
+    }
+    const creds = this.resolveProviderCredentials(provider, agentConfig);
+    if (!creds.api) {
+      throw new Error(t("error.providerMissingApi", { provider }));
+    }
+    if (!creds.base_url || (!creds.api_key && !isLocalBaseUrl(creds.base_url))) {
+      throw new Error(t("error.providerMissingCreds", { provider }));
+    }
+    return {
+      model: entry.id,
+      provider,
+      api: creds.api,
+      api_key: creds.api_key,
+      base_url: creds.base_url,
+    };
+  }
+
+  /**
    * 解析 utility 模型 + API 凭证完整配置
    * @param {object} agentConfig - agent config
    * @param {object} sharedModels - getSharedModels() 结果
@@ -187,11 +228,11 @@ export class ModelManager {
 
     const utilityModel = sharedModels?.utility || cfg.models?.utility;
     if (!utilityModel) {
-      throw new Error("未配置 utility 模型，请在设置中添加");
+      throw new Error(t("error.noUtilityModel"));
     }
     const largeModel = sharedModels?.utility_large || cfg.models?.utility_large;
     if (!largeModel) {
-      throw new Error("未配置 utility_large 模型，请在设置中添加");
+      throw new Error(t("error.noUtilityLargeModel"));
     }
 
     const utilityEntry = this.resolveExecutionModel(utilityModel);
@@ -200,10 +241,10 @@ export class ModelManager {
     const largeProvider = largeEntry?.provider || "";
 
     if (!utilProvider) {
-      throw new Error(`utility 模型 "${utilityModel}" 没有 provider 归属`);
+      throw new Error(t("error.modelNoProvider", { role: "utility", model: utilityModel }));
     }
     if (!largeProvider) {
-      throw new Error(`utility_large 模型 "${largeModel}" 没有 provider 归属`);
+      throw new Error(t("error.modelNoProvider", { role: "utility_large", model: largeModel }));
     }
 
     let api_key = "";
@@ -211,17 +252,17 @@ export class ModelManager {
     let api = "";
     if (utilApi?.provider || utilApi?.api_key || utilApi?.base_url) {
       if (utilApi.provider !== utilProvider) {
-        throw new Error(`utility_api.provider 必须与模型 "${utilityModel}" 的 provider 一致`);
+        throw new Error(t("error.utilityApiProviderMismatch", { model: utilityModel }));
       }
       const providerConfig = this.resolveProviderCredentials(utilProvider, cfg);
       api = providerConfig.api || "";
       api_key = utilApi.api_key || "";
       base_url = utilApi.base_url || "";
       if (!api) {
-        throw new Error(`provider "${utilProvider}" 缺少 API 协议配置`);
+        throw new Error(t("error.providerMissingApi", { provider: utilProvider }));
       }
       if (!base_url || (!api_key && !isLocalBaseUrl(base_url))) {
-        throw new Error(`utility_api 缺少完整凭证（provider: ${utilProvider}）`);
+        throw new Error(t("error.utilityApiMissingCreds", { provider: utilProvider }));
       }
     } else {
       const creds = this.resolveProviderCredentials(utilProvider, cfg);
@@ -229,10 +270,10 @@ export class ModelManager {
       base_url = creds.base_url;
       api = creds.api;
       if (!api) {
-        throw new Error(`provider "${utilProvider}" 缺少 API 协议配置`);
+        throw new Error(t("error.providerMissingApi", { provider: utilProvider }));
       }
       if (!base_url || (!api_key && !isLocalBaseUrl(base_url))) {
-        throw new Error(`provider "${utilProvider}" 缺少完整凭证`);
+        throw new Error(t("error.providerMissingCreds", { provider: utilProvider }));
       }
     }
 
@@ -244,10 +285,10 @@ export class ModelManager {
       large_base_url = creds.base_url;
       large_api = creds.api;
       if (!large_api) {
-        throw new Error(`provider "${largeProvider}" 缺少 API 协议配置`);
+        throw new Error(t("error.providerMissingApi", { provider: largeProvider }));
       }
       if (!large_base_url || (!large_api_key && !isLocalBaseUrl(large_base_url))) {
-        throw new Error(`provider "${largeProvider}" 缺少完整凭证`);
+        throw new Error(t("error.providerMissingCreds", { provider: largeProvider }));
       }
     }
 

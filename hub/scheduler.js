@@ -14,6 +14,7 @@ import path from "path";
 import { createHeartbeat } from "../lib/desk/heartbeat.js";
 import { createCronScheduler } from "../lib/desk/cron-scheduler.js";
 import { CronStore } from "../lib/desk/cron-store.js";
+import { getLocale } from "../server/i18n.js";
 
 export class Scheduler {
   /**
@@ -87,7 +88,10 @@ export class Scheduler {
       registryPath: path.join(agent.deskDir, "jian-registry.json"),
       overwatchPath: path.join(agent.deskDir, "overwatch.md"),
       onBeat: (prompt) => this._executeActivity(prompt, "heartbeat"),
-      onJianBeat: (prompt, cwd) => this._executeActivity(prompt, "heartbeat", `笺:${path.basename(cwd)}`, { cwd }),
+      onJianBeat: (prompt, cwd) => {
+        const isZh = getLocale().startsWith("zh");
+        this._executeActivity(prompt, "heartbeat", `${isZh ? "笺" : "jian"}:${path.basename(cwd)}`, { cwd });
+      },
       intervalMinutes: hbInterval,
       emitDevLog: (text, level) => engine.emitDevLog(text, level),
       locale: agent.config?.locale,
@@ -166,14 +170,24 @@ export class Scheduler {
     const ac = new AbortController();
     this._executingJobs.set(job.id, ac);
     try {
-      const prompt = [
-        `[定时任务 ${job.id}: ${job.label}]`,
-        "",
-        "**注意：这是系统自动触发的定时任务，不是用户发来的。**",
-        "**不要在执行过程中创建新的定时任务。**",
-        "",
-        job.prompt,
-      ].join("\n");
+      const isZh = getLocale().startsWith("zh");
+      const prompt = isZh
+        ? [
+            `[定时任务 ${job.id}: ${job.label}]`,
+            "",
+            "**注意：这是系统自动触发的定时任务，不是用户发来的。**",
+            "**不要在执行过程中创建新的定时任务。**",
+            "",
+            job.prompt,
+          ].join("\n")
+        : [
+            `[Cron job ${job.id}: ${job.label}]`,
+            "",
+            "**Note: This is an automated cron job, NOT a user message.**",
+            "**Do not create new cron jobs during execution.**",
+            "",
+            job.prompt,
+          ].join("\n");
       await this._executeActivityForAgent(agentId, prompt, "cron", job.label, {
         model: job.model || undefined,
         signal: ac.signal,
@@ -226,9 +240,14 @@ export class Scheduler {
       agentName,
       startedAt,
       finishedAt,
-      summary: failed
-        ? `${label || (type === "heartbeat" ? "日常巡检" : "定时任务")} 执行失败`
-        : (summary || (type === "heartbeat" ? "日常巡检" : (label || "定时任务"))),
+      summary: (() => {
+        const isZhS = getLocale().startsWith("zh");
+        const hbLabel = isZhS ? "日常巡检" : "routine patrol";
+        const cronLabel = isZhS ? "定时任务" : "cron job";
+        const failSuffix = isZhS ? "执行失败" : "execution failed";
+        if (failed) return `${label || (type === "heartbeat" ? hbLabel : cronLabel)} ${failSuffix}`;
+        return summary || (type === "heartbeat" ? hbLabel : (label || cronLabel));
+      })(),
       sessionFile: typeof sessionPath === "string" ? path.basename(sessionPath) : null,
       status: failed ? "error" : "done",
       error: error || null,
@@ -241,7 +260,8 @@ export class Scheduler {
     this._hub.eventBus.emit({ type: "activity_update", activity: entry }, null);
 
     if (failed) {
-      const reason = error || "后台任务未生成 session";
+      const isZhR = getLocale().startsWith("zh");
+      const reason = error || (isZhR ? "后台任务未生成 session" : "background task produced no session");
       engine.emitDevLog(`[${type}] ${label || "后台任务"} 失败: ${reason}`, "error");
       throw new Error(reason);
     }

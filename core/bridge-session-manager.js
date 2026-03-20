@@ -13,8 +13,12 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { debugLog } from "../lib/debug-log.js";
 import { READ_ONLY_BUILTIN_TOOLS } from "./config-coordinator.js";
+import { t, getLocale } from "../server/i18n.js";
 
-const STEER_PREFIX = "（插话，无需 MOOD）\n";
+function getSteerPrefix() {
+  const isZh = getLocale().startsWith("zh");
+  return isZh ? "（插话，无需 MOOD）\n" : "(Interjection, no MOOD needed)\n";
+}
 
 export class BridgeSessionManager {
   /**
@@ -147,11 +151,11 @@ export class BridgeSessionManager {
         // 使用 agent 配置的模型，而非 defaultModel
         const chatModelId = agent.config?.models?.chat;
         if (!chatModelId) {
-          throw new Error(`[bridge] agent "${agent.agentName}" 未配置 models.chat`);
+          throw new Error(t("error.bridgeAgentNoChatModel", { name: agent.agentName }));
         }
         const chatModel = mm.availableModels.find(m => m.id === chatModelId);
         if (!chatModel) {
-          throw new Error(`[bridge] agent "${agent.agentName}" 配置的模型 "${chatModelId}" 不在可用列表中`);
+          throw new Error(t("error.bridgeAgentModelNotAvailable", { name: agent.agentName, model: chatModelId }));
         }
 
         sessionOpts = {
@@ -178,11 +182,11 @@ export class BridgeSessionManager {
         // 使用 agent 配置的模型
         const ownerModelId = agent.config?.models?.chat;
         if (!ownerModelId) {
-          throw new Error(`[bridge] agent "${agent.agentName}" 未配置 models.chat`);
+          throw new Error(t("error.bridgeAgentNoChatModel", { name: agent.agentName }));
         }
         const ownerModel = mm.availableModels.find(m => m.id === ownerModelId);
         if (!ownerModel) {
-          throw new Error(`[bridge] agent "${agent.agentName}" 配置的模型 "${ownerModelId}" 不在可用列表中`);
+          throw new Error(t("error.bridgeAgentModelNotAvailable", { name: agent.agentName, model: ownerModelId }));
         }
 
         sessionOpts = {
@@ -257,7 +261,7 @@ export class BridgeSessionManager {
   steerSession(sessionKey, text) {
     const session = this._activeSessions.get(sessionKey);
     if (!session?.isStreaming) return false;
-    session.steer(STEER_PREFIX + text);
+    session.steer(getSteerPrefix() + text);
     return true;
   }
 

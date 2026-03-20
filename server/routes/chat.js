@@ -441,7 +441,7 @@ export default async function chatRoute(app, { engine, hub }) {
 
       // 空回复检测：本轮没有文本输出也没有工具调用，提示用户检查配置
       if (!ss.hasOutput && !ss.hasToolCall && isActive) {
-        broadcast({ type: "error", message: "模型未返回任何内容，请检查 API 配置和网络连接。" });
+        broadcast({ type: "error", message: t("error.modelNoResponse") });
       }
 
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
@@ -557,16 +557,16 @@ export default async function chatRoute(app, { engine, hub }) {
       if (msg.type === "compact") {
         const session = engine.session;
         if (!session) {
-          wsSend(ws, { type: "error", message: "没有活跃的 session" });
+          wsSend(ws, { type: "error", message: t("error.noActiveSession") });
           return;
         }
         if (session.isCompacting) {
-          wsSend(ws, { type: "error", message: "正在压缩中" });
+          wsSend(ws, { type: "error", message: t("error.compacting") });
           return;
         }
         // streaming 时不允许手动压缩，避免与 prompt 并发
         if (engine.isStreaming) {
-          wsSend(ws, { type: "error", message: "请等待回复结束后再压缩" });
+          wsSend(ws, { type: "error", message: t("error.waitForReply") });
           return;
         }
         broadcast({ type: "compaction_start" });
@@ -586,7 +586,7 @@ export default async function chatRoute(app, { engine, hub }) {
             broadcast({ type: "compaction_end" });
           } else {
             broadcast({ type: "compaction_end" });
-            wsSend(ws, { type: "error", message: `压缩失败: ${msg}` });
+            wsSend(ws, { type: "error", message: t("error.compactFailed", { msg }) });
           }
         }
         return;
@@ -599,16 +599,16 @@ export default async function chatRoute(app, { engine, hub }) {
           const MAX_IMAGES = 10;
           const MAX_BYTES = 20 * 1024 * 1024; // 20MB base64 ≈ 15MB 原始
           if (msg.images.length > MAX_IMAGES) {
-            wsSend(ws, { type: "error", message: `最多支持 ${MAX_IMAGES} 张图片` });
+            wsSend(ws, { type: "error", message: t("error.maxImages", { max: MAX_IMAGES }) });
             return;
           }
           for (const img of msg.images) {
             if (!img?.mimeType || !ALLOWED_MIME.has(img.mimeType)) {
-              wsSend(ws, { type: "error", message: `不支持的图片格式: ${img?.mimeType || "unknown"}` });
+              wsSend(ws, { type: "error", message: t("error.unsupportedImageFormat", { mime: img?.mimeType || "unknown" }) });
               return;
             }
             if (img.data && img.data.length > MAX_BYTES) {
-              wsSend(ws, { type: "error", message: "单张图片不得超过 20MB" });
+              wsSend(ws, { type: "error", message: t("error.imageTooLarge") });
               return;
             }
           }
@@ -616,7 +616,7 @@ export default async function chatRoute(app, { engine, hub }) {
         // 只发图片没文字时补一个占位文本，防止空 text 导致某些 API 异常
         let promptText = msg.text || "";
         if (!promptText.trim() && msg.images?.length) {
-          promptText = "（看图）";
+          promptText = t("error.viewImage");
         }
         debugLog()?.log("ws", `user message (${promptText.length} chars, ${msg.images?.length || 0} images)`);
         // Phase 2: 客户端可指定 sessionPath，否则用焦点 session

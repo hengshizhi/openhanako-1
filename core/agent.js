@@ -99,8 +99,9 @@ export class Agent {
    * 初始化助手：加载配置、编译记忆、创建工具
    * @param {(msg: string) => void} [log]
    * @param {object} [sharedModels] - 全局共享模型配置（由 engine 传入）
+   * @param {(bareId: string, agentConfig: object) => object} [resolveModel] - 统一模型解析回调
    */
-  async init(log = () => {}, sharedModels = {}) {
+  async init(log = () => {}, sharedModels = {}, resolveModel = null) {
     // 0. 兼容性检查（目录、数据库、配置文件）
     await runCompatChecks({
       agentDir: this.agentDir,
@@ -168,13 +169,23 @@ export class Agent {
     this._utilityModel = sharedModels.utility || null;
     this._memoryModel = sharedModels.utility_large || null;
 
-    if (this._utilityModel && this._memoryModel) {
+    // 预解析记忆模型凭证（统一解析层）
+    this._resolvedMemoryModel = null;
+    if (this._memoryModel && resolveModel) {
+      try {
+        this._resolvedMemoryModel = resolveModel(this._memoryModel, this._config);
+      } catch (err) {
+        console.warn(`[agent] 记忆模型解析失败，记忆系统将不启动: ${err.message}`);
+      }
+    }
+
+    if (this._resolvedMemoryModel) {
       log(`  [agent] 4. memoryTicker...`);
       this._memoryTicker = createMemoryTicker({
         summaryManager: this._summaryManager,
         configPath: this.configPath,
         factStore: this._factStore,
-        getMemoryModel: () => this._memoryModel,
+        getResolvedMemoryModel: () => this._resolvedMemoryModel,
         getMemoryMasterEnabled: () => this._memoryMasterEnabled,
         isSessionMemoryEnabled: (sessionPath) => this.isSessionMemoryEnabledFor(sessionPath),
         onCompiled: () => {
@@ -366,6 +377,7 @@ export class Agent {
   get publicIshiki() { return this._readPublicIshiki(); }
   get utilityModel() { return this._utilityModel; }
   get memoryModel() { return this._memoryModel; }
+  get resolvedMemoryModel() { return this._resolvedMemoryModel; }
   get summaryManager() { return this._summaryManager; }
   get memoryTicker() { return this._memoryTicker; }
   get tools() {
@@ -547,8 +559,8 @@ export class Agent {
 
     const parts = [
       isZh
-        ? "你运行在 OpenHanako 平台上。项目主页：https://github.com/liliMozi/openhanako"
-        : "You are running on the OpenHanako platform. Project page: https://github.com/liliMozi/openhanako",
+        ? "你运行在 OpenHanako 平台上，由 liliMozi 开发。项目主页：https://github.com/liliMozi/openhanako"
+        : "You are running on the OpenHanako platform, developed by liliMozi. Project page: https://github.com/liliMozi/openhanako",
       ishiki,
       ...section(
         isZh ? "# 用户档案" : "# User Profile",
@@ -588,7 +600,7 @@ export class Agent {
         ));
       }
       const trimmedMemory = memory.trim();
-      if (trimmedMemory && trimmedMemory !== "（暂无记忆）") {
+      if (trimmedMemory && trimmedMemory !== "（暂无记忆）" && trimmedMemory !== "(No memory yet)") {
         parts.push(...section(
           isZh ? "# 记忆" : "# Memory",
           isZh
@@ -601,61 +613,23 @@ export class Agent {
     // Skills 注入（用 SDK 原版 formatSkillsForPrompt）
     if (this._enabledSkills?.length > 0) {
       parts.push(formatSkillsForPrompt(this._enabledSkills));
-      parts.push(isZh
-        ? "\n## 文件呈现规则\n\n" +
-          "当你为用户成功创建了文件（PDF、Word、Excel、PPT、Markdown 等）并确认写入磁盘后，" +
-          "必须立即调用 present_files 工具，在 filepaths 参数中传入文件的绝对路径数组，" +
-          "让用户可以在对话中直接打开文件。第一个路径应该是用户最想看到的文件。" +
-          "不要仅在文本里提及文件路径，要调用工具。"
-        : "\n## File Presentation Rules\n\n" +
-          "After successfully creating files (PDF, Word, Excel, PPT, Markdown, etc.) and confirming they are written to disk, " +
-          "you must immediately call the present_files tool, passing an array of absolute file paths in the filepaths parameter, " +
-          "so the user can open files directly from the conversation. The first path should be the file the user most wants to see. " +
-          "Don't just mention file paths in text — call the tool."
-      );
-      parts.push(isZh
-        ? "\n## Artifact 预览规则\n\n" +
-          "当你为用户生成 HTML 页面、交互式可视化、完整代码文件或长篇 Markdown 内容时，" +
-          "使用 create_artifact 工具，内容会在预览面板中渲染。\n" +
-          "适合用 artifact 的情况：可运行的 HTML/CSS/JS 页面、SVG 图表、完整代码文件、长篇格式化文档。\n" +
-          "不适合用 artifact 的情况：简短的文字回复、对话性回答、单行代码片段（直接在消息中展示即可）。"
-        : "\n## Artifact Preview Rules\n\n" +
-          "When generating HTML pages, interactive visualizations, complete code files, or long-form Markdown content, " +
-          "use the create_artifact tool — content will be rendered in the preview panel.\n" +
-          "Good for artifacts: runnable HTML/CSS/JS pages, SVG charts, complete code files, long formatted documents.\n" +
-          "Not for artifacts: short text replies, conversational answers, single-line code snippets (show directly in the message)."
-      );
-      parts.push(isZh
-        ? "\n## 浏览器使用规则\n\n" +
-          "你有一个浏览器工具（browser），可以打开网页、浏览、点击、输入。\n\n" +
-          "### 工具选择优先级（必须遵守）\n\n" +
-          "获取网页信息时，按以下顺序选择工具：\n" +
-          "1. **web_search** — 查找信息、获取 URL。大多数「帮我查一下 XX」的请求用这个就够了\n" +
-          "2. **web_fetch** — 已知 URL，需要提取页面文字内容。简单抓取必须用这个\n" +
-          "3. **browser** — 只在以下情况使用：页面需要登录/身份验证、需要填表或点击交互、web_fetch 返回的内容为空或不完整（JS 动态渲染页面）、需要查看页面视觉布局\n\n" +
-          "**禁止**在 web_search 或 web_fetch 能完成的场景下启动浏览器。浏览器启动成本高、会打开窗口干扰用户。\n\n" +
-          "### 浏览器操作规则\n\n" +
-          "1. 首次使用前必须调用 browser(action: \"start\") 启动浏览器\n" +
-          "2. 优先使用 snapshot 感知页面（文本格式，成本低），只在需要视觉布局信息时用 screenshot\n" +
-          "3. snapshot 返回的 [ref] 编号在页面变化后会失效。navigate、click 等操作会自动返回新的 snapshot，不需要手动再调 snapshot\n" +
-          "4. 如果需要点击或输入但 ref 已失效，先调用 snapshot 获取最新编号\n" +
-          "5. 用完浏览器后调用 browser(action: \"stop\") 关闭，避免资源浪费"
-        : "\n## Browser Usage Rules\n\n" +
-          "You have a browser tool that can open web pages, browse, click, and type.\n\n" +
-          "### Tool Selection Priority (mandatory)\n\n" +
-          "When fetching web information, choose tools in this order:\n" +
-          "1. **web_search** — Find information, get URLs. Most \"look up XX\" requests are handled by this alone\n" +
-          "2. **web_fetch** — Known URL, need to extract page text. Simple scraping must use this\n" +
-          "3. **browser** — Only use when: the page requires login/authentication, form filling or click interaction is needed, web_fetch returns empty or incomplete content (JS-rendered pages), or you need to see visual layout\n\n" +
-          "**Do not** launch the browser when web_search or web_fetch can do the job. Browser startup is expensive and opens a window that interrupts the user.\n\n" +
-          "### Browser Operation Rules\n\n" +
-          "1. Before first use, call browser(action: \"start\") to launch\n" +
-          "2. Prefer snapshot for page awareness (text format, low cost); only use screenshot when visual layout info is needed\n" +
-          "3. [ref] numbers from snapshot become invalid after page changes. navigate, click, etc. automatically return a new snapshot — no need to manually call snapshot again\n" +
-          "4. If you need to click or type but ref is stale, call snapshot first to get the latest numbers\n" +
-          "5. When done with the browser, call browser(action: \"stop\") to close and free resources"
-      );
     }
+
+    // 网页工具选择优先级（跨工具编排，工具 description 里放不下）
+    parts.push(isZh
+      ? "\n## 网页工具优先级\n\n" +
+        "获取网页信息时，按以下顺序选择工具：\n" +
+        "1. **web_search** — 查找信息、获取 URL。大多数「帮我查一下 XX」的请求用这个就够了\n" +
+        "2. **web_fetch** — 已知 URL，需要提取页面文字内容。简单抓取必须用这个\n" +
+        "3. **browser** — 只在以下情况使用：页面需要登录/身份验证、需要填表或点击交互、web_fetch 返回的内容为空或不完整（JS 动态渲染页面）、需要查看页面视觉布局\n\n" +
+        "**禁止**在 web_search 或 web_fetch 能完成的场景下启动浏览器。浏览器启动成本高、会打开窗口干扰用户。"
+      : "\n## Web Tool Priority\n\n" +
+        "When fetching web information, choose tools in this order:\n" +
+        "1. **web_search** — Find information, get URLs. Most \"look up XX\" requests are handled by this alone\n" +
+        "2. **web_fetch** — Known URL, need to extract page text. Simple scraping must use this\n" +
+        "3. **browser** — Only use when: the page requires login/authentication, form filling or click interaction is needed, web_fetch returns empty or incomplete content (JS-rendered pages), or you need to see visual layout\n\n" +
+        "**Do not** launch the browser when web_search or web_fetch can do the job. Browser startup is expensive and opens a window that interrupts the user."
+    );
 
     // 主动技能获取引导（仅在 allow_github_fetch 开启时注入）
     // learn_skills 从全局 preferences 读取

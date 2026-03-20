@@ -33,16 +33,17 @@ export const ToolGroupBlock = memo(function ToolGroupBlock({ tools, collapsed: i
   const isSingle = tools.length === 1;
 
   // 摘要标题
+  const _t = (window as any).t ?? ((p: string) => p);
   let summaryText = '';
   if (allDone) {
     if (failCount > 0) {
-      summaryText = `${tools.length} 个工具（${failCount} 个失败）`;
+      summaryText = _t('toolGroup.countWithFail', { total: tools.length, fail: failCount });
     } else {
-      summaryText = `${tools.length} 个工具`;
+      summaryText = _t('toolGroup.count', { n: tools.length });
     }
   } else {
     const running = tools.filter(t => !t.done).length;
-    summaryText = `${running} 个工具运行中`;
+    summaryText = _t('toolGroup.running', { n: running });
   }
 
   return (

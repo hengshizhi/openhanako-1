@@ -50,6 +50,7 @@ import {
 } from "./llm-utils.js";
 import { debugLog } from "../lib/debug-log.js";
 import { createSandboxedTools } from "../lib/sandbox/index.js";
+import { t } from "../server/i18n.js";
 
 export class HanaEngine {
   /**
@@ -72,7 +73,7 @@ export class HanaEngine {
 
     // 确定启动时焦点 agent
     const startId = agentId || this._prefs.getPrimaryAgent() || this._prefs.findFirstAgent();
-    if (!startId) throw new Error("agents/ 目录下没有找到任何助手，请先创建一个");
+    if (!startId) throw new Error(t("error.noAgentsFound"));
 
     // ── Channel Manager ──
     this._channels = new ChannelManager({
@@ -595,10 +596,11 @@ export class HanaEngine {
       await this.agent.memoryTicker.flushSession(currentPath);
     }
     const { writeDiary } = await import("../lib/diary/diary-writer.js");
+    const diaryModelId = this.agent.config.models?.chat || this.agent.memoryModel;
+    const resolvedModel = this._models.resolveModelWithCredentials(diaryModelId, this.agent.config);
     return writeDiary({
       summaryManager: this.agent.summaryManager,
-      configPath: this.agent.configPath,
-      model: this.agent.config.models?.chat || this.agent.memoryModel,
+      resolvedModel,
       agentPersonality: this.agent.personality,
       memory: (() => {
         try { return fs.readFileSync(this.agent.memoryMdPath, "utf-8"); } catch { return ""; }

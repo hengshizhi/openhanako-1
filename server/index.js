@@ -148,6 +148,9 @@ await app.register(websocket);
 
 // ── 阻塞式确认存储 ──
 const confirmStore = new ConfirmStore();
+confirmStore.onResolved = (confirmId, action) => {
+  engine._emitEvent({ type: "confirmation_resolved", confirmId, action }, null);
+};
 engine._confirmStore = confirmStore;
 
 // ── 外部平台接入管理器 ──

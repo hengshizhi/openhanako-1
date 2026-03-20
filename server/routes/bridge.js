@@ -8,6 +8,7 @@ import fs from "fs";
 import path from "path";
 import { debugLog } from "../../lib/debug-log.js";
 import { parseSessionKey, collectKnownUsers, KNOWN_PLATFORMS } from "../../lib/bridge/session-key.js";
+import { t } from "../i18n.js";
 
 export default async function bridgeRoute(app, { engine, bridgeManager }) {
 
@@ -280,9 +281,9 @@ export default async function bridgeRoute(app, { engine, bridgeManager }) {
         });
         const data = await resp.json();
         if (data.code === 0) {
-          return { ok: true, info: { msg: "token 获取成功" } };
+          return { ok: true, info: { msg: t("error.tokenSuccess") } };
         }
-        return { ok: false, error: data.msg || "验证失败" };
+        return { ok: false, error: data.msg || t("error.verifyFailed") };
       } else if (platform === "qq") {
         // v2 鉴权：appID + appSecret → access_token → /users/@me
         const tokenRes = await fetch("https://bots.qq.com/app/getAppAccessToken", {
@@ -292,7 +293,7 @@ export default async function bridgeRoute(app, { engine, bridgeManager }) {
         });
         const tokenData = await tokenRes.json();
         if (!tokenData.access_token) {
-          return { ok: false, error: tokenData.message || "获取 access_token 失败" };
+          return { ok: false, error: tokenData.message || t("error.tokenFetchFailed") };
         }
         const meRes = await fetch("https://api.sgroup.qq.com/users/@me", {
           headers: { Authorization: `QQBot ${tokenData.access_token}` },
@@ -301,9 +302,9 @@ export default async function bridgeRoute(app, { engine, bridgeManager }) {
         if (me.id) {
           return { ok: true, info: { username: me.username, name: me.username } };
         }
-        return { ok: false, error: me.message || "获取机器人信息失败" };
+        return { ok: false, error: me.message || t("error.botInfoFailed") };
       }
-      return { ok: false, error: "该平台暂不支持测试" };
+      return { ok: false, error: t("error.platformTestUnsupported") };
     } catch (err) {
       return { ok: false, error: err.message };
     }

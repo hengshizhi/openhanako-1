@@ -8,6 +8,7 @@
 import { runAgentSession } from "./agent-executor.js";
 import { appendMessage } from "../lib/channels/channel-store.js";
 import { debugLog } from "../lib/debug-log.js";
+import { getLocale } from "../server/i18n.js";
 import path from "path";
 import fs from "fs";
 
@@ -56,8 +57,10 @@ export class AgentMessenger {
     const traceId = `dm_${Date.now()}`;
     debugLog()?.log("agent-messenger", `[${traceId}] ${fromAgent} ⇄ ${toAgent} (maxRounds=${maxRounds})`);
 
-    const systemNote = (sender) =>
-      `当前消息来自内部 agent「${sender}」，这是 agent 间的内部通信，不是用户发来的。如果你认为对话可以结束了，在回复末尾加 <done/>。`;
+    const isZh = getLocale().startsWith("zh");
+    const systemNote = (sender) => isZh
+      ? `当前消息来自内部 agent「${sender}」，这是 agent 间的内部通信，不是用户发来的。如果你认为对话可以结束了，在回复末尾加 <done/>。`
+      : `This message is from internal agent "${sender}". This is agent-to-agent communication, not from the user. If you think the conversation can end, append <done/> at the end of your reply.`;
 
     let sender = fromAgent;
     let receiver = toAgent;
@@ -73,7 +76,7 @@ export class AgentMessenger {
 
         const reply = await runAgentSession(
           receiver,
-          [{ text: `[来自 ${sender}] ${currentText}`, capture: true }],
+          [{ text: isZh ? `[来自 ${sender}] ${currentText}` : `[From ${sender}] ${currentText}`, capture: true }],
           {
             engine: this._hub.engine,
             signal: opts.signal,

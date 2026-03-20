@@ -580,6 +580,7 @@ function DeskFileList({ sortMode, onShowMenu }: { sortMode: SortMode; onShowMenu
   return (
     <div
       className="jian-desk-list"
+      data-empty-text={(window as any).t?.('common.noFiles') || ''}
       ref={listRef}
       onMouseDown={handleMouseDown}
       onContextMenu={handleContextMenu}
@@ -800,8 +801,8 @@ function DeskCwdSkillsButton() {
 
   const t = window.t ?? ((p: string) => p);
   const label = skills.length > 0
-    ? `${t('desk.cwdSkills') || '项目技能'} · ${skills.length}`
-    : t('desk.cwdSkills') || '项目技能';
+    ? `${t('desk.cwdSkills')} · ${skills.length}`
+    : t('desk.cwdSkills');
 
   return (
     <button
@@ -916,14 +917,14 @@ function DeskCwdSkillsPanel() {
       >
         <div className="desk-cwd-desc-line">
           <span className="desk-cwd-desc-deco" />
-          <span className="desk-cwd-desc-text">{t('desk.cwdSkillsDesc') || '技能跟随工作空间'}</span>
+          <span className="desk-cwd-desc-text">{t('desk.cwdSkillsDesc')}</span>
           <span className="desk-cwd-desc-deco" />
         </div>
 
         {skills.length === 0 ? (
           <>
-            <p className="desk-cwd-empty">{t('desk.cwdSkillsEmpty') || '当前文件夹没有项目技能'}</p>
-            <p className="desk-cwd-hint">{t('desk.cwdSkillsDrop') || '拖入文件夹或 .zip 安装技能'}</p>
+            <p className="desk-cwd-empty">{t('desk.cwdSkillsEmpty')}</p>
+            <p className="desk-cwd-hint">{t('desk.cwdSkillsDrop')}</p>
           </>
         ) : (
           <>
@@ -959,7 +960,7 @@ function DeskCwdSkillsPanel() {
                 })}
               </div>
             ))}
-            <p className="desk-cwd-hint">{t('desk.cwdSkillsDrop') || '拖入文件夹或 .zip 安装技能'}</p>
+            <p className="desk-cwd-hint">{t('desk.cwdSkillsDrop')}</p>
           </>
         )}
         {cmPos && (
@@ -976,7 +977,7 @@ function DeskCwdSkillsPanel() {
                 deleteSkill(cmSkill);
                 setCmPos(null);
               }}>
-                {t('desk.deleteSkill') || '删除技能'}
+                {t('desk.deleteSkill')}
               </button>
             )}
           </div>
@@ -1056,7 +1057,7 @@ function DeskSkillsSection() {
   return (
     <div className="desk-skills-section">
       <button className="desk-skills-header" onClick={toggleCollapse}>
-        <span>{t('desk.skills') || '技能'}</span>
+        <span>{t('desk.skills')}</span>
         <span className="desk-skills-count">{enabledCount}</span>
         <svg
           className={`desk-skills-chevron${collapsed ? '' : ' open'}`}

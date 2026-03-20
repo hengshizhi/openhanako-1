@@ -1,5 +1,11 @@
 import type { ActivePanel, TabType } from '../types';
 
+export interface DevLogEntry {
+  level: string;
+  text: string;
+  time: string;
+}
+
 export interface UiSlice {
   sidebarOpen: boolean;
   sidebarAutoCollapsed: boolean;
@@ -10,6 +16,10 @@ export interface UiSlice {
   currentTab: TabType;
   activePanel: ActivePanel;
   panelClosing: boolean;
+  locale: string;
+  devLogs: DevLogEntry[];
+  /** Skill 预览 overlay 数据（null = 关闭） */
+  skillViewerData: { name: string; baseDir: string; filePath?: string; installed?: boolean } | null;
   setSidebarOpen: (open: boolean) => void;
   setSidebarAutoCollapsed: (collapsed: boolean) => void;
   setJianOpen: (open: boolean) => void;
@@ -35,6 +45,11 @@ export const createUiSlice = (
   welcomeVisible: true,
   currentTab: 'chat',
   activePanel: null,
+  // Keep locale empty until i18n.load() finishes so the first successful
+  // locale sync always triggers a rerender, even for the default zh locale.
+  locale: '',
+  devLogs: [],
+  skillViewerData: null,
   panelClosing: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setSidebarAutoCollapsed: (collapsed) => set({ sidebarAutoCollapsed: collapsed }),

@@ -65,29 +65,31 @@ export function formatSessionDate(isoStr: string): string {
 }
 
 export function cronToHuman(schedule: number | string): string {
+  const t = window.t ?? ((p: string) => p);
   if (typeof schedule === 'number') {
     const h = Math.round(schedule / 3600000);
-    return h > 0 ? `每 ${h} 小时` : `每 ${Math.round(schedule / 60000)} 分钟`;
+    return h > 0 ? t('cron.everyHours', { n: h }) : t('cron.everyMinutes', { n: Math.round(schedule / 60000) });
   }
   const s = String(schedule);
   const parts = s.split(' ');
   if (parts.length !== 5) return s;
   const [min, hour, , , dow] = parts;
   if (min.startsWith('*/') && hour === '*' && dow === '*') {
-    return `每 ${min.slice(2)} 分钟`;
+    return t('cron.everyMinutes', { n: min.slice(2) });
   }
   if (min === '0' && hour.startsWith('*/') && dow === '*') {
-    return `每 ${hour.slice(2)} 小时`;
+    return t('cron.everyHours', { n: hour.slice(2) });
   }
-  if (min === '0' && hour === '*' && dow === '*') return '每小时';
-  if (hour === '*' && dow === '*' && /^\d+$/.test(min)) return '每小时';
+  if (min === '0' && hour === '*' && dow === '*') return t('cron.hourly');
+  if (hour === '*' && dow === '*' && /^\d+$/.test(min)) return t('cron.hourly');
   if (dow === '*' && hour !== '*' && min !== '*') {
-    return `每天 ${hour}:${min.padStart(2, '0')}`;
+    return t('cron.dailyAt', { hour, min: min.padStart(2, '0') });
   }
-  const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+  const dayNames: string[] = (t as any)('cron.dayNames') || ['日', '一', '二', '三', '四', '五', '六'];
+  const weekPrefix = t('cron.weekPrefix');
   if (dow !== '*' && hour !== '*') {
-    const dayStr = dow.split(',').map(d => `周${dayNames[+d] || d}`).join('/');
-    return `${dayStr} ${hour}:${min.padStart(2, '0')}`;
+    const dayStr = dow.split(',').map(d => `${weekPrefix}${(Array.isArray(dayNames) ? dayNames : [])[+d] || d}`).join('/');
+    return t('cron.weeklyAt', { days: dayStr, hour, min: min.padStart(2, '0') });
   }
   return s;
 }

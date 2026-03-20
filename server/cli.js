@@ -6,6 +6,7 @@
  */
 import readline from "readline";
 import WebSocket from "ws";
+import { t } from "./i18n.js";
 
 // ── 终端颜色 ──
 const c = {
@@ -56,12 +57,13 @@ export function startCLI({ port, token, agentName, userName }) {
     });
 
     ws.on("close", () => {
-      console.log(`\n${c.dim}连接断开${c.reset}`);
+      console.log(`
+${c.dim}${t("cli.disconnected")}${c.reset}`);
       process.exit(0);
     });
 
     ws.on("error", (err) => {
-      console.error(`${c.red}WebSocket 错误: ${err.message}${c.reset}`);
+      console.error(`${c.red}${t("cli.wsError", { msg: err.message })}${c.reset}`);
     });
   }
 
@@ -131,7 +133,9 @@ export function startCLI({ port, token, agentName, userName }) {
         break;
 
       case "error":
-        process.stdout.write(`\n${c.red}错误: ${msg.message}${c.reset}\n`);
+        process.stdout.write(`
+${c.red}${t("cli.error", { msg: msg.message })}${c.reset}
+`);
         isStreaming = false;
         showPrompt();
         break;
@@ -169,7 +173,9 @@ export function startCLI({ port, token, agentName, userName }) {
       // ESC
       if (keyStr === "\x1b" && isStreaming) {
         ws.send(JSON.stringify({ type: "abort" }));
-        process.stdout.write(`\n${c.dim}(已中断)${c.reset}\n`);
+        process.stdout.write(`
+${c.dim}${t("cli.interrupted")}${c.reset}
+`);
         isStreaming = false;
         inThinking = false;
         showPrompt();
@@ -182,10 +188,13 @@ export function startCLI({ port, token, agentName, userName }) {
           ws.send(JSON.stringify({ type: "abort" }));
           isStreaming = false;
           inThinking = false;
-          process.stdout.write(`\n${c.dim}(已中断)${c.reset}\n`);
+          process.stdout.write(`
+${c.dim}${t("cli.interrupted")}${c.reset}
+`);
           showPrompt();
         } else {
-          console.log(`\n${c.dim}再见 ✿${c.reset}`);
+          console.log(`
+${c.dim}${t("cli.goodbye")}${c.reset}`);
           process.exit(0);
         }
         return;
@@ -193,7 +202,8 @@ export function startCLI({ port, token, agentName, userName }) {
 
       // Ctrl+D
       if (keyStr === "\x04") {
-        console.log(`\n${c.dim}再见 ✿${c.reset}`);
+        console.log(`
+${c.dim}${t("cli.goodbye")}${c.reset}`);
         process.exit(0);
       }
 
@@ -230,23 +240,23 @@ export function startCLI({ port, token, agentName, userName }) {
       case "help":
       case "h":
         console.log(`
-${c.bold}命令列表${c.reset}
-  ${c.cyan}/model${c.reset}              查看当前模型
-  ${c.cyan}/model set${c.reset}          切换模型（交互式）
-  ${c.cyan}/config${c.reset}             查看配置
-  ${c.cyan}/session new${c.reset}        新建会话
-  ${c.cyan}/session list${c.reset}       列出会话
-  ${c.cyan}/agent${c.reset}              查看当前 agent
-  ${c.cyan}/agent list${c.reset}         列出所有 agent
-  ${c.cyan}/agent switch <id>${c.reset}  切换 agent
-  ${c.cyan}/jian${c.reset}               查看当前目录的笺
-  ${c.cyan}/jian <subdir>${c.reset}      查看子目录的笺
-  ${c.cyan}/ls${c.reset}                 列出书桌文件
-  ${c.cyan}/ls <subdir>${c.reset}        列出子目录文件
-  ${c.cyan}/cat <path>${c.reset}         查看文件内容
-  ${c.cyan}/help${c.reset}               显示此帮助
-  ${c.dim}ESC${c.reset}                 中断生成
-  ${c.dim}Ctrl+C${c.reset}              中断生成 / 退出
+${c.bold}${t("cli.helpTitle")}${c.reset}
+  ${c.cyan}/model${c.reset}              ${t("cli.helpModel")}
+  ${c.cyan}/model set${c.reset}          ${t("cli.helpModelSet")}
+  ${c.cyan}/config${c.reset}             ${t("cli.helpConfig")}
+  ${c.cyan}/session new${c.reset}        ${t("cli.helpSessionNew")}
+  ${c.cyan}/session list${c.reset}       ${t("cli.helpSessionList")}
+  ${c.cyan}/agent${c.reset}              ${t("cli.helpAgent")}
+  ${c.cyan}/agent list${c.reset}         ${t("cli.helpAgentList")}
+  ${c.cyan}/agent switch <id>${c.reset}  ${t("cli.helpAgentSwitch")}
+  ${c.cyan}/jian${c.reset}               ${t("cli.helpJian")}
+  ${c.cyan}/jian <subdir>${c.reset}      ${t("cli.helpJianSub")}
+  ${c.cyan}/ls${c.reset}                 ${t("cli.helpLs")}
+  ${c.cyan}/ls <subdir>${c.reset}        ${t("cli.helpLsSub")}
+  ${c.cyan}/cat <path>${c.reset}         ${t("cli.helpCat")}
+  ${c.cyan}/help${c.reset}               ${t("cli.helpHelp")}
+  ${c.dim}ESC${c.reset}                 ${t("cli.helpEsc")}
+  ${c.dim}Ctrl+C${c.reset}              ${t("cli.helpCtrlC")}
 `);
         showPrompt();
         break;
@@ -256,16 +266,16 @@ ${c.bold}命令列表${c.reset}
           const data = await api("/api/models");
           const models = data.models || [];
           if (!models.length) {
-            console.log(`${c.yellow}没有可用模型${c.reset}`);
+            console.log(`${c.yellow}${t("cli.noModels")}${c.reset}`);
             showPrompt();
             return;
           }
-          console.log(`\n${c.bold}可用模型：${c.reset}`);
+          console.log(`\n${c.bold}${t("cli.availableModels")}${c.reset}`);
           models.forEach((m, i) => {
-            const current = m.name === data.current ? ` ${c.green}← 当前${c.reset}` : "";
+            const current = m.name === data.current ? ` ${c.green}${t("cli.currentModel")}${c.reset}` : "";
             console.log(`  ${c.dim}${i + 1}.${c.reset} ${m.name}${current}`);
           });
-          process.stdout.write(`\n输入编号选择: `);
+          process.stdout.write(`\n${t("cli.selectModel")}`);
           rl.once("line", async (answer) => {
             const idx = parseInt(answer.trim()) - 1;
             if (idx >= 0 && idx < models.length) {
@@ -273,28 +283,28 @@ ${c.bold}命令列表${c.reset}
                 method: "POST",
                 body: { modelId: models[idx].name },
               });
-              console.log(`${c.green}已切换到 ${models[idx].name}${c.reset}`);
+              console.log(`${c.green}${t("cli.modelSwitched", { name: models[idx].name })}${c.reset}`);
             } else {
-              console.log(`${c.dim}取消${c.reset}`);
+              console.log(`${c.dim}${t("cli.cancelled")}${c.reset}`);
             }
             showPrompt();
           });
           return;
         }
         const data = await api("/api/health");
-        console.log(`${c.dim}当前模型:${c.reset} ${data.model || "(无)"}`);
+        console.log(`${c.dim}${t("cli.currentModelLabel")}${c.reset} ${data.model || t("cli.noModel")}`);
         showPrompt();
         break;
       }
 
       case "config": {
         const data = await api("/api/config");
-        console.log(`\n${c.bold}当前配置${c.reset}`);
+        console.log(`\n${c.bold}${t("cli.currentConfig")}${c.reset}`);
         console.log(`  ${c.dim}Agent:${c.reset}  ${data.agent?.name || "Hanako"}`);
         console.log(`  ${c.dim}Yuan:${c.reset}   ${data.agent?.yuan || "hanako"}`);
         console.log(`  ${c.dim}User:${c.reset}   ${data.user?.name || "User"}`);
         console.log(`  ${c.dim}Locale:${c.reset} ${data.locale || "en"}`);
-        console.log(`  ${c.dim}Model:${c.reset}  ${data.api?.model || "(未设置)"}`);
+        console.log(`  ${c.dim}Model:${c.reset}  ${data.api?.model || t("cli.notSet")}`);
         console.log();
         showPrompt();
         break;
@@ -303,16 +313,16 @@ ${c.bold}命令列表${c.reset}
       case "session": {
         if (args[0] === "new") {
           await api("/api/sessions/new", { method: "POST" });
-          console.log(`${c.green}新会话已创建${c.reset}`);
+          console.log(`${c.green}${t("cli.sessionCreated")}${c.reset}`);
           showPrompt();
         } else if (args[0] === "list") {
           const sessions = await api("/api/sessions");
           if (!sessions.length) {
-            console.log(`${c.dim}暂无会话${c.reset}`);
+            console.log(`${c.dim}${t("cli.noSessions")}${c.reset}`);
           } else {
-            console.log(`\n${c.bold}会话列表${c.reset}`);
+            console.log(`\n${c.bold}${t("cli.sessionList")}${c.reset}`);
             for (const s of sessions.slice(0, 15)) {
-              const title = s.title || s.firstMessage || "(无标题)";
+              const title = s.title || s.firstMessage || t("cli.untitled");
               const date = s.modified ? new Date(s.modified).toLocaleDateString() : "";
               console.log(`  ${c.dim}${date}${c.reset}  ${title.slice(0, 60)}`);
             }
@@ -320,7 +330,7 @@ ${c.bold}命令列表${c.reset}
           }
           showPrompt();
         } else {
-          console.log(`${c.dim}用法: /session new | /session list${c.reset}`);
+          console.log(`${c.dim}${t("cli.sessionUsage")}${c.reset}`);
           showPrompt();
         }
         break;
@@ -329,9 +339,9 @@ ${c.bold}命令列表${c.reset}
       case "agent": {
         if (args[0] === "list") {
           const data = await api("/api/agents");
-          console.log(`\n${c.bold}Agent 列表${c.reset}`);
+          console.log(`\n${c.bold}${t("cli.agentList")}${c.reset}`);
           for (const a of data.agents || []) {
-            const current = a.id === data.currentAgentId ? ` ${c.green}← 当前${c.reset}` : "";
+            const current = a.id === data.currentAgentId ? ` ${c.green}${t("cli.currentModel")}${c.reset}` : "";
             console.log(`  ${c.dim}${a.id}${c.reset}  ${a.name}${current}`);
           }
           console.log();
@@ -345,12 +355,12 @@ ${c.bold}命令列表${c.reset}
             console.log(`${c.red}${result.error}${c.reset}`);
           } else {
             agentName = result.agentName || args[1];
-            console.log(`${c.green}已切换到 ${agentName}${c.reset}`);
+            console.log(`${c.green}${t("cli.agentSwitched", { name: agentName })}${c.reset}`);
           }
           showPrompt();
         } else {
           const data = await api("/api/health");
-          console.log(`${c.dim}当前 Agent:${c.reset} ${data.agent || agentName}`);
+          console.log(`${c.dim}${t("cli.currentAgent")}${c.reset} ${data.agent || agentName}`);
           showPrompt();
         }
         break;
@@ -361,10 +371,10 @@ ${c.bold}命令列表${c.reset}
         const query = subdir ? `?subdir=${encodeURIComponent(subdir)}` : "";
         const data = await api(`/api/desk/jian${query}`);
         if (data.content) {
-          console.log(`\n${c.dim}── 笺${subdir ? ` (${subdir})` : ""} ──${c.reset}`);
+          console.log(`\n${c.dim}── ${t("cli.jianTitle")}${subdir ? ` (${subdir})` : ""} ──${c.reset}`);
           console.log(data.content);
         } else {
-          console.log(`${c.dim}此目录没有笺${c.reset}`);
+          console.log(`${c.dim}${t("cli.jianEmpty")}${c.reset}`);
         }
         showPrompt();
         break;
@@ -377,7 +387,7 @@ ${c.bold}命令列表${c.reset}
         if (data.error) {
           console.log(`${c.red}${data.error}${c.reset}`);
         } else if (!data.files?.length) {
-          console.log(`${c.dim}(空)${c.reset}`);
+          console.log(`${c.dim}${t("cli.dirEmpty")}${c.reset}`);
         } else {
           console.log(`\n${c.dim}${data.basePath}${subdir ? "/" + data.subdir : ""}${c.reset}`);
           for (const f of data.files) {
@@ -394,7 +404,7 @@ ${c.bold}命令列表${c.reset}
       case "cat": {
         const filePath = args.join(" ");
         if (!filePath) {
-          console.log(`${c.dim}用法: /cat <文件路径>${c.reset}`);
+          console.log(`${c.dim}${t("cli.catUsage")}${c.reset}`);
           showPrompt();
           return;
         }
@@ -407,24 +417,24 @@ ${c.bold}命令列表${c.reset}
             console.log(`\n${c.dim}── ${filePath} ──${c.reset}`);
             console.log(text);
           } else {
-            console.log(`${c.red}无法读取: ${res.status}${c.reset}`);
+            console.log(`${c.red}${t("cli.catFailed", { status: res.status })}${c.reset}`);
           }
         } catch (err) {
-          console.log(`${c.red}错误: ${err.message}${c.reset}`);
+          console.log(`${c.red}${t("cli.error", { msg: err.message })}${c.reset}`);
         }
         showPrompt();
         break;
       }
 
       default:
-        console.log(`${c.dim}未知命令: /${cmd}  输入 /help 查看帮助${c.reset}`);
+        console.log(`${c.dim}${t("cli.unknownCommand", { cmd })}${c.reset}`);
         showPrompt();
     }
   }
 
   // ── 启动 ──
   console.log(`\n${c.bold}${agentName}${c.reset} ${c.dim}CLI${c.reset}`);
-  console.log(`${c.dim}输入 /help 查看命令列表${c.reset}\n`);
+  console.log(`${c.dim}${t("cli.inputHelp")}${c.reset}\n`);
   connect();
 }
 
