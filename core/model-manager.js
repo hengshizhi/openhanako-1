@@ -12,7 +12,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { registerOAuthProvider } from "@mariozechner/pi-ai/oauth";
 import { minimaxOAuthProvider } from "../lib/oauth/minimax-portal.js";
-import { clearConfigCache, loadGlobalProviders, resolveApiKeyFromAuth } from "../lib/memory/config-loader.js";
+import { clearConfigCache, loadGlobalProviders, resolveApiKeyFromAuth, resolveOAuthCredentials } from "../lib/memory/config-loader.js";
 import { t } from "../server/i18n.js";
 
 function isLocalBaseUrl(url) {
@@ -168,12 +168,14 @@ export class ModelManager {
     if (!provider) return { api_key: "", base_url: "", api: "" };
     let api_key = "", base_url = "", api = "";
 
+    // 1. providers.yaml（全局配置）
     const globalProviders = loadGlobalProviders();
     const gp = globalProviders.providers?.[provider];
     if (gp?.api_key) api_key = gp.api_key;
     if (gp?.base_url) base_url = gp.base_url;
     if (gp?.api) api = gp.api;
 
+    // 2. agent config（per-agent 覆盖）
     if ((!api_key || !base_url || !api) && agentConfig) {
       const provBlock = agentConfig.providers?.[provider];
       if (!api_key && provBlock?.api_key) api_key = provBlock.api_key;
@@ -181,8 +183,16 @@ export class ModelManager {
       if (!api && provBlock?.api) api = provBlock.api;
     }
 
-    if (!api_key) {
-      api_key = resolveApiKeyFromAuth(provider);
+    // 3. auth.json（OAuth + 旧格式 API key）
+    if (!api_key || !base_url || !api) {
+      const oauth = resolveOAuthCredentials(provider);
+      if (oauth) {
+        if (!api_key) api_key = oauth.api_key;
+        if (!base_url) base_url = oauth.base_url;
+        if (!api) api = oauth.api;
+      } else if (!api_key) {
+        api_key = resolveApiKeyFromAuth(provider);
+      }
     }
 
     return { api_key, base_url, api };

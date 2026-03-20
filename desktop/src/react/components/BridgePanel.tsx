@@ -287,10 +287,8 @@ function dotClass(status?: string): string {
 }
 
 function updateSidebarDot(data: Record<string, { status: string } | undefined>) {
-  const dot = document.getElementById('bridgeDot');
-  if (!dot) return;
   const anyConnected = data.telegram?.status === 'connected' || data.feishu?.status === 'connected' || data.whatsapp?.status === 'connected' || data.qq?.status === 'connected';
-  dot.classList.toggle('connected', anyConnected);
+  useStore.setState({ bridgeDotConnected: anyConnected });
 }
 
 function ContactAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {

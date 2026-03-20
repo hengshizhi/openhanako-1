@@ -130,8 +130,7 @@ export function AutomationPanel() {
 }
 
 function updateBadge(jobs: CronJob[]) {
-  const badge = document.getElementById('automationCountBadge');
-  if (badge) badge.textContent = jobs.length > 0 ? String(jobs.length) : '';
+  useStore.setState({ automationCount: jobs.length });
 }
 
 function AutomationItem({

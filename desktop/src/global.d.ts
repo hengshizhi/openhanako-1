@@ -6,12 +6,6 @@
 
 import type { PlatformApi } from './react/types';
 
-interface MarkdownItInstance {
-  render(src: string): string;
-  core: { ruler: { after: (name: string, ruleName: string, fn: (state: unknown) => void) => void } };
-  renderer: { rules: Record<string, unknown> };
-}
-
 declare global {
   interface Window {
     // ── i18n ──
@@ -31,9 +25,6 @@ declare global {
       direction: string;
       text: string;
     }) => void;
-
-    // ── Markdown 渲染器 ──
-    markdownit: (opts: Record<string, boolean>) => MarkdownItInstance;
 
     // ── i18n loader ──
     i18n: {

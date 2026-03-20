@@ -16,6 +16,7 @@ export interface InputSlice {
   attachedFiles: AttachedFile[];
   deskContextAttached: boolean;
   docContextAttached: boolean;
+  inputFocusTrigger: number;
   addAttachedFile: (file: AttachedFile) => void;
   removeAttachedFile: (index: number) => void;
   setAttachedFiles: (files: AttachedFile[]) => void;
@@ -24,6 +25,7 @@ export interface InputSlice {
   toggleDeskContext: () => void;
   setDocContextAttached: (attached: boolean) => void;
   toggleDocContext: () => void;
+  requestInputFocus: () => void;
 }
 
 export const createInputSlice = (
@@ -32,6 +34,7 @@ export const createInputSlice = (
   attachedFiles: [],
   deskContextAttached: false,
   docContextAttached: false,
+  inputFocusTrigger: 0,
   addAttachedFile: (file) =>
     set((s) => ({ attachedFiles: [...s.attachedFiles, file] })),
   removeAttachedFile: (index) =>
@@ -44,4 +47,6 @@ export const createInputSlice = (
   setDocContextAttached: (attached) => set({ docContextAttached: attached }),
   toggleDocContext: () =>
     set((s) => ({ docContextAttached: !s.docContextAttached })),
+  requestInputFocus: () =>
+    set((s) => ({ inputFocusTrigger: s.inputFocusTrigger + 1 })),
 });

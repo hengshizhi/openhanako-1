@@ -12,8 +12,6 @@ import { requestStreamResume, injectHandlers } from './stream-resume';
 import { useStore } from '../stores';
 import { setStatus } from '../utils/ui-helpers';
 
-declare function t(key: string, vars?: Record<string, string>): any;
-
 // ── 模块级 WS 实例 ──
 let _ws: WebSocket | null = null;
 
@@ -50,10 +48,8 @@ export function connectWebSocket(port?: string, token?: string): void {
   _ws = new WebSocket(url);
 
   _ws.onopen = () => {
-    useStore.setState({ connected: true });
     _wsRetryDelay = 1000;
-
-    setStatus(t('status.connected'), true);
+    setStatus('status.connected', true);
 
     const s = useStore.getState();
     if (s.currentSessionPath && s.isStreaming) {
@@ -79,8 +75,7 @@ export function connectWebSocket(port?: string, token?: string): void {
   };
 
   _ws.onclose = () => {
-    useStore.setState({ connected: false });
-    setStatus(t('status.disconnected'), false);
+    setStatus('status.disconnected', false);
     _wsRetryTimer = setTimeout(() => connectWebSocket(serverPort, serverToken), _wsRetryDelay);
     _wsRetryDelay = Math.min(_wsRetryDelay * 2, WS_RETRY_MAX);
   };

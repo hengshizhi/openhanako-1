@@ -17,6 +17,10 @@ export interface MiscSlice {
   contextPercent: number | null;
   /** Whether a compaction is currently in progress */
   compacting: boolean;
+  /** Automation job count for badge */
+  automationCount: number;
+  /** Bridge dot: at least one platform connected */
+  bridgeDotConnected: boolean;
   setActivities: (activities: Activity[]) => void;
   setArtifacts: (artifacts: Artifact[]) => void;
   setCurrentArtifactId: (id: string | null) => void;
@@ -46,6 +50,8 @@ export const createMiscSlice = (
   contextWindow: null,
   contextPercent: null,
   compacting: false,
+  automationCount: 0,
+  bridgeDotConnected: false,
   setActivities: (activities) => set({ activities }),
   setArtifacts: (artifacts) => set({ artifacts }),
   setCurrentArtifactId: (id) => set({ currentArtifactId: id }),

@@ -10,7 +10,7 @@ import { useStore } from '../stores';
 import { hanaFetch, hanaUrl } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
 import { renderMarkdown } from '../utils/markdown';
-import { toggleSidebar, applyTbToggleState } from './SidebarLayout';
+import { toggleSidebar } from './SidebarLayout';
 import { toggleJianSidebar } from '../stores/desk-actions';
 import { ContextMenu } from './ContextMenu';
 import type { ContextMenuItem } from './ContextMenu';
@@ -288,7 +288,6 @@ function useTabClickHandler() {
         (btn as HTMLElement).classList.toggle('active', (btn as HTMLElement).dataset.tab === tab);
       });
 
-      applyTbToggleState();
     };
 
     tbTabs.addEventListener('click', handler);

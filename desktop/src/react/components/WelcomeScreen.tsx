@@ -24,8 +24,7 @@ export function refreshAvatarTs() { _avatarTs = Date.now(); }
 // ── 主组件 ──
 
 export function WelcomeScreen() {
-  const portalTarget = document.getElementById('welcome');
-  return <WelcomeInner portalTarget={portalTarget} />;
+  return <WelcomeInner />;
 }
 
 // ── Yuan helpers ──
@@ -41,7 +40,7 @@ function randomWelcome(agentName: string, yuan: string): string {
 
 // ── 内部组件 ──
 
-function WelcomeInner({ portalTarget }: { portalTarget: HTMLElement | null }) {
+function WelcomeInner() {
   const { t } = useI18n();
   const welcomeVisible = useStore(s => s.welcomeVisible);
   const agents = useStore(s => s.agents);
@@ -54,17 +53,6 @@ function WelcomeInner({ portalTarget }: { portalTarget: HTMLElement | null }) {
   const selectedFolder = useStore(s => s.selectedFolder);
   const cwdHistory = useStore(s => s.cwdHistory);
   const pendingNewSession = useStore(s => s.pendingNewSession);
-
-  // Toggle #welcome hidden class based on welcomeVisible
-  useEffect(() => {
-    const el = portalTarget || document.getElementById('welcome');
-    if (!el) return;
-    if (welcomeVisible) {
-      el.classList.remove('hidden');
-    } else {
-      el.classList.add('hidden');
-    }
-  }, [welcomeVisible, portalTarget]);
 
   // Determine the displayed agent
   const displayAgent = useMemo(() => {
@@ -354,7 +342,7 @@ function applyFolderAction(folder: string, pendingNewSession: boolean): void {
       pendingNewSession: true,
     });
     clearChat();
-    (document.getElementById('inputBox') as HTMLTextAreaElement | null)?.focus();
+    useStore.getState().requestInputFocus();
   }
 
   // Load desk files for the new folder

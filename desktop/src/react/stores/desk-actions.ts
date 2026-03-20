@@ -7,7 +7,6 @@
 import { useStore } from './index';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 import { clearChat } from './agent-actions';
-import { hideFloatCard, applyTbToggleState } from '../components/SidebarLayout';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -215,7 +214,7 @@ export function applyFolder(folder: string): void {
   if (!s.pendingNewSession) {
     useStore.setState({ currentSessionPath: null, pendingNewSession: true });
     clearChat();
-    (document.getElementById('inputBox') as HTMLTextAreaElement | null)?.focus();
+    useStore.getState().requestInputFocus();
   }
   loadDeskFiles('', folder);
 }
@@ -235,14 +234,6 @@ export function toggleJianSidebar(forceOpen?: boolean): void {
   const tab = s.currentTab || 'chat';
   localStorage.setItem(`hana-jian-${tab}`, newOpen ? 'open' : 'closed');
   if (forceOpen === undefined) s.setJianAutoCollapsed(false);
-  const jianSidebar = document.getElementById('jianSidebar');
-  if (newOpen) {
-    jianSidebar?.classList.remove('collapsed');
-    hideFloatCard();
-  } else {
-    jianSidebar?.classList.add('collapsed');
-  }
-  applyTbToggleState();
 }
 
 export function initJian(): void {
@@ -250,9 +241,6 @@ export function initJian(): void {
   if (legacy && !localStorage.getItem('hana-jian-chat')) localStorage.setItem('hana-jian-chat', legacy);
   const savedJian = localStorage.getItem('hana-jian-chat');
   if (savedJian !== null) useStore.getState().setJianOpen(savedJian !== 'closed');
-  const jianSidebar = document.getElementById('jianSidebar');
-  if (useStore.getState().jianOpen) jianSidebar?.classList.remove('collapsed');
-  else jianSidebar?.classList.add('collapsed');
   const s = useStore.getState();
   loadDeskFiles('', s.selectedFolder || s.homeFolder || undefined);
 }

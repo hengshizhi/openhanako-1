@@ -1,24 +1,21 @@
 /**
  * Markdown 渲染器
  *
- * 包装全局 markdown-it 实例（由 lib/markdown-it.min.js 提供 window.markdownit）。
- * 此处独立创建并管理 md 实例。
+ * 通过 npm import 使用 markdown-it，不依赖全局 window.markdownit。
  */
 
+import markdownit from 'markdown-it';
 import mk from '@traptitech/markdown-it-katex';
 import 'katex/dist/katex.min.css';
 
-interface MarkdownIt {
-  render(src: string): string;
-  use(plugin: any, ...args: any[]): MarkdownIt;
-  core: { ruler: { after: (name: string, ruleName: string, fn: (state: unknown) => void) => void } };
-}
+type MarkdownIt = ReturnType<typeof markdownit>;
 
 let _md: MarkdownIt | null = null;
 
+/** 获取默认 md 实例（html: false, katex 插件） */
 export function getMd(): MarkdownIt {
   if (_md) return _md;
-  _md = window.markdownit({
+  _md = markdownit({
     html: false,
     breaks: true,
     linkify: true,
@@ -26,6 +23,19 @@ export function getMd(): MarkdownIt {
   });
   _md.use(mk);
   return _md;
+}
+
+const _cache = new Map<string, MarkdownIt>();
+
+/** 获取自定义选项的 md 实例（缓存复用） */
+export function getMdWithOpts(opts: markdownit.Options): MarkdownIt {
+  const key = JSON.stringify(opts);
+  let inst = _cache.get(key);
+  if (!inst) {
+    inst = markdownit(opts);
+    _cache.set(key, inst);
+  }
+  return inst;
 }
 
 export function renderMarkdown(src: string): string {

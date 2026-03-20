@@ -10,6 +10,7 @@ import { createModelSlice, type ModelSlice } from './model-slice';
 import { createMiscSlice, type MiscSlice } from './misc-slice';
 import { createInputSlice, type InputSlice } from './input-slice';
 import { createChatSlice, type ChatSlice } from './chat-slice';
+import { createToastSlice, type ToastSlice } from './toast-slice';
 
 export type StoreState = ConnectionSlice &
   SessionSlice &
@@ -21,7 +22,8 @@ export type StoreState = ConnectionSlice &
   ModelSlice &
   MiscSlice &
   InputSlice &
-  ChatSlice;
+  ChatSlice &
+  ToastSlice;
 
 export const useStore = create<StoreState>()((set, _get, _api) => ({
   ...createConnectionSlice(set),
@@ -35,6 +37,7 @@ export const useStore = create<StoreState>()((set, _get, _api) => ({
   ...createMiscSlice(set),
   ...createInputSlice(set),
   ...createChatSlice(set as any, _get as any),
+  ...createToastSlice(set as any),
 }));
 
 // Re-export slice types
@@ -50,4 +53,5 @@ export type {
   MiscSlice,
   InputSlice,
   ChatSlice,
+  ToastSlice,
 };

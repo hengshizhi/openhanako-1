@@ -5,7 +5,7 @@
  * 所有初始化逻辑从 app.js / bridge.ts 迁移至此。
  */
 
-import { useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useStore } from './stores';
 import type { ActivePanel } from './types';
 import { hanaFetch } from './hooks/use-hana-fetch';
@@ -24,16 +24,18 @@ import { SessionList } from './components/SessionList';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ChatArea } from './components/chat/ChatArea';
 import { ChannelsPanel, ChannelList, ChannelMessages, ChannelMembers, ChannelInput, ChannelReadonly, ChannelCreate } from './components/ChannelsPanel';
-import { SidebarLayout, updateLayout } from './components/SidebarLayout';
+import { SidebarLayout, updateLayout, toggleSidebar } from './components/SidebarLayout';
+import { FloatPreviewCard, useFloatCard } from './components/FloatPreviewCard';
 import { useSidebarResize } from './hooks/use-sidebar-resize';
 import { applyAgentIdentity, loadAgents, loadAvatars } from './stores/agent-actions';
-import { loadSessions } from './stores/session-actions';
+import { createNewSession, loadSessions } from './stores/session-actions';
 import { connectWebSocket } from './services/websocket';
-import { setStatus, loadModels, applyStaticI18n } from './utils/ui-helpers';
+import { setStatus, loadModels } from './utils/ui-helpers';
 import { toSlash, baseName } from './utils/format';
-import { initJian } from './stores/desk-actions';
+import { initJian, toggleJianSidebar } from './stores/desk-actions';
 import { initEditorEvents } from './stores/artifact-actions';
 import { WindowControls } from './components/WindowControls';
+import { ToastContainer } from './components/ToastContainer';
 import { initTheme, initDragPrevention } from './bootstrap';
 
 declare const i18n: {
@@ -79,7 +81,7 @@ async function init(): Promise<void> {
   useStore.setState({ serverPort, serverToken });
 
   if (!serverPort) {
-    setStatus(t('status.serverNotReady'), false);
+    setStatus('status.serverNotReady', false);
     platform.appReady();
     return;
   }
@@ -113,10 +115,7 @@ async function init(): Promise<void> {
       useStore.setState({ cwdHistory: configData.cwd_history });
     }
 
-    // 6. 应用静态 i18n 文本
-    applyStaticI18n();
-
-    // 7. 加载头像
+    // 6. 加载头像
     loadAvatars(healthData.avatars);
   } catch (err) {
     console.error('[init] i18n/health/config failed:', err);
@@ -136,41 +135,19 @@ async function init(): Promise<void> {
   // 11. 初始化书桌
   initJian();
 
-  // 12. 初始化拖拽附件
-  initDragDrop();
-
-  // 13. 初始化编辑器事件
+  // 12. 初始化编辑器事件
   initEditorEvents();
 
   // 13b. 初始 layout 计算
   updateLayout();
 
-  // 14. 浮动面板按钮
-  const $ = (sel: string) => document.querySelector(sel);
-  const _togglePanel = (panel: ActivePanel) => {
-    const s = useStore.getState();
-    s.setActivePanel(s.activePanel === panel ? null : panel);
-  };
-  $('#activityBar')?.addEventListener('click', () => _togglePanel('activity'));
-  $('#automationBar')?.addEventListener('click', () => _togglePanel('automation'));
-  $('#bridgeBar')?.addEventListener('click', () => _togglePanel('bridge'));
-
-  // 15. 任务计划 badge
+  // 14. 任务计划 badge 初始值
   try {
     const res = await hanaFetch('/api/desk/cron');
     const data = await res.json();
     const count = (data.jobs || []).length;
-    const badge = document.getElementById('automationCountBadge');
-    if (badge) badge.textContent = count > 0 ? String(count) : '';
+    useStore.setState({ automationCount: count });
   } catch { /* ignore */ }
-
-  // 16. 浏览器后台按钮
-  $('#browserBgBar')?.addEventListener('click', () => {
-    platform?.openBrowserViewer?.();
-  });
-
-  // 17. 设置按钮
-  $('#settingsBtn')?.addEventListener('click', () => platform.openSettings());
 
   // 18. 设置快捷键
   document.addEventListener('keydown', (e) => {
@@ -198,7 +175,6 @@ async function init(): Promise<void> {
         i18n.load(data.locale).then(() => {
           i18n.defaultName = useStore.getState().agentName;
           useStore.setState({ locale: i18n.locale });
-          applyStaticI18n();
         });
         break;
       case 'models-changed':
@@ -239,105 +215,91 @@ async function init(): Promise<void> {
   platform.appReady();
 }
 
-// ── 拖拽附件（从 bridge.ts appInput shim 迁移） ──
+// ── 拖拽附件 drop handler（从 bridge.ts appInput shim 迁移） ──
 
-function initDragDrop(): void {
-  const mainContent = document.querySelector('.main-content');
-  const dropOverlay = document.getElementById('dropOverlay');
-  if (!mainContent || !dropOverlay) return;
+async function handleDrop(e: React.DragEvent): Promise<void> {
+  const files = e.dataTransfer?.files;
+  if (!files || files.length === 0) return;
 
-  let dragCounter = 0;
+  const store = useStore.getState();
+  if (store.attachedFiles.length >= 9) return;
 
-  mainContent.addEventListener('dragenter', (e) => {
-    e.preventDefault();
-    dragCounter++;
-    if (dragCounter === 1) dropOverlay.classList.add('visible');
-  });
-  mainContent.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    dragCounter--;
-    if (dragCounter === 0) dropOverlay.classList.remove('visible');
-  });
-  mainContent.addEventListener('dragover', (e) => e.preventDefault());
-  mainContent.addEventListener('drop', async (e: Event) => {
-    e.preventDefault();
-    dragCounter = 0;
-    dropOverlay.classList.remove('visible');
-
-    const de = e as DragEvent;
-    const files = de.dataTransfer?.files;
-    if (!files || files.length === 0) return;
-
-    const store = useStore.getState();
-    if (store.attachedFiles.length >= 9) return;
-
-    let srcPaths: string[] = [];
-    const nameMap: Record<string, string> = {};
-    for (const file of Array.from(files)) {
-      const filePath = window.platform?.getFilePath?.(file);
-      if (filePath) {
-        srcPaths.push(filePath);
-        nameMap[filePath] = file.name;
-      }
+  let srcPaths: string[] = [];
+  const nameMap: Record<string, string> = {};
+  for (const file of Array.from(files)) {
+    const filePath = window.platform?.getFilePath?.(file);
+    if (filePath) {
+      srcPaths.push(filePath);
+      nameMap[filePath] = file.name;
     }
-    if (srcPaths.length === 0) return;
+  }
+  if (srcPaths.length === 0) return;
 
-    // Desk 文件直接附加（保留原始路径，不走 upload）
-    const s = useStore.getState();
-    const deskBase = toSlash(s.deskBasePath ?? '').replace(/\/+$/, '');
-    if (deskBase) {
-      const prefix = deskBase + '/';
-      const deskFileMap = new Map(s.deskFiles.map((f: any) => [f.name, f]));
-      const isDeskPath = (p: string) => toSlash(p).startsWith(prefix);
-      const deskPaths = srcPaths.filter(isDeskPath);
-      srcPaths = srcPaths.filter((p) => !isDeskPath(p));
-      for (const p of deskPaths) {
-        if (useStore.getState().attachedFiles.length >= 9) break;
-        const name = baseName(p);
-        const knownFile = deskFileMap.get(name);
-        useStore.getState().addAttachedFile({
-          path: p,
-          name,
-          isDirectory: knownFile?.isDir ?? false,
-        });
-      }
-    }
-    if (srcPaths.length === 0) return;
-
-    try {
-      const res = await hanaFetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paths: srcPaths }),
+  // Desk 文件直接附加（保留原始路径，不走 upload）
+  const s = useStore.getState();
+  const deskBase = toSlash(s.deskBasePath ?? '').replace(/\/+$/, '');
+  if (deskBase) {
+    const prefix = deskBase + '/';
+    const deskFileMap = new Map(s.deskFiles.map((f: any) => [f.name, f]));
+    const isDeskPath = (p: string) => toSlash(p).startsWith(prefix);
+    const deskPaths = srcPaths.filter(isDeskPath);
+    srcPaths = srcPaths.filter((p) => !isDeskPath(p));
+    for (const p of deskPaths) {
+      if (useStore.getState().attachedFiles.length >= 9) break;
+      const name = baseName(p);
+      const knownFile = deskFileMap.get(name);
+      useStore.getState().addAttachedFile({
+        path: p,
+        name,
+        isDirectory: knownFile?.isDir ?? false,
       });
-      const data = await res.json();
-      for (const item of data.uploads || []) {
-        if (item.dest) {
-          useStore.getState().addAttachedFile({
-            path: item.dest,
-            name: item.name,
-            isDirectory: item.isDirectory || false,
-          });
-        }
-      }
-    } catch (err) {
-      console.error('[upload]', err);
-      for (const p of srcPaths) {
+    }
+  }
+  if (srcPaths.length === 0) return;
+
+  try {
+    const res = await hanaFetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths: srcPaths }),
+    });
+    const data = await res.json();
+    for (const item of data.uploads || []) {
+      if (item.dest) {
         useStore.getState().addAttachedFile({
-          path: p,
-          name: nameMap[p] || p.split('/').pop() || p,
+          path: item.dest,
+          name: item.name,
+          isDirectory: item.isDirectory || false,
         });
       }
     }
-  });
+  } catch (err) {
+    console.error('[upload]', err);
+    for (const p of srcPaths) {
+      useStore.getState().addAttachedFile({
+        path: p,
+        name: nameMap[p] || p.split('/').pop() || p,
+      });
+    }
+  }
 }
 
 // ── React 组件 ──
+
+function togglePanel(panel: ActivePanel) {
+  const s = useStore.getState();
+  s.setActivePanel(s.activePanel === panel ? null : panel);
+}
 
 function App() {
   useSidebarResize();
   // 订阅 locale 变化，驱动整棵树重渲染
   useStore(s => s.locale);
+  const sidebarOpen = useStore(s => s.sidebarOpen);
+  const jianOpen = useStore(s => s.jianOpen);
+  const currentTab = useStore(s => s.currentTab);
+  const browserRunning = useStore(s => s.browserRunning);
+  const { floatCard, show: showFloat, scheduleHide: scheduleFloatHide, cancelHide: cancelFloatHide, hide: hideFloat } = useFloatCard();
 
   useEffect(() => {
     init().catch((err: unknown) => {
@@ -354,7 +316,14 @@ function App() {
 
       {/* ── Titlebar ── */}
       <div className="titlebar">
-        <button className="tb-toggle tb-toggle-left" id="tbToggleLeft" title={t('sidebar.toggle')}>
+        <button
+          className={`tb-toggle tb-toggle-left${sidebarOpen ? ' active' : ''}`}
+          id="tbToggleLeft"
+          title={t('sidebar.toggle')}
+          onClick={() => { hideFloat(); toggleSidebar(); }}
+          onMouseEnter={(e) => showFloat('left', e.currentTarget)}
+          onMouseLeave={scheduleFloatHide}
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="9" y1="3" x2="9" y2="21"></line>
@@ -368,7 +337,14 @@ function App() {
             <span className="tb-tab-badge hidden" id="channelTabBadge"></span>
           </button>
         </div>
-        <button className="tb-toggle tb-toggle-right" id="tbToggleRight" title={t('sidebar.jian')}>
+        <button
+          className={`tb-toggle tb-toggle-right${jianOpen ? ' active' : ''}`}
+          id="tbToggleRight"
+          title={currentTab === 'channels' ? t('channel.info') : t('sidebar.jian')}
+          onClick={() => { hideFloat(); toggleJianSidebar(); }}
+          onMouseEnter={(e) => showFloat('right', e.currentTarget)}
+          onMouseLeave={scheduleFloatHide}
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="15" y1="3" x2="15" y2="21"></line>
@@ -380,54 +356,54 @@ function App() {
       {/* ── App body ── */}
       <div className="app">
         {/* Left sidebar */}
-        <aside className="sidebar" id="sidebar">
+        <aside className={`sidebar${sidebarOpen ? '' : ' collapsed'}`} id="sidebar">
           <div className="sidebar-inner">
             <div className="sidebar-chat-content" id="sidebarChatContent">
               <div className="sidebar-header">
-                <span className="sidebar-title"></span>
+                <span className="sidebar-title">{t('sidebar.title')}</span>
                 <div className="sidebar-header-actions">
-                  <button className="sidebar-action-btn" id="newSessionBtn" title="">
+                  <button className="sidebar-action-btn" id="newSessionBtn" title={t('sidebar.newChat')} onClick={createNewSession}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="12" y1="5" x2="12" y2="19"></line>
                       <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                   </button>
-                  <button className="sidebar-action-btn" id="settingsBtn" title="">
+                  <button className="sidebar-action-btn" id="settingsBtn" title={t('settings.title')} onClick={() => platform.openSettings()}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="3"></circle>
                       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
                   </button>
-                  <button className="sidebar-action-btn" id="sidebarCollapseBtn" title="">
+                  <button className="sidebar-action-btn" id="sidebarCollapseBtn" title={t('sidebar.collapse')} onClick={() => toggleSidebar()}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="15 6 9 12 15 18"></polyline>
                     </svg>
                   </button>
                 </div>
               </div>
-              <button className="sidebar-activity-bar sidebar-bridge-card" id="bridgeBar">
+              <button className="sidebar-activity-bar sidebar-bridge-card" id="bridgeBar" onClick={() => togglePanel('bridge')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                   <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                 </svg>
-                <span id="bridgeBarLabel">{t('sidebar.bridgeShort')}</span>
-                <span className="sidebar-bridge-dot" id="bridgeDot"></span>
+                <span>{t('sidebar.bridgeShort')}</span>
+                <BridgeDot />
               </button>
-              <button className="sidebar-activity-bar" id="activityBar">
+              <button className="sidebar-activity-bar" id="activityBar" onClick={() => togglePanel('activity')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                 </svg>
-                <span id="activityBarLabel">{t('sidebar.activity')}</span>
+                <span>{t('sidebar.activity')}</span>
               </button>
-              <button className="sidebar-activity-bar" id="automationBar">
+              <button className="sidebar-activity-bar" id="automationBar" onClick={() => togglePanel('automation')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"></circle>
                   <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
                 <span>{t('automation.title')}</span>
-                <span className="automation-count-badge" id="automationCountBadge"></span>
+                <AutomationBadge />
               </button>
-              <button className="sidebar-activity-bar browser-bg-bar hidden" id="browserBgBar" title={t('browser.backgroundHint')}>
+              <button className={`sidebar-activity-bar browser-bg-bar${browserRunning ? '' : ' hidden'}`} id="browserBgBar" title={t('browser.backgroundHint')} onClick={() => platform?.openBrowserViewer?.()}>
                 <svg className="browser-bg-globe" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="2" y1="12" x2="22" y2="12"></line>
@@ -476,19 +452,10 @@ function App() {
         </aside>
 
         {/* Main content */}
-        <div className="main-content">
-          <BrowserCard />
-          <div className="drop-overlay" id="dropOverlay">
-            <div className="drop-overlay-inner">
-              <span className="drop-icon">📎</span>
-              <span className="drop-text"></span>
-            </div>
-          </div>
+        <MainContentDrag>
 
           <div className="chat-area" id="chatArea">
-            <div className="welcome" id="welcome">
-              <WelcomeScreen />
-            </div>
+            <WelcomeContainer />
             <div className="messages" id="messages"></div>
             <ChatArea />
           </div>
@@ -536,12 +503,12 @@ function App() {
           <AutomationPanel />
           <BridgePanel />
           <Suspense fallback={null}><DevToolsPanel /></Suspense>
-        </div>
+        </MainContentDrag>
 
         <PreviewPanel />
 
         {/* Right sidebar (Jian) */}
-        <aside className="jian-sidebar" id="jianSidebar">
+        <aside className={`jian-sidebar${jianOpen ? '' : ' collapsed'}`} id="jianSidebar">
           <div className="resize-handle resize-handle-left" id="jianResizeHandle"></div>
           <div className="jian-sidebar-inner">
             <div className="jian-chat-content" id="jianChatContent">
@@ -567,10 +534,7 @@ function App() {
       </div>
 
       {/* Connection status */}
-      <div className="connection-status" id="connectionStatus">
-        <span className="status-dot"></span>
-        <span className="status-text"></span>
-      </div>
+      <ConnectionStatus />
 
       {/* Channel create overlay */}
       <div className="agent-create-overlay" id="channelCreateOverlay">
@@ -579,7 +543,97 @@ function App() {
 
       {/* Skill viewer overlay */}
       <Suspense fallback={null}><SkillViewerOverlay /></Suspense>
+
+      {/* Float preview card */}
+      {floatCard && (
+        <FloatPreviewCard
+          state={floatCard}
+          onMouseEnter={cancelFloatHide}
+          onMouseLeave={scheduleFloatHide}
+        />
+      )}
+
+      {/* Toast notifications */}
+      <ToastContainer />
     </ErrorBoundary>
+  );
+}
+
+function MainContentDrag({ children }: { children: React.ReactNode }) {
+  const [dragActive, setDragActive] = useState(false);
+  const dragCounter = useRef(0);
+
+  const onDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (dragCounter.current === 1) setDragActive(true);
+  }, []);
+  const onDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setDragActive(false);
+  }, []);
+  const onDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setDragActive(false);
+    handleDrop(e);
+  }, []);
+
+  return (
+    <div
+      className="main-content"
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+      <BrowserCard />
+      <div className={`drop-overlay${dragActive ? ' visible' : ''}`}>
+        <div className="drop-overlay-inner">
+          <span className="drop-icon">📎</span>
+          <DropText />
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function WelcomeContainer() {
+  const visible = useStore(s => s.welcomeVisible);
+  return (
+    <div className={`welcome${visible ? '' : ' hidden'}`} id="welcome">
+      <WelcomeScreen />
+    </div>
+  );
+}
+
+function AutomationBadge() {
+  const count = useStore(s => s.automationCount);
+  return <span className="automation-count-badge">{count > 0 ? String(count) : ''}</span>;
+}
+
+function BridgeDot() {
+  const connected = useStore(s => s.bridgeDotConnected);
+  return <span className={`sidebar-bridge-dot${connected ? ' connected' : ''}`}></span>;
+}
+
+function DropText() {
+  const agentName = useStore(s => s.agentName);
+  return <span className="drop-text">{t('drop.hint', { name: agentName })}</span>;
+}
+
+function ConnectionStatus() {
+  const connected = useStore(s => s.connected);
+  const statusKey = useStore(s => s.statusKey);
+  const statusVars = useStore(s => s.statusVars);
+  return (
+    <div className={`connection-status${connected ? ' connected' : ''}`}>
+      <span className="status-dot"></span>
+      <span className="status-text">{statusKey ? t(statusKey, statusVars) : ''}</span>
+    </div>
   );
 }
 

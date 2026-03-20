@@ -172,8 +172,7 @@ export function handleServerMessage(msg: any): void {
       break;
 
     case 'browser_bg_status': {
-      const bar = document.getElementById('browserBgBar');
-      if (bar) bar.classList.toggle('hidden', !msg.running);
+      useStore.setState({ browserRunning: !!msg.running });
       break;
     }
 

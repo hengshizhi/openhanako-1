@@ -9,8 +9,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStore } from '../stores';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 
+import { getMdWithOpts } from '../utils/markdown';
+
 declare function t(key: string, vars?: Record<string, string | number>): string;
-declare const markdownit: any;
 
 interface SkillInfo {
   name: string;
@@ -26,7 +27,7 @@ interface TreeItem {
   children?: TreeItem[];
 }
 
-const md = typeof markdownit === 'function' ? markdownit({ html: true, linkify: true, breaks: true }) : null;
+const md = getMdWithOpts({ html: true, linkify: true, breaks: true });
 
 export function SkillViewerOverlay() {
   const data = useStore(s => s.skillViewerData) as SkillInfo | null;
@@ -97,7 +98,7 @@ export function SkillViewerOverlay() {
         body = content.slice(fmMatch[0].length);
         description = parseFmDescription(fmMatch[1]);
       }
-      rendered = md?.render(body) || escapeHtml(body);
+      rendered = md.render(body);
     }
   }
 

@@ -186,7 +186,7 @@ export async function createNewSession(): Promise<void> {
   const currentState = useStore.getState();
   loadDeskFiles('', currentState.selectedFolder || currentState.homeFolder);
 
-  (document.getElementById('inputBox') as HTMLElement | null)?.focus();
+  useStore.getState().requestInputFocus();
 }
 
 // ══════════════════════════════════════════════════════
@@ -317,10 +317,5 @@ export async function archiveSession(path: string): Promise<void> {
 // ══════════════════════════════════════════════════════
 
 export function showSidebarToast(text: string, duration = 3000): void {
-  const el = document.createElement('div');
-  el.className = 'sidebar-toast';
-  el.textContent = text;
-  document.body.appendChild(el);
-  requestAnimationFrame(() => el.classList.add('show'));
-  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, duration);
+  useStore.getState().addToast(text, 'info', duration);
 }

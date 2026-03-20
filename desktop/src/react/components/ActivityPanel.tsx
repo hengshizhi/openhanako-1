@@ -3,6 +3,7 @@ import { useStore } from '../stores';
 import { hanaFetch, hanaUrl } from '../hooks/use-hana-fetch';
 import { formatSessionDate, injectCopyButtons, parseMoodFromContent } from '../utils/format';
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
+import { getMd } from '../utils/markdown';
 
 // ── 稳定头像时间戳（避免每次渲染生成新 URL） ──
 let _avatarTs = Date.now();
@@ -232,8 +233,7 @@ function ActivityCard({
 function DetailBody({ messages }: { messages: DetailMessage[] }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const t = window.t ?? ((p: string) => p);
-  const md = (window as unknown as Record<string, unknown>).markdownit as ((opts: Record<string, boolean>) => { render: (s: string) => string }) | undefined;
-  const mdInstance = md?.({ html: false, breaks: true, linkify: true, typographer: true });
+  const mdInstance = getMd();
 
   useEffect(() => {
     if (bodyRef.current) {
