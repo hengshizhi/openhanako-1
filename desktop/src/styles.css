@@ -8382,6 +8382,48 @@ a.about-link:hover {
 
 .pv-fetch-btn-inline:hover { color: var(--accent); border-color: var(--accent); }
 
+.pv-fetch-hint {
+    font-size: 0.72rem;
+    padding: 4px 0;
+    animation: pv-hint-fade 2.5s ease forwards;
+}
+.pv-fetch-hint.ok  { color: #3a7d44; }
+.pv-fetch-hint.fail { color: #b44040; }
+
+@keyframes pv-hint-fade {
+    0%, 60% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ── 工具模型测试按钮 ── */
+
+.pv-tool-model-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+.pv-tool-model-row > :first-child { flex: 1; min-width: 0; }
+
+.pv-tool-test-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.pv-tool-test-btn:hover { color: var(--accent); border-color: var(--accent); }
+.pv-tool-test-btn.ok { color: #3a7d44; border-color: #3a7d44; }
+.pv-tool-test-btn.fail { color: #b44040; border-color: #b44040; }
+.pv-tool-test-btn.testing { color: var(--text-secondary); pointer-events: none; }
+
 /* ── 模型下拉选择器 ── */
 
 .pv-model-dropdown-trigger {

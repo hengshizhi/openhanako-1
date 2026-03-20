@@ -160,7 +160,8 @@ export class ChannelRouter {
 
     if (!shouldReply) {
       try {
-        const { utility_large: model, large_api_key: api_key, large_base_url: base_url, large_api: api } = engine.resolveUtilityConfig();
+        const utilCfg = engine.resolveUtilityConfig() || {};
+        const { utility_large: model, large_api_key: api_key, large_base_url: base_url, large_api: api } = utilCfg;
         if (api_key && base_url && api) {
           const triageSystem = agentContext + memoryContext + userContext
             + "\n\n---\n\n"
@@ -293,7 +294,8 @@ export class ChannelRouter {
   async _memorySummarize(agentId, channelName, contextText) {
     const engine = this._engine;
     try {
-      const { utility: model, api_key, base_url, api } = engine.resolveUtilityConfig();
+      const utilCfg = engine.resolveUtilityConfig() || {};
+      const { utility: model, api_key, base_url, api } = utilCfg;
       if (!api_key || !base_url || !api) {
         console.log(`\x1b[90m[channel] ${agentId} 无 API 配置，跳过记忆摘要\x1b[0m`);
         return;

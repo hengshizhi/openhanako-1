@@ -631,6 +631,17 @@ function createMainWindow() {
   mainWindow.on("resize", saveWindowState);
   mainWindow.on("move", saveWindowState);
 
+  // 拦截页面内链接导航：外部 URL 用系统浏览器打开，不要导航 Electron 窗口
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        event.preventDefault();
+        shell.openExternal(url);
+      }
+    } catch {}
+  });
+
   // 广播最大化状态变化（Windows/Linux 自绘标题栏的最大化/还原按钮需要）
   mainWindow.on("maximize", () => mainWindow.webContents.send("window-maximized"));
   mainWindow.on("unmaximize", () => mainWindow.webContents.send("window-unmaximized"));
@@ -712,6 +723,17 @@ function createSettingsWindow(tab, theme) {
       settingsWindow.webContents.send("settings-switch-tab", tab);
     });
   }
+
+  // 拦截设置窗口内的链接导航
+  settingsWindow.webContents.on("will-navigate", (event, url) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        event.preventDefault();
+        shell.openExternal(url);
+      }
+    } catch {}
+  });
 
   settingsWindow.on("closed", () => {
     settingsWindow = null;

@@ -6,6 +6,7 @@
  */
 import fs from "fs";
 import path from "path";
+import chokidar from "chokidar";
 import { parseSkillMetadata } from "../lib/skills/skill-metadata.js";
 
 export class SkillManager {
@@ -116,15 +117,21 @@ export class SkillManager {
     this._reloadDeps = { resourceLoader, agents, onReloaded };
     if (this._watcher) return;
     try {
-      this._watcher = fs.watch(this.skillsDir, { recursive: true }, (_event, filename) => {
-        if (filename && (/^\./.test(filename) || /[~#]$/.test(filename))) return;
+      this._watcher = chokidar.watch(this.skillsDir, {
+        ignoreInitial: true,
+        ignored: [/(^|[/\\])\./, /[~#]$/],
+        persistent: true,
+      });
+      this._watcher.on("all", () => {
         if (this._reloadTimer) clearTimeout(this._reloadTimer);
         this._reloadTimer = setTimeout(() => this._autoReload(), 1000);
       });
       this._watcher.on("error", (err) => {
         console.error("[skill-manager] watcher error:", err.message);
       });
-    } catch {}
+    } catch (err) {
+      console.error("[skill-manager] failed to create watcher:", err.message);
+    }
     this._watchExternalPaths();
   }
 
@@ -215,14 +222,22 @@ export class SkillManager {
       if (!fs.existsSync(dirPath)) continue;
       if (this._externalWatchers.has(dirPath)) continue;
       try {
-        const w = fs.watch(dirPath, { recursive: true }, (_event, filename) => {
-          if (filename && (/^\./.test(filename) || /[~#]$/.test(filename))) return;
+        const w = chokidar.watch(dirPath, {
+          ignoreInitial: true,
+          ignored: [/(^|[/\\])\./, /[~#]$/],
+          persistent: true,
+        });
+        w.on("all", () => {
           if (this._reloadTimer) clearTimeout(this._reloadTimer);
           this._reloadTimer = setTimeout(() => this._autoReload(), 1000);
         });
-        w.on("error", () => {});
+        w.on("error", (err) => {
+          console.error(`[skill-manager] external watcher error (${dirPath}):`, err.message);
+        });
         this._externalWatchers.set(dirPath, w);
-      } catch {}
+      } catch (err) {
+        console.error(`[skill-manager] failed to watch external path (${dirPath}):`, err.message);
+      }
     }
   }
 

@@ -648,6 +648,15 @@ function ProviderModelList({ providerId, summary, onRefresh }: {
     }
   };
 
+  const [fetchHint, setFetchHint] = useState<{ msg: string; ok: boolean } | null>(null);
+  const fetchHintTimer = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const showFetchHint = (msg: string, ok: boolean) => {
+    if (fetchHintTimer.current) clearTimeout(fetchHintTimer.current);
+    setFetchHint({ msg, ok });
+    fetchHintTimer.current = setTimeout(() => setFetchHint(null), 2500);
+  };
+
   const fetchModels = async (btn: HTMLButtonElement | null) => {
     if (btn) btn.classList.add('spinning');
     try {
@@ -657,19 +666,19 @@ function ProviderModelList({ providerId, summary, onRefresh }: {
         body: JSON.stringify({ name: providerId, base_url: summary.base_url, api: summary.api }),
       });
       const data = await res.json();
-      if (data.error) { showToast(t('settings.providers.fetchFailed') + ': ' + data.error, 'error'); return; }
+      if (data.error) { showFetchHint(t('settings.providers.fetchFailed'), false); return; }
       const models = (data.models || []).map((m: any) => m.id || m.name);
-      if (models.length === 0) { showToast(t('settings.providers.fetchFailed'), 'error'); return; }
+      if (models.length === 0) { showFetchHint(t('settings.providers.fetchFailed'), false); return; }
       await hanaFetch('/api/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ providers: { [providerId]: { models } } }),
       });
-      showToast(t('settings.providers.fetchSuccess', { name: providerId, n: models.length }), 'success');
+      showFetchHint(t('settings.providers.fetchSuccess', { name: providerId, n: models.length }), true);
       await onRefresh();
       platform?.settingsChanged?.('models-changed');
     } catch (err: any) {
-      showToast(t('settings.providers.fetchFailed') + ': ' + err.message, 'error');
+      showFetchHint(t('settings.providers.fetchFailed'), false);
     } finally {
       if (btn) btn.classList.remove('spinning');
     }
@@ -685,10 +694,12 @@ function ProviderModelList({ providerId, summary, onRefresh }: {
   useEffect(() => {
     if (!dropdownOpen || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const w = rect.width + 80;
+    const left = Math.min(rect.left, window.innerWidth - w - 8);
     setPanelStyle({
       position: 'fixed',
-      left: rect.left,
-      width: rect.width + 80,
+      left: Math.max(8, left),
+      width: w,
       bottom: window.innerHeight - rect.top + 4,
       zIndex: 9999,
     });
@@ -729,6 +740,7 @@ function ProviderModelList({ providerId, summary, onRefresh }: {
           {t('settings.providers.fetchModels')}
         </button>
       </div>
+      {fetchHint && <div className={`pv-fetch-hint ${fetchHint.ok ? 'ok' : 'fail'}`}>{fetchHint.msg}</div>}
       {dropdownOpen && (
           <div className="pv-model-dropdown-panel" ref={panelRef} style={panelStyle}>
             <input
@@ -874,8 +886,9 @@ function AddCustomButton({ adding, onToggle, onDone, onCancel }: {
   useEffect(() => {
     if (!adding || !btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
+    const left = Math.min(rect.left, window.innerWidth - 360 - 8);
     setStyle({
-      left: rect.left,
+      left: Math.max(8, left),
       bottom: window.innerHeight - rect.top + 4,
     });
   }, [adding]);
@@ -1022,6 +1035,52 @@ function ProviderDeleteButton({ providerId, onRefresh }: { providerId: string; o
 // Other Models Section (migrated from ModelsTab)
 // ════════════════════════════════════════════════════
 
+function ToolModelTestBtn({ modelId }: { modelId: string }) {
+  const [status, setStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
+
+  const test = async () => {
+    if (!modelId) return;
+    setStatus('testing');
+    try {
+      const res = await hanaFetch('/api/models/health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modelId }),
+      });
+      const data = await res.json();
+      setStatus(data.ok ? 'ok' : 'fail');
+    } catch {
+      setStatus('fail');
+    }
+    setTimeout(() => setStatus('idle'), 3000);
+  };
+
+  if (!modelId) return null;
+
+  return (
+    <button className={`pv-tool-test-btn ${status}`} onClick={test} disabled={status === 'testing'}>
+      {status === 'testing' ? (
+        <svg className="spinning" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+      ) : status === 'ok' ? (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : status === 'fail' ? (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 function OtherModelsSection({ providers }: { providers: Record<string, any> }) {
   const { globalModelsConfig, pendingFavorites, showToast } = useSettingsStore();
   const [searchApiKey, setSearchApiKey] = useState('');
@@ -1057,26 +1116,32 @@ function OtherModelsSection({ providers }: { providers: Record<string, any> }) {
       <div className="settings-row">
         <div className="settings-field settings-field-half">
           <label className="settings-field-label">{t('settings.api.utilityModel')}</label>
-          <ModelWidget
-            providers={providers}
-            favorites={pendingFavorites}
-            value={globalModelsConfig?.models?.utility || ''}
-            onSelect={(id) => autoSaveGlobalModels({ models: { utility: id } })}
-            lookupModelMeta={lookupModelMeta}
-            formatContext={formatContext}
-          />
+          <div className="pv-tool-model-row">
+            <ModelWidget
+              providers={providers}
+              favorites={pendingFavorites}
+              value={globalModelsConfig?.models?.utility || ''}
+              onSelect={(id) => autoSaveGlobalModels({ models: { utility: id } })}
+              lookupModelMeta={lookupModelMeta}
+              formatContext={formatContext}
+            />
+            <ToolModelTestBtn modelId={globalModelsConfig?.models?.utility || ''} />
+          </div>
           <span className="settings-field-hint">{t('settings.api.utilityModelHint')}</span>
         </div>
         <div className="settings-field settings-field-half">
           <label className="settings-field-label">{t('settings.api.utilityLargeModel')}</label>
-          <ModelWidget
-            providers={providers}
-            favorites={pendingFavorites}
-            value={globalModelsConfig?.models?.utility_large || ''}
-            onSelect={(id) => autoSaveGlobalModels({ models: { utility_large: id } })}
-            lookupModelMeta={lookupModelMeta}
-            formatContext={formatContext}
-          />
+          <div className="pv-tool-model-row">
+            <ModelWidget
+              providers={providers}
+              favorites={pendingFavorites}
+              value={globalModelsConfig?.models?.utility_large || ''}
+              onSelect={(id) => autoSaveGlobalModels({ models: { utility_large: id } })}
+              lookupModelMeta={lookupModelMeta}
+              formatContext={formatContext}
+            />
+            <ToolModelTestBtn modelId={globalModelsConfig?.models?.utility_large || ''} />
+          </div>
           <span className="settings-field-hint">{t('settings.api.utilityLargeModelHint')}</span>
         </div>
       </div>

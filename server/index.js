@@ -98,7 +98,7 @@ dlog.header(appVersion, {
   model: engine.currentModel?.name || "(none)",
   agent: engine.agentName,
   agentId: engine.currentAgentId,
-  utilityModel: engine._resolveUtilityConfig?.()?.utility || "(none)",
+  utilityModel: engine.resolveUtilityConfig?.()?.utility || "(none)",
   channelsDir: engine.channelsDir,
 });
 
