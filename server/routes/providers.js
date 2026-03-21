@@ -85,6 +85,11 @@ export default async function providersRoute(app, { engine }) {
       return null;
     }
 
+    // Coding Plan 判断（id 以 -coding 结尾的 provider）
+    function isCodingPlan(name) {
+      return name.endsWith("-coding");
+    }
+
     // 先处理 providers.yaml 中的 provider（保持顺序）
     for (const [name, p] of Object.entries(providers)) {
       const isOAuth = isOAuthProvider(name);
@@ -105,6 +110,7 @@ export default async function providersRoute(app, { engine }) {
         has_credentials: !!(p.api_key || (isOAuth && oauthInfo?.loggedIn)),
         logged_in: isOAuth ? !!oauthInfo?.loggedIn : undefined,
         supports_oauth: isOAuth && ALLOWED_OAUTH.has(name),
+        is_coding_plan: isCodingPlan(name),
         can_delete: !isOAuth || Object.prototype.hasOwnProperty.call(providers, name),
       };
     }
@@ -149,6 +155,7 @@ export default async function providersRoute(app, { engine }) {
           has_credentials: false,
           logged_in: undefined,
           supports_oauth: false,
+          is_coding_plan: isCodingPlan(id),
           can_delete: false,
         };
       }

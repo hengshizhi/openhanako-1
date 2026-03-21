@@ -44,6 +44,7 @@ import { mistralPlugin } from "../lib/providers/mistral.js";
 import { perplexityPlugin } from "../lib/providers/perplexity.js";
 import { xaiPlugin } from "../lib/providers/xai.js";
 // Coding Plan
+import { dashscopeCodingPlugin } from "../lib/providers/dashscope-coding.js";
 import { kimiCodingPlugin } from "../lib/providers/kimi-coding.js";
 import { volcegineCodingPlugin } from "../lib/providers/volcengine-coding.js";
 
@@ -76,6 +77,7 @@ const BUILTIN_PLUGINS = [
   perplexityPlugin,
   xaiPlugin,
   // Coding Plan
+  dashscopeCodingPlugin,
   kimiCodingPlugin,
   volcegineCodingPlugin,
 ];
