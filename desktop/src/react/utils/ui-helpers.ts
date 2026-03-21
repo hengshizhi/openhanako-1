@@ -24,11 +24,11 @@ export function showError(message: string): void {
 
 export async function loadModels(): Promise<void> {
   try {
-    const favRes = await hanaFetch('/api/models/favorites');
-    const favData = await favRes.json();
+    const res = await hanaFetch('/api/models/favorites');
+    const data = await res.json();
     useStore.setState({
-      models: favData.models || [],
-      currentModel: favData.current,
+      models: data.models || [],
+      currentModel: data.current,
     });
   } catch { /* silent */ }
 }

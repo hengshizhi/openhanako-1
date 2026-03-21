@@ -23,6 +23,7 @@ import { deepseekPlugin } from "../lib/providers/deepseek.js";
 import { geminiPlugin } from "../lib/providers/gemini.js";
 import { openrouterPlugin } from "../lib/providers/openrouter.js";
 import { ollamaPlugin } from "../lib/providers/ollama.js";
+import { minimaxPlugin } from "../lib/providers/minimax.js";
 import { minimaxOAuthPlugin } from "../lib/providers/minimax-oauth.js";
 import { openaiCodexOAuthPlugin } from "../lib/providers/openai-codex-oauth.js";
 // 中国
@@ -56,6 +57,7 @@ const BUILTIN_PLUGINS = [
   geminiPlugin,
   openrouterPlugin,
   ollamaPlugin,
+  minimaxPlugin,
   minimaxOAuthPlugin,
   openaiCodexOAuthPlugin,
   // 中国
@@ -244,7 +246,14 @@ export class ProviderRegistry {
    */
   get(providerId) {
     if (this._entries.size === 0) this.reload();
-    return this._entries.get(providerId) || null;
+    const direct = this._entries.get(providerId);
+    if (direct) return direct;
+    // 反向查找：providerId 可能是某个 OAuth provider 的 authJsonKey
+    // 如 "openai-codex" → "openai-codex-oauth"
+    for (const entry of this._entries.values()) {
+      if (entry.authJsonKey === providerId && entry.id !== providerId) return entry;
+    }
+    return null;
   }
 
   /**

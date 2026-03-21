@@ -66,6 +66,7 @@ export default async function configRoute(app, { engine }) {
       }
       config.thinking_level = engine.getThinkingLevel();
       config.sandbox = engine.getSandbox();
+      config.update_channel = engine.getUpdateChannel();
       const globalLocale = engine.getLocale();
       if (globalLocale) config.locale = globalLocale;
       const globalTz = engine.getTimezone();
@@ -112,6 +113,12 @@ export default async function configRoute(app, { engine }) {
       if (partial.sandbox !== undefined) {
         engine.setSandbox(partial.sandbox);
         delete partial.sandbox;
+      }
+
+      // update_channel → 全局 preferences
+      if (partial.update_channel !== undefined) {
+        engine.setUpdateChannel(partial.update_channel);
+        delete partial.update_channel;
       }
 
       // capabilities.learn_skills → 全局 preferences

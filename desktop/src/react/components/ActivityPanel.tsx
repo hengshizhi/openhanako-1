@@ -30,6 +30,8 @@ interface DetailMessage {
 
 interface DetailState {
   title: string;
+  agentId: string;
+  agentName: string;
   messages: DetailMessage[];
 }
 
@@ -88,7 +90,9 @@ export function ActivityPanel() {
         ? formatSessionDate(new Date(activity.startedAt).toISOString())
         : '';
       setDetail({
-        title: `${activity.agentName} · ${typeText}  ${timeStr}`,
+        title: `${typeText}  ${timeStr}`,
+        agentId: activity.agentId || currentAgentId || '',
+        agentName: activity.agentName || agentName,
         messages: messages || [],
       });
     } catch {}
@@ -107,15 +111,14 @@ export function ActivityPanel() {
       <div className={fp.floatingPanelInner}>
         {detail ? (
           // 详情视图
-          <div id="activityDetailView">
+          <div id="activityDetailView" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
             <div className={fp.floatingPanelHeader}>
               <button className={fp.floatingPanelBack} onClick={closeDetail}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
                 </svg>
-                <span>{t('activity.back')}</span>
               </button>
-              <span className={fp.floatingPanelSubtitle}>{detail.title}</span>
+              <DetailHeader detail={detail} />
               <button className={fp.floatingPanelClose} onClick={close}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -127,7 +130,7 @@ export function ActivityPanel() {
           </div>
         ) : (
           // 列表视图
-          <div id="activityListView">
+          <div id="activityListView" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
             <div className={fp.floatingPanelHeader}>
               <h2 className={fp.floatingPanelTitle}>{t('activity.title')}</h2>
               <div className={fp.activityHbToggle}>
@@ -226,6 +229,27 @@ function ActivityCard({
         {durationText && <span className={fp.actCardDuration}>{durationText}</span>}
         {a.status === 'error' && <span style={{ color: 'var(--danger)' }}>{t('activity.error')}</span>}
         {a.sessionFile && <span className={fp.actCardViewHint}>{t('activity.viewSession')}</span>}
+      </div>
+    </div>
+  );
+}
+
+function DetailHeader({ detail }: { detail: DetailState }) {
+  const agents = useStore(s => s.agents);
+  const ag = agents.find(x => x.id === detail.agentId);
+  const avatarSrc = hanaUrl(`/api/agents/${detail.agentId}/avatar?t=${_avatarTs}`);
+
+  return (
+    <div className={fp.detailHeaderInfo}>
+      <img
+        className={fp.detailHeaderAvatar}
+        src={avatarSrc}
+        onError={e => { (e.target as HTMLImageElement).onerror = null; (e.target as HTMLImageElement).src = yuanFallbackAvatar(ag?.yuan); }}
+        draggable={false}
+      />
+      <div className={fp.detailHeaderText}>
+        <span className={fp.detailHeaderName}>{detail.agentName}</span>
+        <span className={fp.detailHeaderSubtitle}>{detail.title}</span>
       </div>
     </div>
   );

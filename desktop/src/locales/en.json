@@ -117,11 +117,13 @@
     "thinkingLevel": {
       "off": "off",
       "auto": "auto",
+      "high": "high",
       "xhigh": "max"
     },
     "thinkingDesc": {
       "off": "no reasoning",
       "auto": "model decides depth",
+      "high": "deep reasoning",
       "xhigh": "full reasoning"
     },
     "contextWindow": "Context {windowK}k",
@@ -472,8 +474,8 @@
       "ishikiHint": "Defines the assistant's character, tone and behavior. Names are auto-injected",
       "publicIshiki": "Public Ishiki",
       "publicIshikiHint": "For privacy, the assistant cannot access memories, your personal info, or any files and tools on your computer when talking to visitors.\nYou can set the assistant's reply style and guidelines for visitor conversations here.",
-      "chatModel": "Chat Model",
-      "chatModelHint": "The model this agent uses for conversations. Add models on the Models page",
+      "chatModel": "Model",
+      "chatModelHint": "The model used for conversations and tasks",
       "addAgent": "New Agent",
       "createTitle": "New Agent",
       "namePlaceholder": "Give them a name",
@@ -497,7 +499,7 @@
       "setActive": "Set as active",
       "lastAgent": "Must keep at least one agent",
       "yuan": "Yuan",
-      "yuanHint": "\"Yuan\" is the agent's innate thinking style. You can choose whether it leans more rational or emotional.\nBuild your unique companion from this foundation."
+      "yuanHint": "\"Yuan\" is the agent's innate thinking style. Build your unique companion from this foundation."
     },
     "about": {
       "title": "About Them",
@@ -515,7 +517,16 @@
       "fullAccessCancel": "Cancel",
       "fullAccessConfirm": "I understand the risks, enable",
       "updateAvailable": "New version available: v{{version}}",
-      "updateDownload": "Download"
+      "updateDownload": "Download",
+      "updateChecking": "Checking for updates…",
+      "updateDownloading": "Downloading v{{version}}…",
+      "updateReadyInstall": "v{{version}} ready to install",
+      "updateInstall": "Install now",
+      "updateProgress": "{{percent}}%",
+      "updateError": "Update check failed",
+      "updateLatest": "You're up to date",
+      "updateCheckBtn": "Check for updates",
+      "betaUpdates": "Receive beta updates"
     },
     "me": {
       "title": "Me",
@@ -942,7 +953,7 @@
     "cwdSkillsDesc": "Skills follow workspace",
     "cwdSkillsDrop": "Drop folder or .zip to install skills",
     "deleteSkill": "Delete Skill",
-    "openInFinder": "Open in Finder",
+    "openInFinder": "Open Folder",
     "jianLabel": "Jian",
     "jianPlaceholder": "Write something to tell the assistant how to handle files in this folder...",
     "emptyTitle": "Desk is empty",
@@ -953,7 +964,7 @@
     "newFolder": "New Folder",
     "ctx": {
       "open": "Open",
-      "openInFinder": "Open in Finder",
+      "openInFinder": "Open Folder",
       "rename": "Rename",
       "copyPath": "Copy Path",
       "delete": "Delete",

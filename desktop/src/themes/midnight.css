@@ -9,10 +9,10 @@
     --bg-card:      #345062;
     --bg-glass:     rgba(45, 67, 86, 0.92);
 
-    /* 主色调（暖玫瑰） */
-    --accent:       #A76F6F;
-    --accent-hover: #B88080;
-    --accent-light: rgba(167, 111, 111, 0.10);
+    /* 主色调（柔玫瑰） */
+    --accent:       #9E8080;
+    --accent-hover: #B09292;
+    --accent-light: rgba(158, 128, 128, 0.10);
 
     /* 文字 */
     --text:         #C8D1D8;
@@ -20,7 +20,7 @@
     --text-muted:   #5E7280;
 
     /* 边框与阴影 */
-    --border:       rgba(167, 111, 111, 0.16);
+    --border:       rgba(158, 128, 128, 0.16);
     --shadow:       rgba(0, 0, 0, 0.36);
 
     /* 状态色 */
@@ -32,8 +32,8 @@
     --sidebar-bg:   #253A4B;
 
     /* 便笺 */
-    --jian-note-bg:     #463D32;
-    --jian-note-border: rgba(180, 155, 120, 0.16);
+    --jian-note-bg:     #484848;
+    --jian-note-border: rgba(150, 155, 160, 0.12);
 
     /* 聊天专用 */
     --hana-text:    #BDCAD2;
@@ -42,12 +42,12 @@
     --mood-border:  rgba(234, 178, 160, 0.20);
     --tool-bg:      rgba(67, 91, 102, 0.20);
     --tool-text:    #8A9BA8;
-    --user-bg:      rgba(167, 111, 111, 0.10);
+    --user-bg:      rgba(158, 128, 128, 0.10);
     --drop-overlay-bg: rgba(45, 67, 86, 0.85);
     --attach-bg:    rgba(255, 255, 255, 0.06);
 
     /* 辅助色（用于 rgba 拆分和语义色） */
-    --accent-rgb:   167, 111, 111;
+    --accent-rgb:   158, 128, 128;
     --coral-rgb:    234, 178, 160;
     --danger:       #C77070;
     --danger-rgb:   199, 112, 112;

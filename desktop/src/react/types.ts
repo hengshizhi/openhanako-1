@@ -1,3 +1,20 @@
+// ── Auto-update ──
+
+export interface AutoUpdateState {
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error' | 'latest';
+  version: string | null;
+  releaseNotes: string | null;
+  releaseUrl: string | null;
+  downloadUrl: string | null;
+  progress: {
+    percent: number;
+    bytesPerSecond: number;
+    transferred: number;
+    total: number;
+  } | null;
+  error: string | null;
+}
+
 // ── 核心数据结构 ──
 
 export interface Session {
@@ -158,6 +175,14 @@ export interface PlatformApi {
   // ── App info ──
   getAppVersion?(): Promise<string>;
   checkUpdate?(): Promise<{ version: string; downloadUrl: string } | null>;
+
+  // ── Auto-update (Windows) ──
+  autoUpdateCheck?(): Promise<string | null>;
+  autoUpdateDownload?(): Promise<boolean>;
+  autoUpdateInstall?(): void;
+  autoUpdateState?(): Promise<AutoUpdateState>;
+  autoUpdateSetChannel?(channel: 'stable' | 'beta'): Promise<void>;
+  onAutoUpdateState?(callback: (state: AutoUpdateState) => void): void;
 
   // ── Skill viewer overlay ──
   onShowSkillViewer?(callback: (data: unknown) => void): void;

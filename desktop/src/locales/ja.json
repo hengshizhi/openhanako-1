@@ -117,11 +117,13 @@
     "thinkingLevel": {
       "off": "オフ",
       "auto": "自動",
+      "high": "深い",
       "xhigh": "最大"
     },
     "thinkingDesc": {
       "off": "推論なし",
       "auto": "モデルが深さを判断",
+      "high": "深い推論",
       "xhigh": "フル推論"
     },
     "contextWindow": "コンテキスト {windowK}k",
@@ -472,8 +474,8 @@
       "ishikiHint": "アシスタントの性格、口調、振る舞いを定義します。名前は自動で挿入されます",
       "publicIshiki": "パブリック意識",
       "publicIshikiHint": "プライバシー保護のため、訪問者との会話ではアシスタントは記憶、個人情報、コンピュータ上のファイルやツールにアクセスできません。\nここで訪問者向けの応答スタイルとガイドラインを設定できます。",
-      "chatModel": "チャットモデル",
-      "chatModelHint": "このエージェントが会話に使うモデルです。モデルページで追加できます",
+      "chatModel": "モデル",
+      "chatModelHint": "会話とタスクに使用するモデル",
       "addAgent": "新しいエージェント",
       "createTitle": "新しいエージェント",
       "namePlaceholder": "名前をつけてください",
@@ -497,7 +499,7 @@
       "setActive": "アクティブに設定",
       "lastAgent": "エージェントは最低1つ必要です",
       "yuan": "元",
-      "yuanHint": "「元」はエージェントの生まれ持った思考スタイルです。より理性的か感情的かを選べます。\nこの土台からあなただけのパートナーを作り上げてください。"
+      "yuanHint": "「元」はエージェントの生まれ持った思考スタイルです。この土台からあなただけのパートナーを作り上げてください。"
     },
     "about": {
       "title": "このアプリについて",
@@ -515,7 +517,16 @@
       "fullAccessCancel": "キャンセル",
       "fullAccessConfirm": "リスクを理解した上で有効にする",
       "updateAvailable": "新しいバージョンがあります：v{{version}}",
-      "updateDownload": "ダウンロード"
+      "updateDownload": "ダウンロード",
+      "updateChecking": "アップデートを確認中…",
+      "updateDownloading": "v{{version}} をダウンロード中…",
+      "updateReadyInstall": "v{{version}} のインストール準備完了",
+      "updateInstall": "今すぐインストール",
+      "updateProgress": "{{percent}}%",
+      "updateError": "アップデートの確認に失敗しました",
+      "updateLatest": "最新バージョンです",
+      "updateCheckBtn": "アップデートを確認",
+      "betaUpdates": "ベータ版アップデートを受け取る"
     },
     "me": {
       "title": "自分",
@@ -942,7 +953,7 @@
     "cwdSkillsDesc": "スキルはワークスペースに連動します",
     "cwdSkillsDrop": "フォルダまたは .zip をドロップしてスキルをインストール",
     "deleteSkill": "スキルを削除",
-    "openInFinder": "Finder で開く",
+    "openInFinder": "フォルダを開く",
     "jianLabel": "Jian",
     "jianPlaceholder": "このフォルダのファイルの扱い方をアシスタントに伝えましょう...",
     "emptyTitle": "デスクは空です",
@@ -953,7 +964,7 @@
     "newFolder": "新しいフォルダ",
     "ctx": {
       "open": "開く",
-      "openInFinder": "Finder で開く",
+      "openInFinder": "フォルダを開く",
       "rename": "名前を変更",
       "copyPath": "パスをコピー",
       "delete": "削除",

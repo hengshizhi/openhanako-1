@@ -23,7 +23,7 @@ export function DeskOpenButton() {
     const target = s.deskCurrentPath
       ? s.deskBasePath + '/' + s.deskCurrentPath
       : s.deskBasePath;
-    window.platform?.showInFinder?.(target);
+    window.platform?.openFolder?.(target);
   }, []);
 
   return (

@@ -91,6 +91,12 @@ function seedDefaultAgent(agentsDir, productDir) {
     fs.copyFileSync(ishikiSrc, path.join(agentDir, "ishiki.md"));
   }
 
+  // public-ishiki.md（对外意识模板）
+  const publicIshikiSrc = path.join(productDir, "public-ishiki-templates", `${agentId}.md`);
+  if (fs.existsSync(publicIshikiSrc)) {
+    fs.copyFileSync(publicIshikiSrc, path.join(agentDir, "public-ishiki.md"));
+  }
+
   console.log(`[first-run] 默认助手 "${agentId}" 已创建`);
 }
 

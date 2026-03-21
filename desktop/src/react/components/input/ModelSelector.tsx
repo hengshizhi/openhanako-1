@@ -28,9 +28,9 @@ export function ModelSelector({ models }: { models: Array<{ id: string; name: st
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ modelId }),
       });
-      const favRes = await hanaFetch('/api/models/favorites');
-      const favData = await favRes.json();
-      useStore.setState({ models: favData.models || [] });
+      const res = await hanaFetch('/api/models/favorites');
+      const data = await res.json();
+      useStore.setState({ models: data.models || [] });
     } catch (err) {
       console.error('[model] switch failed:', err);
     }

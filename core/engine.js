@@ -286,6 +286,8 @@ export class HanaEngine {
   setLocale(l) { this._prefs.setLocale(l); }
   getTimezone() { return this._prefs.getTimezone(); }
   setTimezone(tz) { this._prefs.setTimezone(tz); }
+  getUpdateChannel() { return this._prefs.getUpdateChannel(); }
+  setUpdateChannel(ch) { this._prefs.setUpdateChannel(ch); }
   setMemoryEnabled(v) { return this._configCoord.setMemoryEnabled(v); }
   setMemoryMasterEnabled(id, v) { return this._configCoord.setMemoryMasterEnabled(id, v); }
   persistMemoryEnabled() { return this._configCoord.persistMemoryEnabled(); }

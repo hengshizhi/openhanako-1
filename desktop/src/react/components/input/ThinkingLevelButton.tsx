@@ -4,7 +4,7 @@ import { useI18n } from '../../hooks/use-i18n';
 import type { ThinkingLevel } from '../../stores/model-slice';
 import styles from './InputArea.module.css';
 
-const ALL_THINKING_LEVELS: ThinkingLevel[] = ['off', 'auto', 'xhigh'];
+const ALL_THINKING_LEVELS: ThinkingLevel[] = ['off', 'auto', 'high', 'xhigh'];
 
 export function ThinkingLevelButton({ level, onChange, modelXhigh }: {
   level: ThinkingLevel;

@@ -15,7 +15,7 @@
 }
 
 .sectionTitle {
-    padding: var(--space-md) var(--space-sm) var(--space-xs);
+    padding: var(--space-xs) var(--space-sm) var(--space-xs);
     flex: 0 0 auto;
     font-family: "Songti SC", "Noto Serif CJK SC", serif;
     justify-content: flex-start;
@@ -126,7 +126,7 @@
     grid-template-columns: repeat(var(--jian-columns, 1), minmax(0, 1fr));
     gap: 1px;
     align-content: start;
-    padding-bottom: var(--space-xs);
+    padding-bottom: 72px;
 }
 
 .list:empty {

@@ -190,8 +190,8 @@
 
 .agent-cards {
     position: relative;
-    width: 240px;
-    height: 100px;
+    width: 260px;
+    height: 110px;
     display: flex;
     justify-content: center;
     align-items: flex-end;
@@ -207,10 +207,10 @@
 .agent-card {
     position: absolute;
     bottom: 16px;
-    width: 52px;
-    height: 52px;
+    width: 62px;
+    height: 62px;
     cursor: pointer;
-    transform-origin: center 280px;
+    transform-origin: center 340px;
     transform: rotate(var(--rot-tight, 0deg)) translateY(var(--lift, 0px));
     z-index: var(--z, 0);
     transition: transform 0.35s var(--ease-out) 0.8s,
@@ -229,12 +229,12 @@
 }
 
 .agent-card-inner {
-    width: 52px;
-    height: 52px;
+    width: 62px;
+    height: 62px;
     border-radius: 50%;
     overflow: hidden;
     border: 2.5px solid var(--bg-card);
-    box-shadow: 0 2px 8px var(--shadow);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
     transition: border-color 0.2s var(--ease-out),
                 box-shadow 0.2s var(--ease-out),
                 transform 0.2s var(--ease-out);
@@ -242,7 +242,7 @@
 }
 
 .agent-card.selected .agent-card-inner {
-    border-color: var(--text-secondary);
+    border-color: var(--text-muted, #999);
     transform: scale(1.06);
 }
 
@@ -258,7 +258,7 @@
 /* Active agent 底部角标 */
 .agent-card-badge {
     position: absolute;
-    bottom: -3px;
+    bottom: -6px;
     left: 50%;
     transform: translateX(-50%);
     width: 8px;
@@ -328,31 +328,67 @@
     transform: scale(1.06);
 }
 
-/* "+" 按钮 */
-.agent-add-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1.5px dashed var(--border);
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
+/* "+" 新建卡片 */
+.agent-card-add {
+    border: 1.5px dashed var(--border, rgba(0,0,0,0.15));
+    box-shadow: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: var(--space-xs);
-    transition: all 0.2s var(--ease-out);
-}
-
-.agent-add-btn:hover {
-    border-color: var(--accent);
     color: var(--accent);
-    background: var(--accent-light);
-    transform: scale(1.08);
+    background: transparent;
+    transition: border-color 0.2s var(--ease-out),
+                color 0.2s var(--ease-out),
+                box-shadow 0.2s var(--ease-out);
 }
 
-.agent-add-btn:active {
-    transform: scale(0.95);
+.agent-card-add:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+/* Agent 右键菜单 */
+.agent-context-menu {
+    background: var(--bg-card, #fff);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06);
+    padding: 4px 0;
+    min-width: 120px;
+}
+
+.agent-context-header {
+    padding: 6px 14px 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--overlay-light, rgba(0,0,0,0.06));
+    margin-bottom: 2px;
+}
+
+.agent-context-item {
+    display: block;
+    width: 100%;
+    padding: 7px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 0.82rem;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.agent-context-item:hover {
+    background: var(--overlay-light, rgba(0,0,0,0.04));
+}
+
+.agent-context-danger {
+    color: var(--text-error, #c44);
+}
+
+.agent-context-danger:hover {
+    background: rgba(204, 68, 68, 0.08);
 }
 
 /* 新建助手浮层 */
@@ -622,12 +658,85 @@
 
 .settings-field-center .settings-input {
     text-align: center;
-    max-width: 200px;
+    max-width: 340px;
     margin: 0 auto;
 }
 
 .settings-field-center .settings-field-hint {
     text-align: center;
+}
+
+/* 助手名字输入框 */
+.agent-name-input {
+    width: 200px;
+    margin: 0 auto;
+    padding: 8px 12px;
+    border: 1px solid var(--overlay-medium, rgba(0,0,0,0.1));
+    border-radius: 8px;
+    outline: none;
+    font-size: 0.88rem;
+    font-family: inherit;
+    background: var(--bg-card, #fff);
+    color: var(--text);
+    text-align: center;
+    text-overflow: ellipsis;
+}
+
+.agent-name-input::placeholder {
+    color: var(--text-muted, #999);
+    opacity: 0.4;
+}
+
+.agent-name-input:focus {
+    border-color: var(--accent);
+}
+
+/* 胶囊控件：标签 + 输入/选框合为一体 */
+.model-capsule {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--overlay-medium, rgba(0,0,0,0.1));
+    border-radius: 8px;
+    overflow: hidden;
+    width: 240px;
+    margin: 0 auto;
+}
+
+.model-capsule-label {
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    background: var(--bg-card-alt, var(--overlay-light, rgba(0,0,0,0.03)));
+    white-space: nowrap;
+    border-right: 1px solid var(--overlay-medium, rgba(0,0,0,0.1));
+    letter-spacing: 0.02em;
+}
+
+.model-capsule .sdw {
+    flex: 1;
+    min-width: 0;
+}
+
+.model-capsule .sdw-trigger {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+}
+
+.model-capsule-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    border: none;
+    outline: none;
+    font-size: 0.88rem;
+    font-family: inherit;
+    background: var(--bg-card, #fff);
+    color: var(--text);
+    text-align: left;
+    text-overflow: ellipsis;
 }
 
 /* 聊天气泡中用户自定义头像（img 版本） */
@@ -698,6 +807,16 @@
 .settings-row {
     display: flex;
     gap: var(--space-md);
+}
+
+.settings-row-2col {
+    display: flex;
+    gap: var(--space-lg);
+}
+
+.settings-row-2col > .settings-field {
+    flex: 1;
+    min-width: 0;
 }
 
 .settings-field-half {
@@ -1862,6 +1981,41 @@
 
 .about-update-link:hover {
     opacity: 1;
+}
+
+.about-update-progress {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+}
+
+.about-update-error {
+    color: var(--text-error, #c44);
+}
+
+.about-update-error-detail {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.about-check-update-btn {
+    margin-top: var(--space-xs);
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--overlay-medium, rgba(0,0,0,0.12));
+    border-radius: 2px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.about-check-update-btn:hover {
+    color: var(--text-body);
+    border-color: var(--text-muted);
 }
 
 .about-info {
@@ -4571,7 +4725,7 @@ a.about-link:hover {
 
 .mdw {
     position: relative;
-    max-width: 320px;
+    width: 100%;
 }
 
 .mdw-trigger {
@@ -4624,7 +4778,7 @@ a.about-link:hover {
     top: 100%;
     left: 0;
     width: 100%;
-    min-width: 280px;
+    min-width: 200px;
     max-height: 320px;
     background: var(--bg-card);
     border: none;

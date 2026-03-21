@@ -232,6 +232,12 @@ export class AgentManager {
       fs.copyFileSync(ishikiSrc, path.join(agentDir, "ishiki.md"));
     }
 
+    // public-ishiki.md（对外意识模板）
+    const publicIshikiSrc = path.join(this._d.productDir, "public-ishiki-templates", `${yuanType}.md`);
+    if (fs.existsSync(publicIshikiSrc)) {
+      fs.copyFileSync(publicIshikiSrc, path.join(agentDir, "public-ishiki.md"));
+    }
+
     // 频道系统
     this._d.getChannelManager().setupChannelsForNewAgent(agentId);
 

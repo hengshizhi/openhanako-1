@@ -117,11 +117,13 @@
     "thinkingLevel": {
       "off": "끔",
       "auto": "자동",
+      "high": "깊은",
       "xhigh": "최대"
     },
     "thinkingDesc": {
       "off": "추론 없음",
       "auto": "모델이 깊이를 결정",
+      "high": "깊은 추론",
       "xhigh": "전체 추론"
     },
     "contextWindow": "컨텍스트 {windowK}k",
@@ -472,8 +474,8 @@
       "ishikiHint": "어시스턴트의 성격, 어조, 행동을 정의해요. 이름은 자동으로 주입돼요",
       "publicIshiki": "공개 의식",
       "publicIshikiHint": "개인정보 보호를 위해, 방문자와 대화할 때 어시스턴트는 기억, 개인 정보, 컴퓨터의 파일과 도구에 접근할 수 없어요.\n방문자 대화에서의 답변 스타일과 가이드라인을 여기서 설정할 수 있어요.",
-      "chatModel": "대화 모델",
-      "chatModelHint": "이 에이전트가 대화에 사용하는 모델이에요. 모델 페이지에서 추가할 수 있어요",
+      "chatModel": "모델",
+      "chatModelHint": "대화와 작업에 사용하는 모델",
       "addAgent": "새 에이전트",
       "createTitle": "새 에이전트",
       "namePlaceholder": "이름을 지어주세요",
@@ -497,7 +499,7 @@
       "setActive": "활성 에이전트로 설정",
       "lastAgent": "에이전트는 최소 한 명 유지해야 해요",
       "yuan": "元",
-      "yuanHint": "「元」은 에이전트의 타고난 사고 방식이에요. 이성적인 쪽이나 감성적인 쪽 중 어디에 더 기울지 선택할 수 있어요.\n이 기반 위에 당신만의 동반자를 만들어 보세요."
+      "yuanHint": "「元」은 에이전트의 타고난 사고 방식이에요. 이 기반 위에 당신만의 동반자를 만들어 보세요."
     },
     "about": {
       "title": "소개",
@@ -515,7 +517,16 @@
       "fullAccessCancel": "취소",
       "fullAccessConfirm": "위험을 이해했어요, 활성화",
       "updateAvailable": "새 버전 출시: v{{version}}",
-      "updateDownload": "다운로드"
+      "updateDownload": "다운로드",
+      "updateChecking": "업데이트 확인 중…",
+      "updateDownloading": "v{{version}} 다운로드 중…",
+      "updateReadyInstall": "v{{version}} 설치 준비 완료",
+      "updateInstall": "지금 설치",
+      "updateProgress": "{{percent}}%",
+      "updateError": "업데이트 확인 실패",
+      "updateLatest": "최신 버전입니다",
+      "updateCheckBtn": "업데이트 확인",
+      "betaUpdates": "베타 업데이트 수신"
     },
     "me": {
       "title": "나",
@@ -942,7 +953,7 @@
     "cwdSkillsDesc": "스킬은 작업 공간을 따라가요",
     "cwdSkillsDrop": "폴더나 .zip을 드래그해서 스킬을 설치하세요",
     "deleteSkill": "스킬 삭제",
-    "openInFinder": "Finder에서 열기",
+    "openInFinder": "폴더 열기",
     "jianLabel": "Jian",
     "jianPlaceholder": "이 폴더의 파일을 어떻게 처리할지 어시스턴트에게 알려주세요...",
     "emptyTitle": "책상이 비어 있어요",
@@ -953,7 +964,7 @@
     "newFolder": "새 폴더",
     "ctx": {
       "open": "열기",
-      "openInFinder": "Finder에서 열기",
+      "openInFinder": "폴더 열기",
       "rename": "이름 변경",
       "copyPath": "경로 복사",
       "delete": "삭제",

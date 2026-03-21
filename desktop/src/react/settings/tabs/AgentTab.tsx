@@ -137,55 +137,49 @@ export function AgentTab() {
             });
             input.click();
           }}
-        >
-          <div className={styles['agent-stack-actions']}>
-            {isViewingOther && (
-              <button
-                className={styles['settings-btn-primary']}
-                onClick={() => switchToAgent(settingsAgentId!)}
-              >
-                {t('settings.agent.setActive')}
-              </button>
-            )}
-            <button
-              className={styles['agent-add-btn']}
-              title={t('settings.agent.addAgent')}
-              onClick={() => window.dispatchEvent(new Event('hana-show-agent-create'))}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
-            {agents.length >= 2 && isViewingOther && (
-              <button
-                className={styles['agent-delete-btn']}
-                title={t('settings.agent.deleteBtn')}
-                onClick={() => window.dispatchEvent(new Event('hana-show-agent-delete'))}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </AgentCardStack>
+          onSetActive={(id) => switchToAgent(id)}
+          onDelete={() => window.dispatchEvent(new Event('hana-show-agent-delete'))}
+          onAdd={() => window.dispatchEvent(new Event('hana-show-agent-create'))}
+        />
 
         <div className={`${styles['settings-field']} ${styles['settings-field-center']}`}>
-          <span className={styles['settings-field-hint']}>{t('settings.agent.agentNameHint')}</span>
           <input
-            className={styles['settings-input']}
+            className={styles['agent-name-input']}
             type="text"
             value={agentName}
+            placeholder={t('settings.agent.agentNameHint')}
             onChange={(e) => setAgentName(e.target.value)}
           />
+        </div>
+        <div className={`${styles['settings-field']} ${styles['settings-field-center']}`}>
+          <div className={styles['model-capsule']}>
+            <span className={styles['model-capsule-label']}>{t('settings.agent.chatModel')}</span>
+            <SelectWidget
+              options={modelOptions}
+              value={currentModel}
+              onChange={async (modelId) => {
+                store.set({ pendingDefaultModel: modelId });
+                const partial: Record<string, unknown> = { models: { chat: modelId } };
+                const provs = settingsConfig?.providers || {};
+                for (const [name, p] of Object.entries(provs) as [string, { models?: string[] }][]) {
+                  if ((p.models || []).includes(modelId)) {
+                    partial.api = { provider: name };
+                    break;
+                  }
+                }
+                await autoSaveConfig(partial, { refreshModels: true });
+              }}
+              placeholder={t('settings.api.selectModel')}
+            />
+          </div>
+          <span className={styles['settings-field-hint']}>{t('settings.agent.chatModelHint')}</span>
         </div>
       </section>
 
       {/* 关于 Ta */}
       <section className={styles['settings-section']}>
         <h2 className={styles['settings-section-title']}>{t('settings.about.title')}</h2>
-        <div className={styles['settings-field']}>
-          <label className={styles['settings-field-label']}>{t('settings.agent.yuan')}</label>
+        <div className={`${styles['settings-field']} ${styles['settings-field-center']}`}>
           <span className={styles['settings-field-hint']}>{t('settings.agent.yuanHint')}</span>
           <YuanSelector
             currentYuan={currentYuan}
@@ -228,27 +222,6 @@ export function AgentTab() {
             onChange={(e) => setIshiki(e.target.value)}
           />
           <span className={styles['settings-field-hint']}>{t('settings.agent.ishikiHint')}</span>
-        </div>
-        <div className={styles['settings-field']}>
-          <label className={styles['settings-field-label']}>{t('settings.agent.chatModel')}</label>
-          <SelectWidget
-            options={modelOptions}
-            value={currentModel}
-            onChange={async (modelId) => {
-              store.set({ pendingDefaultModel: modelId });
-              const partial: Record<string, unknown> = { models: { chat: modelId } };
-              const provs = settingsConfig?.providers || {};
-              for (const [name, p] of Object.entries(provs) as [string, { models?: string[] }][]) {
-                if ((p.models || []).includes(modelId)) {
-                  partial.api = { provider: name };
-                  break;
-                }
-              }
-              await autoSaveConfig(partial, { refreshModels: true });
-            }}
-            placeholder={t('settings.api.selectModel')}
-          />
-          <span className={styles['settings-field-hint']}>{t('settings.agent.chatModelHint')}</span>
         </div>
       </section>
 

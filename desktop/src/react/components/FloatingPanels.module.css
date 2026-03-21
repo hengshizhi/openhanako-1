@@ -134,6 +134,45 @@
     white-space: nowrap;
 }
 
+/* 活动详情标题区：头像 + 名字 + 副标题 */
+.detailHeaderInfo {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 0 8px;
+}
+
+.detailHeaderAvatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.detailHeaderText {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.detailHeaderName {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.detailHeaderSubtitle {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* 详情视图里的消息 */
 .activityDetailMsg {
     margin-bottom: var(--space-md);

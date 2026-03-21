@@ -117,11 +117,13 @@
     "thinkingLevel": {
       "off": "關閉",
       "auto": "自動",
+      "high": "深度",
       "xhigh": "極限"
     },
     "thinkingDesc": {
       "off": "不推理",
       "auto": "模型決定深度",
+      "high": "深度推理",
       "xhigh": "最強推理"
     },
     "contextWindow": "上下文 {windowK}k",
@@ -472,8 +474,8 @@
       "ishikiHint": "定義助手的性格、語氣和行為方式。名字會自動注入，無需手動填寫",
       "publicIshiki": "對外意識",
       "publicIshikiHint": "出於隱私考量，助手與訪客對話時無法存取記憶、你的個人資訊，以及電腦上的任何檔案與工具。\n你可以在這裡設定助手對訪客說話時的回覆風格以及注意事項。",
-      "chatModel": "對話模型",
-      "chatModelHint": "Ta 在對話中使用的模型。在「模型」頁新增可選模型",
+      "chatModel": "Ta 的模型",
+      "chatModelHint": "Ta 在對話與工作中使用的模型",
       "addAgent": "新建助手",
       "createTitle": "新建助手",
       "namePlaceholder": "起個名字",
@@ -497,7 +499,7 @@
       "setActive": "設為主助手",
       "lastAgent": "至少保留一個助手",
       "yuan": "元",
-      "yuanHint": "「元」是助手的先天思維方式，你可以選擇它更理性還是更感性\n以此為基礎搭建你獨一無二的夥伴"
+      "yuanHint": "「元」是助手的先天思維方式，以此為基礎搭建你獨一無二的夥伴"
     },
     "about": {
       "title": "關於 Ta",
@@ -515,7 +517,16 @@
       "fullAccessCancel": "取消",
       "fullAccessConfirm": "我了解風險，開啟",
       "updateAvailable": "有新版本可用：v{{version}}",
-      "updateDownload": "下載"
+      "updateDownload": "下載",
+      "updateChecking": "正在檢查更新…",
+      "updateDownloading": "正在下載 v{{version}}…",
+      "updateReadyInstall": "v{{version}} 已下載完成",
+      "updateInstall": "立即安裝",
+      "updateProgress": "{{percent}}%",
+      "updateError": "檢查更新失敗",
+      "updateLatest": "已是最新版本",
+      "updateCheckBtn": "檢查更新",
+      "betaUpdates": "接收測試版更新"
     },
     "me": {
       "title": "我",
@@ -942,7 +953,7 @@
     "cwdSkillsDesc": "技能跟隨工作空間",
     "cwdSkillsDrop": "拖入資料夾或 .zip 安裝技能",
     "deleteSkill": "刪除技能",
-    "openInFinder": "在 Finder 中打開",
+    "openInFinder": "打開資料夾",
     "jianLabel": "箋",
     "jianPlaceholder": "寫點什麼，告訴助手這個資料夾裡面的檔案該如何處理...",
     "emptyTitle": "書桌還空空的呢",
@@ -953,7 +964,7 @@
     "newFolder": "新建資料夾",
     "ctx": {
       "open": "打開",
-      "openInFinder": "在 Finder 中打開",
+      "openInFinder": "打開資料夾",
       "rename": "重新命名",
       "copyPath": "複製路徑",
       "delete": "刪除",

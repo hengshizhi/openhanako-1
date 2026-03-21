@@ -366,9 +366,7 @@ function MemoryToggle({ enabled, t }: {
       onClick={handleClick}
     >
       <svg className={styles.memoryToggleIcon} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 8a4 4 0 1 0 0 8" />
-        <path d="M12 2v2M12 20v2" />
+        <path d="M12 2 L22 12 L12 22 L2 12 Z" />
       </svg>
       <span>{t(enabled ? 'welcome.memoryOn' : 'welcome.memoryOff')}</span>
     </button>

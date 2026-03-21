@@ -113,21 +113,21 @@ body {
     border: none;
     border-radius: var(--radius-sm);
     background: transparent;
-    color: var(--text-secondary, #888);
+    color: var(--text-light, #888);
     cursor: pointer;
     transition: background 0.15s, color 0.15s, opacity 0.2s;
-    opacity: 0.6;
+    opacity: 0.8;
 }
 
 .tb-toggle:hover {
     background: var(--overlay-light);
-    color: var(--text-primary, #333);
+    color: var(--text, #333);
     opacity: 1;
 }
 
 .tb-toggle.active {
     opacity: 1;
-    color: var(--text-primary, #333);
+    color: var(--text, #333);
 }
 
 /* macOS 红绿灯避让：左按钮留出空间 */

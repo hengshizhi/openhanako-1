@@ -123,6 +123,18 @@ export class PreferencesManager {
     this.savePreferences(prefs);
   }
 
+  /** 读取更新通道偏好："stable" | "beta" */
+  getUpdateChannel() {
+    return this.getPreferences().update_channel || "stable";
+  }
+
+  /** 保存更新通道偏好 */
+  setUpdateChannel(channel) {
+    const prefs = this.getPreferences();
+    prefs.update_channel = channel === "beta" ? "beta" : "stable";
+    this.savePreferences(prefs);
+  }
+
   /** 读取 primary agent ID */
   getPrimaryAgent() {
     return this.getPreferences().primaryAgent || null;

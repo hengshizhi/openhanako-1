@@ -1,6 +1,6 @@
 import type { Model } from '../types';
 
-export type ThinkingLevel = 'off' | 'auto' | 'xhigh';
+export type ThinkingLevel = 'off' | 'auto' | 'high' | 'xhigh';
 
 export interface ModelSlice {
   models: Model[];
