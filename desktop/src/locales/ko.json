@@ -130,7 +130,7 @@
   "slash": {
     "diary": "오늘의 일기 쓰기",
     "diaryBusy": "일기 작성 중...",
-    "diaryDone": "일기 저장 완료",
+    "diaryDone": "일기가 diary 폴더에 저장되었습니다",
     "diaryFailed": "일기 작성 실패",
     "xing": "이 대화를 돌아보기",
     "compact": "컨텍스트 압축",

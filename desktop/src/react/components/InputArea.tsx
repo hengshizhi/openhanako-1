@@ -121,6 +121,7 @@ function InputAreaInner() {
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
   const [slashSelected, setSlashSelected] = useState(0);
   const [slashBusy, setSlashBusy] = useState<string | null>(null); // command name while executing
+  const [slashResult, setSlashResult] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
@@ -178,8 +179,15 @@ function InputAreaInner() {
 
   // ── 斜杠命令 ──
 
+  const showSlashResult = useCallback((text: string, type: 'success' | 'error') => {
+    setSlashBusy(null);
+    setSlashResult({ text, type });
+    setTimeout(() => setSlashResult(null), 3000);
+  }, []);
+
   const executeDiary = useCallback(async () => {
     setSlashBusy('diary');
+    setSlashResult(null);
     setInputText('');
     setSlashMenuOpen(false);
 
@@ -188,17 +196,15 @@ function InputAreaInner() {
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        showToast(t('slash.diaryFailed'), 'error');
+        showSlashResult(data.error || t('slash.diaryFailed'), 'error');
         return;
       }
 
-      showToast(t('slash.diaryDone'), 'success');
-    } catch (err) {
-      showToast(t('slash.diaryFailed'), 'error');
-    } finally {
-      setSlashBusy(null);
+      showSlashResult(t('slash.diaryDone'), 'success');
+    } catch {
+      showSlashResult(t('slash.diaryFailed'), 'error');
     }
-  }, [t]);
+  }, [t, showSlashResult]);
 
   const executeXing = useCallback(async () => {
     setInputText('');
@@ -533,6 +539,11 @@ function InputAreaInner() {
         <div className="slash-busy-bar">
           <span className="slash-busy-dot" />
           <span>{slashCommands.find(c => c.name === slashBusy)?.busyLabel || t('common.executing')}</span>
+        </div>
+      )}
+      {!slashBusy && slashResult && (
+        <div className={`slash-busy-bar slash-result-${slashResult.type}`}>
+          <span>{slashResult.text}</span>
         </div>
       )}
 

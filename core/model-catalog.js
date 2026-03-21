@@ -77,6 +77,7 @@ export class ModelCatalog {
   async build() {
     this._catalog.clear();
     this._buildFromModelsJson();
+    this._buildFromRegistry();
   }
 
   /**
@@ -131,6 +132,37 @@ export class ModelCatalog {
         }
 
         this._catalog.set(key, entry);
+      }
+    }
+  }
+
+  /**
+   * 从 ProviderRegistry 的 builtinModels 声明构建 catalog 条目
+   * models.json 中已有的条目优先（不覆盖）
+   * @private
+   */
+  _buildFromRegistry() {
+    const all = this._registry.getAll();
+    for (const [providerId, provEntry] of all) {
+      const builtins = provEntry.builtinModels;
+      if (!builtins || builtins.length === 0) continue;
+
+      for (const modelId of builtins) {
+        const key = makeKey(providerId, modelId);
+        if (this._catalog.has(key)) continue; // models.json 优先
+        const knownMeta = enrichFromKnown(modelId);
+        this._catalog.set(key, {
+          key,
+          providerId,
+          modelId,
+          displayName: knownMeta.displayName,
+          baseUrl: provEntry.baseUrl || "",
+          api: provEntry.api || "openai-completions",
+          input: ["text", "image"],
+          contextWindow: knownMeta.contextWindow,
+          maxTokens: knownMeta.maxTokens,
+          reasoning: false,
+        });
       }
     }
   }
@@ -254,17 +286,18 @@ export class ModelCatalog {
    * @returns {object} Pi SDK ModelEntry 格式
    */
   toSdkEntry(entry) {
-    if (entry._sdkEntry) return entry._sdkEntry;
+    // 始终构建完整的 SDK shape，不走 _sdkEntry 捷径
+    // 因为 _sdkEntry 可能是 models.json 的原始 model 对象，缺少 provider/baseUrl/api
     return {
       id: entry.modelId,
       name: entry.displayName,
       provider: entry.providerId,
       baseUrl: entry.baseUrl,
       api: entry.api,
-      input: entry.input,
-      contextWindow: entry.contextWindow,
+      input: entry.input || ["text"],
+      contextWindow: entry.contextWindow || 128_000,
       maxTokens: entry.maxTokens,
-      reasoning: entry.reasoning,
+      reasoning: entry.reasoning || false,
     };
   }
 }

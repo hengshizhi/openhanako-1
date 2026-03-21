@@ -131,6 +131,29 @@ export default async function providersRoute(app, { engine }) {
       };
     }
 
+    // 追加 ProviderRegistry 中已声明但尚未出现的 provider（未配置状态）
+    // 让用户在设置页看到所有可用供应商，点击即可配置
+    if (provRegistry) {
+      for (const [id, entry] of provRegistry.getAll()) {
+        if (result[id]) continue;
+        if (entry.authType === "oauth") continue; // OAuth provider 走上面的白名单逻辑
+        const sdkIds = sdkByProvider.get(id) || [];
+        result[id] = {
+          type: "api-key",
+          display_name: entry.displayName || id,
+          base_url: entry.baseUrl || "",
+          api: entry.api || "",
+          api_key_masked: "",
+          models: sdkIds,
+          custom_models: [],
+          has_credentials: false,
+          logged_in: undefined,
+          supports_oauth: false,
+          can_delete: false,
+        };
+      }
+    }
+
     return { providers: result, favorites };
   });
 

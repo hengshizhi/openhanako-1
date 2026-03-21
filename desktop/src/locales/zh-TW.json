@@ -130,7 +130,7 @@
   "slash": {
     "diary": "寫今日日記",
     "diaryBusy": "正在寫日記...",
-    "diaryDone": "日記已儲存",
+    "diaryDone": "日記寫入完成，已儲存到 diary 資料夾",
     "diaryFailed": "日記寫入失敗",
     "xing": "反省當前對話",
     "compact": "壓縮上下文",

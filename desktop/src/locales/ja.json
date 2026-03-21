@@ -130,7 +130,7 @@
   "slash": {
     "diary": "今日の日記を書く",
     "diaryBusy": "日記を書いています...",
-    "diaryDone": "日記を保存しました",
+    "diaryDone": "日記を diary フォルダに保存しました",
     "diaryFailed": "日記の作成に失敗しました",
     "xing": "この会話を振り返る",
     "compact": "コンテキストを圧縮",

@@ -15,7 +15,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { registerOAuthProvider } from "@mariozechner/pi-ai/oauth";
 import { minimaxOAuthProvider } from "../lib/oauth/minimax-portal.js";
-import { clearConfigCache, loadGlobalProviders, resolveApiKeyFromAuth, resolveOAuthCredentials } from "../lib/memory/config-loader.js";
+import { clearConfigCache, loadGlobalProviders } from "../lib/memory/config-loader.js";
 import { t } from "../server/i18n.js";
 import { ProviderRegistry } from "./provider-registry.js";
 import { ModelCatalog } from "./model-catalog.js";
@@ -82,12 +82,15 @@ export class ModelManager {
   async refreshAvailable() {
     this._availableModels = await this._modelRegistry.getAvailable();
     this._injectOAuthCustomModels();
-    // v2：同步刷新 ModelCatalog
+    // v2：同步刷新 ModelCatalog + builtinModels 回灌
     if (this.modelCatalog) {
       await this.modelCatalog.build();
       const oauthCustom = this._prefs?.getOAuthCustomModels?.() || {};
       this.modelCatalog.injectOAuthCustomModels(oauthCustom);
       this.authStore?.load();
+      // 将 Catalog 中有但 _availableModels 没有的 builtinModels 回灌
+      // 让 UI、REST API、Bridge、Agent 切换都能看到
+      this._mergeBuiltinModels();
     }
     return this._availableModels;
   }
@@ -123,6 +126,21 @@ export class ModelManager {
           name: id,
         });
       }
+    }
+  }
+
+  /**
+   * 将 ModelCatalog 中有但 _availableModels 中没有的模型回灌
+   * 主要来源：ProviderRegistry 的 builtinModels 声明
+   * @private
+   */
+  _mergeBuiltinModels() {
+    if (!this.modelCatalog) return;
+    const existingIds = new Set(this._availableModels.map(m => m.id));
+    for (const entry of this.modelCatalog.list()) {
+      if (existingIds.has(entry.modelId)) continue;
+      this._availableModels.push(this.modelCatalog.toSdkEntry(entry));
+      existingIds.add(entry.modelId);
     }
   }
 
@@ -177,12 +195,21 @@ export class ModelManager {
 
   /**
    * 将模型引用（id/name/object）解析成 SDK 可用的模型对象
+   * 委托 ModelCatalog，fallback 到 _availableModels
    */
   resolveExecutionModel(modelRef) {
     if (!modelRef) return this.currentModel;
-    if (typeof modelRef !== "string") return modelRef;
+    if (typeof modelRef !== "string") return modelRef; // 对象直通（session-coordinator 路径）
     const ref = modelRef.trim();
     if (!ref) return this.currentModel;
+
+    // 新路径：通过 ModelCatalog 解析（支持 "provider/model" 格式）
+    if (this.modelCatalog) {
+      const entry = this.modelCatalog.resolve(ref);
+      if (entry) return this.modelCatalog.toSdkEntry(entry);
+    }
+
+    // fallback：从 _availableModels 查找（覆盖 Catalog 未索引到的情况）
     const model = this._availableModels.find(m => m.id === ref || m.name === ref);
     if (!model) throw new Error(t("error.modelNotFound", { id: ref }));
     return model;
@@ -190,54 +217,38 @@ export class ModelManager {
 
   /** 根据模型 ID 推断其所属 provider */
   inferModelProvider(modelId) {
-    return modelId ? this._availableModels.find(m => m.id === modelId)?.provider : null;
+    if (!modelId) return null;
+    // 新路径：ModelCatalog
+    if (this.modelCatalog) {
+      const entry = this.modelCatalog.resolve(modelId);
+      if (entry) return entry.providerId;
+    }
+    return this._availableModels.find(m => m.id === modelId)?.provider || null;
   }
 
   /**
    * 根据 provider 名称查找凭证
-   * 查找顺序：全局 providers.yaml → config.yaml providers 块
+   * 委托 AuthStore，返回 snake_case 格式（兼容 callProviderText 消费方）
    * @param {string} provider
-   * @param {object} [agentConfig] - agent 的 config 对象
+   * @param {object} [agentConfig]
+   * @returns {{ api_key: string, base_url: string, api: string }}
    */
   resolveProviderCredentials(provider, agentConfig) {
     if (!provider) return { api_key: "", base_url: "", api: "" };
-    let api_key = "", base_url = "", api = "";
-
-    // 1. providers.yaml（全局配置）
-    const globalProviders = loadGlobalProviders();
-    const gp = globalProviders.providers?.[provider];
-    if (gp?.api_key) api_key = gp.api_key;
-    if (gp?.base_url) base_url = gp.base_url;
-    if (gp?.api) api = gp.api;
-
-    // 2. agent config（per-agent 覆盖）
-    if ((!api_key || !base_url || !api) && agentConfig) {
-      const provBlock = agentConfig.providers?.[provider];
-      if (!api_key && provBlock?.api_key) api_key = provBlock.api_key;
-      if (!base_url && provBlock?.base_url) base_url = provBlock.base_url;
-      if (!api && provBlock?.api) api = provBlock.api;
-    }
-
-    // 3. auth.json（OAuth + 旧格式 API key）
-    if (!api_key || !base_url || !api) {
-      const oauth = resolveOAuthCredentials(provider);
-      if (oauth) {
-        if (!api_key) api_key = oauth.api_key;
-        if (!base_url) base_url = oauth.base_url;
-        if (!api) api = oauth.api;
-      } else if (!api_key) {
-        api_key = resolveApiKeyFromAuth(provider);
+    if (this.authStore) {
+      const cred = this.authStore.get(provider, agentConfig);
+      if (cred) {
+        return { api_key: cred.apiKey || "", base_url: cred.baseUrl || "", api: cred.api || "" };
       }
     }
-
-    return { api_key, base_url, api };
+    return { api_key: "", base_url: "", api: "" };
   }
 
   /**
    * 统一解析：模型引用 → { model, provider, api, api_key, base_url }
-   * 所有消费方（chat、utility、memory、diary）都应通过此方法获取模型+凭证
-   * @param {string|object} modelRef - 模型 ID / name / 对象
-   * @param {object} [agentConfig] - agent config（用于 per-agent provider 回退）
+   * 返回 snake_case 格式（兼容 callProviderText / diary-writer / compile 等消费方）
+   * @param {string|object} modelRef
+   * @param {object} [agentConfig]
    * @returns {{ model: string, provider: string, api: string, api_key: string, base_url: string }}
    */
   resolveModelWithCredentials(modelRef, agentConfig) {
@@ -264,88 +275,9 @@ export class ModelManager {
 
   /**
    * 解析 utility 模型 + API 凭证完整配置
-   * @param {object} agentConfig - agent config
-   * @param {object} sharedModels - getSharedModels() 结果
-   * @param {object} utilApi - getUtilityApi() 结果
+   * 委托 ExecutionRouter
    */
   resolveUtilityConfig(agentConfig, sharedModels, utilApi) {
-    const cfg = agentConfig || {};
-
-    const utilityModel = sharedModels?.utility || cfg.models?.utility;
-    if (!utilityModel) {
-      throw new Error(t("error.noUtilityModel"));
-    }
-    const largeModel = sharedModels?.utility_large || cfg.models?.utility_large;
-    if (!largeModel) {
-      throw new Error(t("error.noUtilityLargeModel"));
-    }
-
-    const utilityEntry = this.resolveExecutionModel(utilityModel);
-    const largeEntry = this.resolveExecutionModel(largeModel);
-    const utilProvider = utilityEntry?.provider || "";
-    const largeProvider = largeEntry?.provider || "";
-
-    if (!utilProvider) {
-      throw new Error(t("error.modelNoProvider", { role: "utility", model: utilityModel }));
-    }
-    if (!largeProvider) {
-      throw new Error(t("error.modelNoProvider", { role: "utility_large", model: largeModel }));
-    }
-
-    let api_key = "";
-    let base_url = "";
-    let api = "";
-    if (utilApi?.provider || utilApi?.api_key || utilApi?.base_url) {
-      if (utilApi.provider !== utilProvider) {
-        throw new Error(t("error.utilityApiProviderMismatch", { model: utilityModel }));
-      }
-      const providerConfig = this.resolveProviderCredentials(utilProvider, cfg);
-      api = providerConfig.api || "";
-      api_key = utilApi.api_key || "";
-      base_url = utilApi.base_url || "";
-      if (!api) {
-        throw new Error(t("error.providerMissingApi", { provider: utilProvider }));
-      }
-      if (!base_url || (!api_key && !isLocalBaseUrl(base_url))) {
-        throw new Error(t("error.utilityApiMissingCreds", { provider: utilProvider }));
-      }
-    } else {
-      const creds = this.resolveProviderCredentials(utilProvider, cfg);
-      api_key = creds.api_key;
-      base_url = creds.base_url;
-      api = creds.api;
-      if (!api) {
-        throw new Error(t("error.providerMissingApi", { provider: utilProvider }));
-      }
-      if (!base_url || (!api_key && !isLocalBaseUrl(base_url))) {
-        throw new Error(t("error.providerMissingCreds", { provider: utilProvider }));
-      }
-    }
-
-    // utility_large 凭证：provider 相同则复用，不同则独立解析
-    let large_api_key = api_key, large_base_url = base_url, large_api = api;
-    if (largeProvider && largeProvider !== utilProvider) {
-      const creds = this.resolveProviderCredentials(largeProvider, cfg);
-      large_api_key = creds.api_key;
-      large_base_url = creds.base_url;
-      large_api = creds.api;
-      if (!large_api) {
-        throw new Error(t("error.providerMissingApi", { provider: largeProvider }));
-      }
-      if (!large_base_url || (!large_api_key && !isLocalBaseUrl(large_base_url))) {
-        throw new Error(t("error.providerMissingCreds", { provider: largeProvider }));
-      }
-    }
-
-    return {
-      utility: utilityModel,
-      utility_large: largeModel,
-      api_key,
-      base_url,
-      api,
-      large_api_key,
-      large_base_url,
-      large_api,
-    };
+    return this.executionRouter.resolveUtilityConfig(agentConfig, sharedModels, utilApi);
   }
 }

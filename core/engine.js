@@ -416,16 +416,17 @@ export class HanaEngine {
     // 0. Provider 迁移
     this._configCoord.migrateProvidersToGlobal(log);
 
-    // 1. 初始化所有 agent
-    log(`[init] 1/5 初始化所有 agent...`);
-    await this._agentMgr.initAllAgents(log, this._agentMgr.activeAgentId);
-    log(`[init] 1/5 ${this._agentMgr.agents.size} 个 agent 已就绪`);
-
-    // 2. Pi SDK
-    log(`[init] 2/5 Pi SDK 初始化...`);
+    // 1. Pi SDK + ModelCatalog（必须在 agent init 之前，agent 需要解析记忆模型）
+    log(`[init] 1/5 Pi SDK 初始化...`);
     this._models.init();
     this._models.setPreferences(this._prefs);
-    log(`[init] 2/5 AuthStorage + ModelRegistry 就绪`);
+    await this._models.modelCatalog.build();
+    log(`[init] 1/5 AuthStorage + ModelRegistry + Catalog 就绪`);
+
+    // 2. 初始化所有 agent
+    log(`[init] 2/5 初始化所有 agent...`);
+    await this._agentMgr.initAllAgents(log, this._agentMgr.activeAgentId);
+    log(`[init] 2/5 ${this._agentMgr.agents.size} 个 agent 已就绪`);
 
     // 3. ResourceLoader + Skills
     log(`[init] 3/5 ResourceLoader 初始化...`);

@@ -25,6 +25,27 @@ import { openrouterPlugin } from "../lib/providers/openrouter.js";
 import { ollamaPlugin } from "../lib/providers/ollama.js";
 import { minimaxOAuthPlugin } from "../lib/providers/minimax-oauth.js";
 import { openaiCodexOAuthPlugin } from "../lib/providers/openai-codex-oauth.js";
+// 中国
+import { siliconflowPlugin } from "../lib/providers/siliconflow.js";
+import { zhipuPlugin } from "../lib/providers/zhipu.js";
+import { moonshotPlugin } from "../lib/providers/moonshot.js";
+import { baichuanPlugin } from "../lib/providers/baichuan.js";
+import { stepfunPlugin } from "../lib/providers/stepfun.js";
+import { volcenginePlugin } from "../lib/providers/volcengine.js";
+import { hunyuanPlugin } from "../lib/providers/hunyuan.js";
+import { baiduCloudPlugin } from "../lib/providers/baidu-cloud.js";
+import { modelscopePlugin } from "../lib/providers/modelscope.js";
+import { infiniPlugin } from "../lib/providers/infini.js";
+// 国际
+import { groqPlugin } from "../lib/providers/groq.js";
+import { togetherPlugin } from "../lib/providers/together.js";
+import { fireworksPlugin } from "../lib/providers/fireworks.js";
+import { mistralPlugin } from "../lib/providers/mistral.js";
+import { perplexityPlugin } from "../lib/providers/perplexity.js";
+import { xaiPlugin } from "../lib/providers/xai.js";
+// Coding Plan
+import { kimiCodingPlugin } from "../lib/providers/kimi-coding.js";
+import { volcegineCodingPlugin } from "../lib/providers/volcengine-coding.js";
 
 const BUILTIN_PLUGINS = [
   dashscopePlugin,
@@ -36,6 +57,27 @@ const BUILTIN_PLUGINS = [
   ollamaPlugin,
   minimaxOAuthPlugin,
   openaiCodexOAuthPlugin,
+  // 中国
+  siliconflowPlugin,
+  zhipuPlugin,
+  moonshotPlugin,
+  baichuanPlugin,
+  stepfunPlugin,
+  volcenginePlugin,
+  hunyuanPlugin,
+  baiduCloudPlugin,
+  modelscopePlugin,
+  infiniPlugin,
+  // 国际
+  groqPlugin,
+  togetherPlugin,
+  fireworksPlugin,
+  mistralPlugin,
+  perplexityPlugin,
+  xaiPlugin,
+  // Coding Plan
+  kimiCodingPlugin,
+  volcegineCodingPlugin,
 ];
 
 // ── Types (JSDoc) ─────────────────────────────────────────────────────────────
@@ -179,6 +221,7 @@ export class ProviderRegistry {
         quirks: [],
       },
       authJsonKey: plugin.authJsonKey || plugin.id,
+      builtinModels: plugin.builtinModels || [],
       isBuiltin,
     };
   }

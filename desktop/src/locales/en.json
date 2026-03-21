@@ -130,7 +130,7 @@
   "slash": {
     "diary": "Write today's diary",
     "diaryBusy": "Writing diary...",
-    "diaryDone": "Diary saved",
+    "diaryDone": "Diary saved to diary folder",
     "diaryFailed": "Failed to write diary",
     "xing": "Reflect on this conversation",
     "compact": "Compact context",

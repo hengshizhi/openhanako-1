@@ -5254,6 +5254,10 @@ body.resizing .jian-sidebar-inner {
     50% { opacity: 1; }
 }
 
+.slash-result-error {
+    color: var(--error, #c75050);
+}
+
 /* 输入框容器（双行布局） */
 .input-wrapper {
     display: flex;
