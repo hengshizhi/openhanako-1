@@ -28,15 +28,18 @@ function extractTextContent(content, { stripThink = false } = {}) {
   if (typeof content === "string") {
     if (stripThink) {
       const { text, thinkContent } = stripThinkTags(content);
-      return { text, thinking: thinkContent, toolUses: [] };
+      return { text, thinking: thinkContent, toolUses: [], images: [] };
     }
-    return { text: content, thinking: "", toolUses: [] };
+    return { text: content, thinking: "", toolUses: [], images: [] };
   }
-  if (!Array.isArray(content)) return { text: "", thinking: "", toolUses: [] };
+  if (!Array.isArray(content)) return { text: "", thinking: "", toolUses: [], images: [] };
   const rawText = content
     .filter(block => block.type === "text" && block.text)
     .map(block => block.text)
     .join("");
+  const images = content
+    .filter(block => block.type === "image" && block.source?.data)
+    .map(block => ({ data: block.source.data, mimeType: block.source.media_type || "image/png" }));
   const { text, thinkContent } = stripThink ? stripThinkTags(rawText) : { text: rawText, thinkContent: "" };
   const thinking = [
     thinkContent,
@@ -56,7 +59,7 @@ function extractTextContent(content, { stripThink = false } = {}) {
       }
       return { name: block.name, args: Object.keys(args).length ? args : undefined };
     });
-  return { text, thinking, toolUses };
+  return { text, thinking, toolUses, images };
 }
 
 /**
@@ -147,8 +150,8 @@ export default async function sessionsRoute(app, { engine }) {
 
       for (const m of sourceMessages) {
         if (m.role === "user") {
-          const { text } = extractTextContent(m.content);
-          if (text) allMessages.push({ id: String(globalIdx++), role: "user", content: text });
+          const { text, images } = extractTextContent(m.content);
+          if (text || images.length) allMessages.push({ id: String(globalIdx++), role: "user", content: text, images: images.length ? images : undefined });
         } else if (m.role === "assistant") {
           const { text, thinking, toolUses } = extractTextContent(m.content, { stripThink: true });
           if (text || toolUses.length) {

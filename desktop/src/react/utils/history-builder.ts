@@ -19,6 +19,7 @@ export interface HistoryApiResponse {
     content: string;
     thinking?: string;
     toolCalls?: Array<{ name: string; args?: Record<string, unknown> }>;
+    images?: Array<{ data: string; mimeType: string }>;
   }>;
   fileOutputs?: Array<{
     afterIndex: number;
@@ -60,16 +61,25 @@ export function buildItemsFromHistory(data: HistoryApiResponse): ChatListItem[] 
       // strip steer 前缀（内部标记，不应展示给用户）
       const rawContent = (m.content || '').replace(/^（插话，无需 MOOD）\n?/, '');
       const { text, files, deskContext } = parseUserAttachments(rawContent);
+      const fileAtts = files.map(f => ({
+        path: f.path,
+        name: f.name,
+        isDir: f.isDirectory,
+      }));
+      const imageAtts = (m.images || []).map((img, idx) => ({
+        path: `image-${idx}`,
+        name: `image-${idx}.${(img.mimeType || 'image/png').split('/')[1] || 'png'}`,
+        isDir: false,
+        base64Data: img.data,
+        mimeType: img.mimeType,
+      }));
+      const allAtts = [...fileAtts, ...imageAtts];
       const msg: ChatMessage = {
         id,
         role: 'user',
         text,
         textHtml: text ? renderMarkdown(text) : undefined,
-        attachments: files.length ? files.map(f => ({
-          path: f.path,
-          name: f.name,
-          isDir: f.isDirectory,
-        })) : undefined,
+        attachments: allAtts.length ? allAtts : undefined,
         deskContext: deskContext || undefined,
       };
       items.push({ type: 'message', data: msg });

@@ -298,7 +298,11 @@ function InputAreaInner() {
           data: {
             id: `user-${Date.now()}`, role: 'user', text,
             textHtml: renderMarkdown(text),
-            attachments: allFiles.length > 0 ? allFiles.map((f: { path: string; name: string }) => ({ path: f.path, name: f.name, isDir: false })) : undefined,
+            attachments: allFiles.length > 0 ? allFiles.map((f: Record<string, unknown>) => ({
+              path: f.path as string, name: f.name as string, isDir: false,
+              base64Data: (f.base64Data as string) || undefined,
+              mimeType: (f.mimeType as string) || undefined,
+            })) : undefined,
           },
         });
         useStore.setState({ welcomeVisible: false });
