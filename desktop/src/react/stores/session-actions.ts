@@ -136,8 +136,8 @@ export async function switchSession(path: string): Promise<void> {
       await loadMessages(path);
     }
 
-    // 加载 desk files
-    loadDeskFiles('');
+    // 加载 desk files（显式传入切换后 session 的 cwd，覆盖 store 中旧的 deskBasePath）
+    loadDeskFiles('', data.cwd || undefined);
 
     // 切换会话后刷新 context ring
     useStore.setState({ contextTokens: null, contextWindow: null, contextPercent: null });
@@ -265,7 +265,7 @@ export async function ensureSession(): Promise<boolean> {
       useStore.setState({ cwdHistory });
     }
 
-    loadDeskFiles('');
+    loadDeskFiles('', data.cwd || undefined);
 
     return true;
   } catch (err) {

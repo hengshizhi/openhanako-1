@@ -38,7 +38,10 @@ export async function loadDeskFiles(subdir?: string, overrideDir?: string): Prom
   if (subdir !== undefined) s.setDeskCurrentPath(subdir);
   try {
     const params = new URLSearchParams();
-    if (overrideDir) params.set('dir', overrideDir);
+    // 优先用 overrideDir，其次用 store 中已有的 deskBasePath 兜底。
+    // 避免 pendingNewSession 期间后端 engine.deskCwd 仍指向旧 session 的问题。
+    const dir = overrideDir || s.deskBasePath || undefined;
+    if (dir) params.set('dir', dir);
     const curPath = subdir !== undefined ? subdir : s.deskCurrentPath;
     if (curPath) params.set('subdir', curPath);
     const qs = params.toString() ? `?${params}` : '';
