@@ -824,6 +824,8 @@
       "wechatExpired": "QR code expired",
       "wechatLoginSuccess": "Login successful",
       "wechatLoginFailed": "Login failed",
+      "wechatUnbind": "Unbind",
+      "wechatUnbound": "WeChat unbound",
       "connected": "Connected",
       "disconnected": "Not connected",
       "error": "Connection failed",

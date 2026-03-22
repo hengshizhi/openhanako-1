@@ -385,12 +385,29 @@ export function BridgeTab() {
               <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                 {t('settings.bridge.wechatLoggedIn')}: {wxInfo.tokenMasked}
               </span>
-              <button
-                className="bridge-test-btn"
-                onClick={() => window.dispatchEvent(new Event('hana-show-wechat-qrcode'))}
-              >
-                {t('settings.bridge.wechatRescan')}
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="bridge-test-btn"
+                  onClick={() => window.dispatchEvent(new Event('hana-show-wechat-qrcode'))}
+                >
+                  {t('settings.bridge.wechatRescan')}
+                </button>
+                <button
+                  className="bridge-test-btn"
+                  onClick={async () => {
+                    await saveBridgeConfig('wechat', { botToken: '' }, false);
+                    await hanaFetch('/api/bridge/owner', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ platform: 'wechat', userId: null }),
+                    }).catch(() => {});
+                    showToast(t('settings.bridge.wechatUnbound'), 'success');
+                    await loadStatus();
+                  }}
+                >
+                  {t('settings.bridge.wechatUnbind')}
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>

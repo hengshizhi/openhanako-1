@@ -824,6 +824,8 @@
       "wechatExpired": "二维码已过期",
       "wechatLoginSuccess": "登录成功",
       "wechatLoginFailed": "登录失败",
+      "wechatUnbind": "解除绑定",
+      "wechatUnbound": "已解除微信绑定",
       "connected": "已连接",
       "disconnected": "未连接",
       "error": "连接失败",
