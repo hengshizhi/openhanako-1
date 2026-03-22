@@ -152,6 +152,14 @@ async function init(): Promise<void> {
     useStore.setState({ automationCount: count });
   } catch { /* ignore */ }
 
+  // 15. Bridge 状态指示点（启动时就查一次，不等用户打开面板）
+  try {
+    const res = await hanaFetch('/api/bridge/status');
+    const data = await res.json();
+    const anyConnected = data.telegram?.status === 'connected' || data.feishu?.status === 'connected' || data.qq?.status === 'connected' || data.whatsapp?.status === 'connected';
+    useStore.setState({ bridgeDotConnected: anyConnected });
+  } catch { /* ignore */ }
+
   // 18. 设置快捷键
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === ',') {
