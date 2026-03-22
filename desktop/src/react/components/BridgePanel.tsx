@@ -167,6 +167,7 @@ export function BridgePanel() {
   const fsStatus = statusData.feishu?.status;
   const waStatus = statusData.whatsapp?.status;
   const qqStatus = statusData.qq?.status;
+  const wxStatus = statusData.wechat?.status;
 
   return (
     <div className={`${fp.floatingPanel} ${fp.bridgePanelWide}`} id="bridgePanel">
@@ -200,6 +201,13 @@ export function BridgePanel() {
             >
               <span className={`${fp.bridgeTabDot}${dotClass(qqStatus)}`} />
               QQ
+            </button>
+            <button
+              className={`${fp.bridgeTab}${platform === 'wechat' ? ` ${fp.bridgeTabActive}` : ''}`}
+              onClick={() => switchTab('wechat')}
+            >
+              <span className={`${fp.bridgeTabDot}${dotClass(wxStatus)}`} />
+              {t('settings.bridge.wechat')}
             </button>
           </div>
           <button className={fp.floatingPanelClose} onClick={close}>

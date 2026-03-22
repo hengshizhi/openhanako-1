@@ -381,8 +381,8 @@ export function BridgeTab() {
         </div>
         <div className={styles['settings-field']}>
           {wxInfo.tokenMasked ? (
-            <div className="bridge-input-row">
-              <span style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                 {t('settings.bridge.wechatLoggedIn')}: {wxInfo.tokenMasked}
               </span>
               <button
@@ -393,12 +393,14 @@ export function BridgeTab() {
               </button>
             </div>
           ) : (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
             <button
               className="bridge-test-btn"
               onClick={() => window.dispatchEvent(new Event('hana-show-wechat-qrcode'))}
             >
               {t('settings.bridge.wechatScan')}
             </button>
+            </div>
           )}
           <span className={styles['settings-field-hint']}>{t('settings.bridge.wechatHint')}</span>
         </div>
