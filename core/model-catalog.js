@@ -123,7 +123,7 @@ export class ModelCatalog {
           baseUrl,
           api,
           input: modelDef.input || ["text", "image"],
-          contextWindow: modelDef.contextWindow || knownMeta.contextWindow,
+          contextWindow: Math.max(modelDef.contextWindow || 0, knownMeta.contextWindow || 0) || 128_000,
           reasoning: modelDef.reasoning || false,
           _sdkEntry: modelDef,
         };
