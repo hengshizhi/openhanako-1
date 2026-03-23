@@ -6,7 +6,6 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { MarkdownContent } from './MarkdownContent';
 import type { ChatMessage, UserAttachment, DeskContext } from '../../stores/chat-types';
 import { useStore } from '../../stores';
-import { hanaUrl } from '../../hooks/use-hana-fetch';
 import styles from './Chat.module.css';
 
 interface Props {
@@ -72,17 +71,6 @@ const UserAttachmentsView = memo(function UserAttachmentsView({ attachments, des
               key={i}
               className={styles.attachImage}
               src={`data:${att.mimeType || 'image/png'};base64,${att.base64Data}`}
-              alt={att.name}
-              loading="lazy"
-            />
-          );
-        }
-        if (isImage(att)) {
-          return (
-            <img
-              key={i}
-              className={styles.attachImage}
-              src={hanaUrl(`/api/desk/file?path=${encodeURIComponent(att.path)}`)}
               alt={att.name}
               loading="lazy"
             />

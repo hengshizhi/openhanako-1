@@ -256,6 +256,7 @@ function InputAreaInner() {
       // 图片读 base64
       const hana = window.hana;
       const images: Array<{ type: 'image'; data: string; mimeType: string }> = [];
+      const imageBase64Map = new Map<string, { base64Data: string; mimeType: string }>();
       for (const img of imageFiles) {
         try {
           if (img.base64Data && img.mimeType) {
@@ -265,7 +266,9 @@ function InputAreaInner() {
             if (base64) {
               const ext = img.name.toLowerCase().replace(/^.*\./, '');
               const mimeMap: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml' };
-              images.push({ type: 'image', data: base64, mimeType: mimeMap[ext] || 'image/png' });
+              const mimeType = mimeMap[ext] || 'image/png';
+              imageBase64Map.set(img.path, { base64Data: base64, mimeType });
+              images.push({ type: 'image', data: base64, mimeType });
             }
           }
         } catch {
@@ -293,11 +296,14 @@ function InputAreaInner() {
           data: {
             id: `user-${Date.now()}`, role: 'user', text,
             textHtml: renderMarkdown(text),
-            attachments: allFiles.length > 0 ? allFiles.map(f => ({
-              path: f.path, name: f.name, isDir: false,
-              base64Data: f.base64Data || undefined,
-              mimeType: f.mimeType || undefined,
-            })) : undefined,
+            attachments: allFiles.length > 0 ? allFiles.map(f => {
+              const cached = imageBase64Map.get(f.path);
+              return {
+                path: f.path, name: f.name, isDir: false,
+                base64Data: f.base64Data || cached?.base64Data || undefined,
+                mimeType: f.mimeType || cached?.mimeType || undefined,
+              };
+            }) : undefined,
           },
         });
         useStore.setState({ welcomeVisible: false });
