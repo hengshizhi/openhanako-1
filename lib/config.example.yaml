@@ -60,17 +60,3 @@ skills:
 # 频道系统（agent 间协作通信）
 channels:
   enabled: false                     # 是否参与频道轮转
-
-# 语言偏好
-locale: zh-CN
-
-# 时区（用于记忆时间标记）
-timezone: ""                       # 时区，如 Asia/Shanghai、America/New_York
-
-
-# Agent 能力（高级功能，默认关闭）
-capabilities:
-  learn_skills:
-    enabled: true             # 允许 agent 自行编写/安装技能（本地）
-    allow_github_fetch: false # 允许从 GitHub 拉取外部技能（高风险，需谨慎）
-    min_stars: 100            # GitHub 仓库 star 数门槛，低于此值拒绝安装（默认 100）
