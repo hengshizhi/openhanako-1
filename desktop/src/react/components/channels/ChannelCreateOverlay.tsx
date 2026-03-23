@@ -100,6 +100,8 @@ export function ChannelCreateOverlay() {
         setNameError(true);
         nameRef.current?.focus();
         setTimeout(() => setNameError(false), 2000);
+      } else {
+        setVisible(false);
       }
     } finally {
       setCreating(false);

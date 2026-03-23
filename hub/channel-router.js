@@ -18,7 +18,7 @@ import path from "path";
 import { createChannelTicker } from "../lib/channels/channel-ticker.js";
 import { appendMessage, formatMessagesForLLM } from "../lib/channels/channel-store.js";
 import { loadConfig } from "../lib/memory/config-loader.js";
-import { callProviderText } from "../lib/llm/provider-client.js";
+import { callText } from "../core/llm-client.js";
 import { runAgentSession } from "./agent-executor.js";
 import { debugLog } from "../lib/debug-log.js";
 import { getLocale } from "../server/i18n.js";
@@ -179,15 +179,14 @@ export class ChannelRouter {
           const triageSignal = signal
             ? AbortSignal.any([signal, triageTimeout])
             : triageTimeout;
-          const answer = await callProviderText({
-            api,
-            model,
-            api_key,
-            base_url,
+          const answer = await callText({
+            api, model,
+            apiKey: api_key,
+            baseUrl: base_url,
             systemPrompt: triageSystem,
             messages: [{ role: "user", content: isZh ? `#${channelName} 频道最近消息：\n${msgText}` : `#${channelName} recent messages:\n${msgText}` }],
             temperature: 0,
-            max_tokens: 10,
+            maxTokens: 10,
             timeoutMs: 10_000,
             signal: triageSignal,
           });
@@ -302,17 +301,16 @@ export class ChannelRouter {
       }
 
       const isZhMem = getLocale().startsWith("zh");
-      const summaryText = await callProviderText({
-        api,
-        model,
-        api_key,
-        base_url,
+      const summaryText = await callText({
+        api, model,
+        apiKey: api_key,
+        baseUrl: base_url,
         systemPrompt: isZhMem
           ? "将频道对话摘要为一条简短的记忆（一两句话），记录关键信息和结论。直接输出摘要，不要前缀。"
           : "Summarize the channel conversation into a brief memory (one or two sentences), capturing key information and conclusions. Output the summary directly, no prefix.",
         messages: [{ role: "user", content: isZhMem ? `频道 #${channelName}：\n${contextText.slice(0, 2000)}` : `Channel #${channelName}:\n${contextText.slice(0, 2000)}` }],
         temperature: 0.3,
-        max_tokens: 200,
+        maxTokens: 200,
       });
 
       // 写入 agent 的 fact store

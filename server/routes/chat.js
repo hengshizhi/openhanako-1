@@ -284,11 +284,11 @@ export default async function chatRoute(app, { engine, hub }) {
         const d = event.result?.details || {};
         if (d.action === "screenshot" && event.result?.content) {
           const imgBlock = event.result.content.find(c => c.type === "image");
-          if (imgBlock?.source?.data) {
+          if (imgBlock?.data) {
             emitStreamEvent(sessionPath, ss, {
               type: "browser_screenshot",
-              base64: imgBlock.source.data,
-              mimeType: imgBlock.source.media_type || "image/jpeg",
+              base64: imgBlock.data,
+              mimeType: imgBlock.mimeType || "image/jpeg",
             });
           }
         }

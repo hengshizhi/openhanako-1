@@ -277,7 +277,9 @@ export function BridgeTab() {
                 showToast(t('settings.bridge.noCredentials'), 'error');
                 return;
               }
-              const creds: Record<string, string> | null = hasRealSecret ? { appId: fsAppId, appSecret: fsAppSecret } : (fsAppId ? { appId: fsAppId } : null);
+              // If secret is masked and already saved on backend, don't send credentials at all
+              // to avoid overwriting real values with partial data
+              const creds: Record<string, string> | null = hasRealSecret ? { appId: fsAppId, appSecret: fsAppSecret } : null;
               await saveBridgeConfig('feishu', creds, on);
             }}
           />

@@ -2,7 +2,7 @@
  * 供应商管理 REST 路由
  */
 import { getAllProviders } from "../../lib/memory/config-loader.js";
-import { buildProviderAuthHeaders } from "../../lib/llm/provider-client.js";
+import { buildProviderAuthHeaders, buildProbeUrl } from "../../lib/llm/provider-client.js";
 
 function maskKey(key) {
   if (!key || key.length < 8) return key ? "***" : "";
@@ -301,12 +301,12 @@ export default async function providersRoute(app, { engine }) {
     }
 
     try {
-      // Anthropic 格式没有 /models 端点，用最小化 messages 请求验证认证
+      const probe = buildProbeUrl(base_url, api);
+
       if (api === "anthropic-messages") {
-        const baseUrl = base_url.replace(/\/+$/, "");
         const headers = buildProviderAuthHeaders(api, api_key);
-        const res = await fetch(baseUrl + "/messages", {
-          method: "POST",
+        const res = await fetch(probe.url, {
+          method: probe.method,
           headers,
           body: JSON.stringify({ model: "test", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }),
           signal: AbortSignal.timeout(10000),
@@ -316,7 +316,6 @@ export default async function providersRoute(app, { engine }) {
         return { ok: authOk, status: res.status };
       }
 
-      const url = base_url.replace(/\/+$/, "") + "/models";
       let headers = {};
       if (api_key) {
         if (!api) {
@@ -325,7 +324,7 @@ export default async function providersRoute(app, { engine }) {
         }
         headers = buildProviderAuthHeaders(api, api_key);
       }
-      const res = await fetch(url, {
+      const res = await fetch(probe.url, {
         headers,
         signal: AbortSignal.timeout(10000),
       });

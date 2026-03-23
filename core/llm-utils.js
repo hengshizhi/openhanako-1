@@ -6,7 +6,7 @@
  */
 import fs from "fs";
 import path from "path";
-import { callProviderText } from "../lib/llm/provider-client.js";
+import { callText } from "./llm-client.js";
 import { getLocale } from "../server/i18n.js";
 
 /** Pi SDK content block 是否为工具调用（兼容 tool_use / toolCall 两种格式） */
@@ -27,14 +27,12 @@ export const getToolArgs = (b) => b.input || b.arguments;
  * @returns {Promise<string|null>} 回复文本
  */
 async function callLlm({ model, api, api_key, base_url, messages, temperature = 0.3, max_tokens = 100 }) {
-  return callProviderText({
-    api,
-    model,
-    api_key,
-    base_url,
-    messages,
-    temperature,
-    max_tokens,
+  return callText({
+    api, model,
+    apiKey: api_key,
+    baseUrl: base_url,
+    messages, temperature,
+    maxTokens: max_tokens,
   });
 }
 
@@ -214,11 +212,10 @@ Rules:
     const contextLabel = isZh ? "巡检上下文" : "Patrol context";
     const replyLabel = isZh ? "Agent 回复" : "Agent reply";
 
-    const text = await callProviderText({
-      api,
-      model,
-      api_key,
-      base_url,
+    const text = await callText({
+      api, model,
+      apiKey: api_key,
+      baseUrl: base_url,
       messages: [
         { role: "system", content: systemContent },
         {
@@ -227,7 +224,7 @@ Rules:
         },
       ],
       temperature: 0.3,
-      max_tokens: 150,
+      maxTokens: 150,
     });
 
     return text;
@@ -262,11 +259,10 @@ export async function summarizeActivityQuick(utilConfig, sessionPath) {
     const contextLabel = isZh ? "巡检上下文" : "Patrol context";
     const replyLabel = isZh ? "Agent 回复" : "Agent reply";
 
-    return await callProviderText({
-      api,
-      model,
-      api_key,
-      base_url,
+    return await callText({
+      api, model,
+      apiKey: api_key,
+      baseUrl: base_url,
       messages: [
         { role: "system", content: systemContent },
         {
@@ -275,7 +271,7 @@ export async function summarizeActivityQuick(utilConfig, sessionPath) {
         },
       ],
       temperature: 0.3,
-      max_tokens: 80,
+      maxTokens: 80,
     });
   } catch (err) {
     console.error("[llm-utils] summarizeActivityQuick failed:", err.message);

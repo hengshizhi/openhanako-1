@@ -38,8 +38,8 @@ function extractTextContent(content, { stripThink = false } = {}) {
     .map(block => block.text)
     .join("");
   const images = content
-    .filter(block => block.type === "image" && block.source?.data)
-    .map(block => ({ data: block.source.data, mimeType: block.source.media_type || "image/png" }));
+    .filter(block => block.type === "image" && (block.data || block.source?.data))
+    .map(block => ({ data: block.data || block.source.data, mimeType: block.mimeType || block.source?.media_type || "image/png" }));
   const { text, thinkContent } = stripThink ? stripThinkTags(rawText) : { text: rawText, thinkContent: "" };
   const thinking = [
     thinkContent,
@@ -259,6 +259,7 @@ export default async function sessionsRoute(app, { engine }) {
         cwd: engine.cwd,
         agentId: engine.currentAgentId,
         agentName: engine.agentName,
+        memoryModelUnavailableReason: engine.memoryModelUnavailableReason || null,
       };
     } catch (err) {
       reply.code(500);
@@ -293,6 +294,7 @@ export default async function sessionsRoute(app, { engine }) {
         ok: true,
         messageCount: engine.messages.length,
         memoryEnabled: engine.memoryEnabled,
+        memoryModelUnavailableReason: engine.memoryModelUnavailableReason || null,
         cwd: engine.cwd,
         agentId: engine.currentAgentId,
         agentName: engine.agentName,

@@ -171,12 +171,19 @@ export class Agent {
 
     // 预解析记忆模型凭证（统一解析层）
     this._resolvedMemoryModel = null;
+    this._memoryModelUnavailableReason = null;
     if (this._memoryModel && resolveModel) {
       try {
         this._resolvedMemoryModel = resolveModel(this._memoryModel, this._config);
       } catch (err) {
-        console.warn(`[agent] 记忆模型解析失败，记忆系统将不启动: ${err.message}`);
+        this._memoryModelUnavailableReason = err.message;
+        console.warn(`[memory] 记忆系统未启动：大工具模型（utility_large）解析失败 — ${err.message}`);
+        this._engine?.emitDevLog?.(`记忆系统未启动：大工具模型解析失败 — ${err.message}`, "error");
       }
+    } else if (!this._memoryModel) {
+      this._memoryModelUnavailableReason = "utility_large 未配置";
+      console.warn("[memory] 记忆系统未启动：大工具模型（utility_large）未配置。请在设置中配置 utility_large 模型以启用记忆功能。");
+      this._engine?.emitDevLog?.("记忆系统未启动：大工具模型（utility_large）未配置", "warn");
     }
 
     if (this._resolvedMemoryModel) {
@@ -378,6 +385,8 @@ export class Agent {
   get utilityModel() { return this._utilityModel; }
   get memoryModel() { return this._memoryModel; }
   get resolvedMemoryModel() { return this._resolvedMemoryModel; }
+  /** 记忆模型不可用的原因（null 表示可用） */
+  get memoryModelUnavailableReason() { return this._memoryModelUnavailableReason; }
   get summaryManager() { return this._summaryManager; }
   get memoryTicker() { return this._memoryTicker; }
   get tools() {

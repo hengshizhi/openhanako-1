@@ -259,52 +259,52 @@
 
 /* ── Artifact 编辑器（CodeMirror 6）── */
 
-.artifactEditor {
+:global(.artifact-editor) {
     height: 100%;
     overflow: hidden;
 }
 
-.artifactEditor :global(.cm-editor) {
+:global(.artifact-editor .cm-editor) {
     height: 100%;
     background: transparent;
 }
 
-.artifactEditor :global(.cm-editor.cm-focused) {
+:global(.artifact-editor .cm-editor.cm-focused) {
     outline: none;
 }
 
-.artifactEditor :global(.cm-scroller) {
+:global(.artifact-editor .cm-scroller) {
     overflow: auto;
     padding: var(--space-lg) 0;
 }
 
-.artifactEditor :global(.cm-content) {
+:global(.artifact-editor .cm-content) {
     max-width: 720px;
     margin: 0 auto;
     padding: 0 var(--space-md);
 }
 
-.artifactEditor :global(.cm-gutters) {
+:global(.artifact-editor .cm-gutters) {
     background: transparent;
     border-right: 1px solid var(--overlay-light);
     color: var(--text-muted);
     font-size: 0.75rem;
 }
 
-.artifactEditor :global(.cm-activeLineGutter) {
+:global(.artifact-editor .cm-activeLineGutter) {
     background: transparent;
     color: var(--text);
 }
 
-.artifactEditor :global(.cm-activeLine) {
+:global(.artifact-editor .cm-activeLine) {
     background: var(--overlay-subtle);
 }
 
-.artifactEditor :global(.cm-selectionBackground) {
+:global(.artifact-editor .cm-selectionBackground) {
     background: var(--accent-light, rgba(100, 140, 200, 0.15)) !important;
 }
 
-.artifactEditor :global(.cm-cursor) {
+:global(.artifact-editor .cm-cursor) {
     border-left-color: var(--text);
 }
 

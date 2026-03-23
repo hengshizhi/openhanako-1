@@ -8,6 +8,7 @@ user/
 # 文档 / 参考文件
 # ═══════════════════════════════════════════
 .docs/
+docs/superpowers/
 archived/
 devlog/
 handoff-*.md

@@ -90,32 +90,28 @@ export default async function modelsRoute(app, { engine }) {
       }
       if (!apiKey) return { ok: false, error: "no api_key" };
 
-      const { buildProviderAuthHeaders } = await import("../../lib/llm/provider-client.js");
+      const { buildProviderAuthHeaders, buildProbeUrl } = await import("../../lib/llm/provider-client.js");
       const api = creds.api || model.api || "openai-completions";
-
-      // Anthropic 兼容 API：发最小 messages 请求
-      if (api === "anthropic-messages") {
-        const url = baseUrl.replace(/\/+$/, "") + "/v1/messages";
-        const headers = buildProviderAuthHeaders(api, apiKey);
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ model: modelId, max_tokens: 1, messages: [{ role: "user", content: "." }] }),
-          signal: AbortSignal.timeout(10000),
-        });
-        // 200 或 400（参数错误但连通）都算健康
-        return { ok: res.ok || res.status === 400, status: res.status, provider: model.provider };
-      }
 
       // OpenAI Codex Responses API：无法通过简单请求检测（Cloudflare 反爬），跳过
       if (api === "openai-codex-responses") {
         return { ok: true, status: 0, provider: model.provider, skipped: t("error.codexNoHealthCheck") };
       }
 
-      // OpenAI 兼容 API：用 /models 端点
-      const url = baseUrl.replace(/\/+$/, "") + "/models";
+      const probe = buildProbeUrl(baseUrl, api);
       const headers = buildProviderAuthHeaders(api, apiKey);
-      const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+
+      if (api === "anthropic-messages") {
+        const res = await fetch(probe.url, {
+          method: probe.method,
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: modelId, max_tokens: 1, messages: [{ role: "user", content: "." }] }),
+          signal: AbortSignal.timeout(10000),
+        });
+        return { ok: res.ok || res.status === 400, status: res.status, provider: model.provider };
+      }
+
+      const res = await fetch(probe.url, { headers, signal: AbortSignal.timeout(10000) });
       return { ok: res.ok, status: res.status, provider: model.provider };
     } catch (err) {
       return { ok: false, error: err.message };

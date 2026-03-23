@@ -49,6 +49,9 @@ const codeTheme = EditorView.theme({
   '&': {
     fontSize: '0.84rem',
   },
+  '&.cm-focused': {
+    outline: 'none',
+  },
   '.cm-scroller': {
     fontFamily: 'var(--font-mono)',
     lineHeight: '1.7',
@@ -58,6 +61,9 @@ const codeTheme = EditorView.theme({
 const markdownTheme = EditorView.theme({
   '&': {
     fontSize: '0.92rem',
+  },
+  '&.cm-focused': {
+    outline: 'none',
   },
   '.cm-scroller': {
     fontFamily: 'var(--font-serif)',

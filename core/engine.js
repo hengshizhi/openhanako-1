@@ -251,6 +251,7 @@ export class HanaEngine {
   get currentModel() { return this._sessionCoord.session?.model ?? this._models.currentModel; }
   get availableModels() { return this._models.availableModels; }
   get memoryEnabled() { return this.agent.memoryEnabled; }
+  get memoryModelUnavailableReason() { return this.agent.memoryModelUnavailableReason; }
   get planMode() { return this._configCoord.planMode; }
   get homeCwd() { return this._configCoord.getHomeFolder() || null; }
   get authStorage() { return this._models.authStorage; }

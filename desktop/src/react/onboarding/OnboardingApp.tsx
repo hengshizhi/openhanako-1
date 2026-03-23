@@ -6,6 +6,9 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import settingsStyles from '../settings/Settings.module.css';
+import { SelectWidget } from '../settings/widgets/SelectWidget';
+import type { SelectOption } from '../settings/widgets/SelectWidget';
 
 /* ── 全局声明（由 HTML <script> 加载的 lib/*.js 暴露） ── */
 declare const i18n: {
@@ -432,6 +435,9 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
     ? fetchedModels.filter(m => m.id.toLowerCase().includes(modelSearch.toLowerCase()))
     : fetchedModels;
 
+  // ── SelectWidget options for utility model dropdowns ──
+  const modelSelectOptions: SelectOption[] = fetchedModels.map(m => ({ value: m.id, label: m.id }));
+
   // ── Step handlers ──
 
   const onWelcomeNext = useCallback(async () => {
@@ -723,10 +729,11 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
                 <span className="ob-utility-title">{t('onboarding.model.utility')}</span>
                 <span className="ob-utility-hint">{t('onboarding.model.utilityHint')}</span>
               </div>
-              <SdwSelect
-                models={fetchedModels}
+              <SelectWidget
+                options={modelSelectOptions}
                 value={selectedUtility}
                 onChange={setSelectedUtility}
+                placeholder={'\u2014'}
               />
             </div>
             <div className="ob-utility-block">
@@ -734,10 +741,11 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
                 <span className="ob-utility-title">{t('onboarding.model.utilityLarge')}</span>
                 <span className="ob-utility-hint">{t('onboarding.model.utilityLargeHint')}</span>
               </div>
-              <SdwSelect
-                models={fetchedModels}
+              <SelectWidget
+                options={modelSelectOptions}
                 value={selectedUtilityLarge}
                 onChange={setSelectedUtilityLarge}
+                placeholder={'\u2014'}
               />
             </div>
           </div>
@@ -763,21 +771,21 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
           <h1 className="onboarding-title">{t('onboarding.theme.title')}</h1>
           <p className="onboarding-subtitle">{t('onboarding.theme.subtitle')}</p>
 
-          <div className="theme-options">
+          <div className={settingsStyles['theme-options']}>
             {OB_THEMES.map(theme => {
               const key = themeKey(theme);
               return (
                 <button
                   key={theme}
-                  className={`theme-card${activeTheme === theme ? ' active' : ''}`}
+                  className={`${settingsStyles['theme-card']}${activeTheme === theme ? ' ' + settingsStyles['active'] : ''}`}
                   data-theme={theme}
                   onClick={() => {
                     setActiveTheme(theme);
                     setTheme(theme);
                   }}
                 >
-                  <div className="theme-card-name">{t(`settings.appearance.${key}`)}</div>
-                  <div className="theme-card-mode">{t(`settings.appearance.${key}Mode`)}</div>
+                  <div className={settingsStyles['theme-card-name']}>{t(`settings.appearance.${key}`)}</div>
+                  <div className={settingsStyles['theme-card-mode']}>{t(`settings.appearance.${key}Mode`)}</div>
                 </button>
               );
             })}
@@ -890,52 +898,3 @@ function TutorialCard({ icon, title, desc }: { icon: React.ReactNode; title: str
   );
 }
 
-/** Custom SDW dropdown (matches the .sdw CSS in styles.css) */
-function SdwSelect({
-  models,
-  value,
-  onChange,
-}: {
-  models: { id: string }[];
-  value: string;
-  onChange: (val: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
-  }, []);
-
-  return (
-    <div className={`sdw${open ? ' open' : ''}`} ref={containerRef}>
-      <button type="button" className="sdw-trigger" onClick={() => setOpen(!open)}>
-        <span className={`sdw-value${value ? '' : ' sdw-placeholder'}`}>
-          {value || '\u2014'}
-        </span>
-        <span className="sdw-arrow">{'\u25BE'}</span>
-      </button>
-      <div className="sdw-popup">
-        {models.map(m => (
-          <button
-            key={m.id}
-            type="button"
-            className={`sdw-option${value === m.id ? ' selected' : ''}`}
-            onClick={() => {
-              onChange(m.id);
-              setOpen(false);
-            }}
-          >
-            {m.id}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
