@@ -121,6 +121,16 @@ describe('parseUserAttachments', () => {
     expect(result.files[0].isDirectory).toBe(true);
   });
 
+  it('解析参考文档附件', () => {
+    const input = '这个\n\n[参考文档] /Users/test/docs/note.md';
+    const result = parseUserAttachments(input);
+    expect(result.text).toBe('这个');
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0].path).toBe('/Users/test/docs/note.md');
+    expect(result.files[0].name).toBe('note.md');
+    expect(result.files[0].isDirectory).toBe(false);
+  });
+
   it('解析书桌上下文', () => {
     const input = '[当前书桌目录] /home/user/desk\n  file1.txt\n  file2.txt\nSome text';
     const result = parseUserAttachments(input);

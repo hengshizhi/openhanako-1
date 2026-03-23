@@ -61,7 +61,7 @@ export function parseUserAttachments(content: string): ParsedAttachments {
   const lines = content.split('\n');
   const textLines: string[] = [];
   const files: Array<{ path: string; name: string; isDirectory: boolean }> = [];
-  const attachRe = /^\[(附件|目录)\]\s+(.+)$/;
+  const attachRe = /^\[(附件|目录|参考文档)\]\s+(.+)$/;
   let deskContext: { dir: string; fileCount: number } | null = null;
   let inDeskBlock = false;
 

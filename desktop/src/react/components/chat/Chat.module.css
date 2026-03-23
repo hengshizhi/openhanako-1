@@ -123,6 +123,9 @@
     width: 120px;
     height: 90px;
     background: var(--attach-bg, rgba(0, 0, 0, 0.04));
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
 }
 
 .attachImageImg {
@@ -130,7 +133,6 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    border-radius: var(--radius-sm);
 }
 
 .attachFile {
@@ -140,6 +142,8 @@
     padding: 0.35rem 0.6rem;
     background: var(--attach-bg, rgba(0, 0, 0, 0.035));
     border: none;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .attachFileIcon {
