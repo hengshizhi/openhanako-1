@@ -22,6 +22,23 @@
 4. **安静的反馈**：错误反馈存在但不喧哗，符合项目设计哲学
 5. **i18n 分层**：用户可见的走 i18n（toast / 状态栏 / fallback），开发者级别的保持英文（console / 日志）
 
+## 模块格式约束
+
+项目存在三种模块环境，共享代码必须适配：
+
+| 进程 | 模块格式 | 说明 |
+|------|---------|------|
+| 主进程 `desktop/main.cjs` | CommonJS (`require()`) | 不能直接 import ESM 或 TS |
+| 服务端 `core/`, `server/`, `lib/` | ESM JavaScript (`import`) | `"type": "module"`，不能直接执行 TS |
+| 渲染进程 `desktop/src/` | TypeScript (Vite 编译) | `tsconfig.json` 只 include `desktop/src/**` |
+
+**解决方案**：
+
+1. `shared/` 目录下所有文件写 **纯 ESM JavaScript**（`.js`），服务端和渲染进程都能直接 import
+2. 渲染进程如需类型，在 `desktop/src/react/errors/types.ts` 中写类型声明（re-export + type augmentation），Vite 编译
+3. 主进程 `main.cjs` 使用 `.cjs` 版本的包装器（`desktop/ipc-wrapper.cjs`），通过 `await import()` 动态导入 `shared/` 的 ESM 模块，或内联一份轻量 AppError 实现（只需 wrap + toJSON）
+4. `tsconfig.json` 不需要改——TS 类型声明放在 `desktop/src/` 内部
+
 ## 参考架构
 
 | 来源 | 采纳的模式 |
@@ -90,6 +107,12 @@ const ERROR_DEFS: Record<string, ErrorDef> = {
   CONFIG_PARSE:        { severity: 'critical', category: 'config',     i18nKey: 'error.configParse',       retryable: false, httpStatus: 500 },
   BRIDGE_SEND_FAILED:  { severity: 'degraded', category: 'bridge',     i18nKey: 'error.bridgeSendFailed',  retryable: true,  httpStatus: 502 },
 
+  // Skills / Memory / DB / Auth
+  SKILL_SYNC_FAILED:       { severity: 'degraded', category: 'filesystem', i18nKey: 'error.skillSyncFailed',      retryable: true,  httpStatus: 500 },
+  MEMORY_COMPILE_FAILED:   { severity: 'degraded', category: 'unknown',    i18nKey: 'error.memoryCompileFailed',  retryable: true },
+  DB_ERROR:                { severity: 'critical', category: 'filesystem', i18nKey: 'error.dbError',              retryable: false, httpStatus: 500 },
+  SERVER_AUTH_FAILED:      { severity: 'degraded', category: 'auth',       i18nKey: 'error.serverAuthFailed',     retryable: false, httpStatus: 403 },
+
   // Fallback
   UNKNOWN:             { severity: 'degraded', category: 'unknown',    i18nKey: 'error.unknown',           retryable: false, httpStatus: 500 },
 };
@@ -108,23 +131,26 @@ class AppError extends Error {
   readonly userMessageKey: string;
   readonly httpStatus: number;
   readonly context: Record<string, unknown>;
+  readonly traceId: string;       // 跨进程关联 ID
   readonly cause?: Error;
 
   constructor(code: string, opts?: {
     cause?: Error;
     context?: Record<string, unknown>;
     message?: string;
+    traceId?: string;             // 不传则自动生成短 ID
   });
 
-  toJSON(): { code: string; message: string; context: Record<string, unknown> };
-  static fromJSON(data: { code: string; message?: string; context?: Record<string, unknown> }): AppError;
+  toJSON(): { code: string; message: string; context: Record<string, unknown>; traceId: string };
+  static fromJSON(data: { code: string; message?: string; context?: Record<string, unknown>; traceId?: string }): AppError;
   static wrap(err: unknown, fallbackCode?: string): AppError;
 }
 ```
 
 关键方法：
-- `toJSON()` / `fromJSON()`：跨 IPC / WebSocket 序列化保真传递
+- `toJSON()` / `fromJSON()`：跨 IPC / WebSocket 序列化保真传递，包含 `traceId`
 - `wrap()`：兜底层用，把裸 Error 包装成 AppError，确保后续流程总能拿到结构化信息
+- `traceId`：短随机 ID（如 8 位 hex），构造时自动生成。当错误跨进程传递时（HTTP response / WebSocket error / IPC envelope），接收方的 `fromJSON` 保留原始 traceId，使得服务端日志和前端日志可通过 traceId 关联
 
 ---
 
@@ -142,7 +168,7 @@ class AppError extends Error {
 
 ```typescript
 interface Breadcrumb {
-  type: 'action' | 'navigation' | 'network' | 'ipc';
+  type: 'action' | 'navigation' | 'network' | 'ipc' | 'llm' | 'filesystem' | 'lifecycle';
   message: string;
   timestamp: number;
   data?: Record<string, unknown>;
@@ -176,7 +202,9 @@ class ErrorBus {
 
 ### 2.4 去重
 
-fingerprint = `code` + `JSON.stringify(context)`，窗口期 5 秒。同一 fingerprint 在窗口期内只路由一次。
+默认 fingerprint = `code`（仅错误码），窗口期 5 秒。同一 fingerprint 在窗口期内只路由一次。
+
+调用者可通过 `extra.dedupeKey` 传入自定义 fingerprint（如 `code + sessionPath`），用于需要按上下文区分的场景。默认只用 `code` 是因为 `context` 中可能包含时间戳等非确定性字段，会导致去重失效。
 
 ### 2.5 面包屑
 
@@ -185,12 +213,17 @@ fingerprint = `code` + `JSON.stringify(context)`，窗口期 5 秒。同一 fing
 - fetch / WebSocket 发送 → `network`
 - IPC 调用 → `ipc`
 - 用户操作（发送消息、切换 agent）→ `action`
+- LLM 调用开始/结束 → `llm`
+- 文件读写操作 → `filesystem`
+- 应用/窗口生命周期事件 → `lifecycle`
 
 错误上报时，当前面包屑快照附加到 `ErrorEntry`，供 debug 时还原现场。
 
 ### 2.6 实例化
 
 全局单例 `errorBus`，在应用启动时创建。后端（server 进程）和前端（renderer 进程）各一个实例。主进程（main.cjs）也一个实例。三个实例独立运行，通过各自的日志持久化。
+
+跨进程关联通过 `AppError.traceId` 实现：服务端错误携带 traceId 通过 HTTP / WebSocket / IPC 传递到前端，前端 ErrorBus 日志中记录同一 traceId，debug 时可跨进程检索。
 
 ---
 
@@ -209,11 +242,15 @@ safeReadFile(filePath, fallback = '')       // readFileSync，失败返回 fallb
 safeCopyDir(src, dst)                       // 原子复制：先复制到 tmp，成功后 rename，失败清理 tmp
 ```
 
-`safeCopyDir` 关键改进：
-- 复制到 `dst.tmp_{timestamp}`，成功后 `rename` 到 `dst`
-- 失败时清理临时目录，不留残文件
-- 原目标存在时先 rename 为 `.bak`，新目录就位后再删 `.bak`
-- Windows 文件锁场景：配合 `withRetry` 使用，短延迟重试 2-3 次
+`safeCopyDir` 关键改进（原子复制 + 完整故障恢复）：
+
+1. 递归复制 `src` → `dst.tmp_{ts}`
+2. 若 `dst` 已存在，`rename(dst, dst.bak_{ts})`
+3. `rename(dst.tmp_{ts}, dst)`
+4. 删除 `dst.bak_{ts}`
+5. **故障恢复**：若步骤 3 失败，`rename(dst.bak_{ts}, dst)` 回滚 + 清理 `dst.tmp_{ts}`
+
+Windows 注意：`rename` 在目标已存在时会失败（不像 POSIX 原子替换），所以步骤 2 必须先移走旧目录。目录有打开的文件句柄时 rename 也会失败，配合 `withRetry` 短延迟重试 2-3 次。
 
 #### safe-parse
 
@@ -250,16 +287,17 @@ app.setErrorHandler((error, request, reply) => {
 ```typescript
 type IpcResult<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string } };
 
-function wrapIpcHandler<T>(channel: string, handler: (...args: any[]) => Promise<T> | T): void;
+function wrapIpcHandler(channel, handler): void;
 ```
 
 - 替代所有 `ipcMain.handle` 调用
 - 内部自动 try-catch + AppError.wrap + ErrorBus 上报
-- 返回 `IpcResult<T>` envelope，不丢失错误码
+- 返回 `IpcResult` envelope（`{ ok: true, data }` 或 `{ ok: false, error: { code, message, traceId } }`），不丢失错误码
+- **文件格式**：`desktop/ipc-wrapper.cjs`（CommonJS），因为 `main.cjs` 是 CJS 环境。内部通过 `await import('../shared/errors.js')` 动态加载 ESM 的 AppError
 
-渲染侧解包器：
+渲染侧解包器（TypeScript，在 `desktop/src/react/errors/invoke-ipc.ts`）：
 ```typescript
-async function invokeIpc<T>(channel: string, ...args: any[]): Promise<T>;
+async function invokeIpc<T>(channel: string, ...args: unknown[]): Promise<T>;
 // ok=true → 返回 data；ok=false → throw AppError.fromJSON(error)
 ```
 
@@ -360,11 +398,12 @@ interface Toast {
 ```
 
 增强点：
-- `persistent`：critical 级别的 toast 不自动消失，需要用户手动 dismiss
+- `persistent`：critical 级别的 toast 不自动消失，需要用户手动 dismiss。**上限 3 条**，超出时折叠为 "还有 N 个错误" 摘要
 - `action`：可选操作按钮（重试、查看详情等）
 - `dedupeKey`：与 ErrorBus 的去重联动
+- `warning` 类型：用于 `cosmetic` 级别的提示（如慢响应），视觉上比 `error` 柔和（浅黄色调而非红色）
 
-**合并设置页 Toast**：消除 `settings/Toast.tsx` 的独立实现，统一走 ToastContainer。设置窗口通过 IPC 或 shared store 调用主窗口的 toast。
+**合并设置页 Toast**：消除 `settings/Toast.tsx` 的独立实现。设置窗口是独立 BrowserWindow，拥有自己的 ErrorBus 实例和 ToastContainer，使用相同的 toast-slice 模式但独立运行。不通过 IPC 中转主窗口。
 
 ### 4.2 状态栏
 
@@ -389,7 +428,8 @@ UI 规则：
 
 ### 4.3 区域 Fallback
 
-由 RegionalErrorBoundary 渲染（见 3.3），样式：
+由 RegionalErrorBoundary 渲染（见 3.3），样式写在 `RegionalErrorBoundary.module.css` 中（不用内联样式）：
+
 - 浅灰色底（`var(--bg-secondary)`），居中布局
 - 一行文字 + 一个按钮，字号 13px
 - 不破坏周围布局的尺寸
@@ -503,27 +543,30 @@ delay = min(maxDelay, random(baseDelay, previousDelay * 3))
 ## 八、文件结构
 
 ```
-shared/
-  errors.ts              # AppError + ERROR_DEFS + 类型定义
-  error-bus.ts           # ErrorBus 类 + 面包屑 + 去重 + 路由
-  retry.ts               # withRetry + decorrelated jitter
-  safe-fs.js             # safeReadJSON, safeReadYAML, safeCopyDir, safeReadFile
-  safe-parse.js          # safeParseJSON, safeParseResponse
+shared/                          # 纯 ESM JavaScript，三个进程都能用
+  errors.js                      # AppError + ERROR_DEFS + ErrorSeverity/ErrorCategory
+  error-bus.js                   # ErrorBus 类 + 面包屑 + 去重 + 路由
+  retry.js                       # withRetry + decorrelated jitter
+  safe-fs.js                     # safeReadJSON, safeReadYAML, safeCopyDir, safeReadFile
+  safe-parse.js                  # safeParseJSON, safeParseResponse
 
 server/
   middleware/
-    error-handler.js     # Fastify setErrorHandler
+    error-handler.js             # Fastify setErrorHandler
 
 desktop/
-  ipc-wrapper.ts         # wrapIpcHandler + IpcResult 类型
+  ipc-wrapper.cjs                # wrapIpcHandler（CJS，供 main.cjs 使用）
   src/react/
+    errors/
+      types.ts                   # TypeScript 类型声明（re-export shared/ 的类型）
+      invoke-ipc.ts              # 渲染侧 IPC 解包器
     components/
-      RegionalErrorBoundary.tsx   # 区域 ErrorBoundary
+      RegionalErrorBoundary.tsx  # 区域 ErrorBoundary
       RegionalErrorBoundary.module.css
-      ToastContainer.tsx          # 增强版 Toast
+      ToastContainer.tsx         # 增强版 Toast
     stores/
-      toast-slice.ts              # 增强 Toast 类型
-      connection-slice.ts         # wsState / wsReconnectAttempt
+      toast-slice.ts             # 增强 Toast 类型
+      connection-slice.ts        # wsState / wsReconnectAttempt
 ```
 
 ---
@@ -538,7 +581,47 @@ desktop/
 
 ---
 
-## 十、成功标准
+## 十、实施依赖链
+
+实施必须按以下顺序，每一步依赖前一步的产出：
+
+```
+Phase 1: 基础设施（无外部依赖）
+  shared/errors.js         ← AppError + ERROR_DEFS
+  shared/error-bus.js      ← ErrorBus（依赖 AppError）
+  shared/retry.js          ← withRetry（独立）
+  shared/safe-fs.js        ← 安全文件操作（依赖 AppError + ErrorBus）
+  shared/safe-parse.js     ← 安全解析（依赖 AppError + ErrorBus）
+
+Phase 2: 中间件/包装器（依赖 Phase 1）
+  server/middleware/error-handler.js    ← Fastify 全局错误中间件
+  desktop/ipc-wrapper.cjs              ← IPC handler 包装器
+  desktop/src/react/errors/invoke-ipc.ts ← 渲染侧 IPC 解包器
+  desktop/src/react/errors/types.ts    ← TypeScript 类型声明
+
+Phase 3: 前端 UI（依赖 Phase 1 + Phase 2）
+  stores/toast-slice.ts 增强
+  stores/connection-slice.ts 增强
+  components/RegionalErrorBoundary.tsx
+  components/ToastContainer.tsx 增强
+  services/websocket.ts 改造
+
+Phase 4: 逐文件修复（依赖 Phase 1）
+  各处 safeReadJSON / safeCopyDir / safeParseResponse 替换
+  各处 wrapIpcHandler / wrapWsHandler 替换
+  App.tsx ErrorBoundary 拆分 + 全局 handler 接入 ErrorBus
+  llm-client.js 慢响应检测
+```
+
+Phase 1 和 Phase 2 之间是严格依赖。Phase 3 和 Phase 4 可以并行（分别处理 UI 层和逻辑层）。
+
+## 十一、i18n 注意事项
+
+所有新增的用户可见文本都需要在 `en.json` 和 `zh.json`（或对应的 locale 文件）中添加对应 key。`ERROR_DEFS` 中的 `i18nKey` 值（如 `error.llmTimeout`）必须在两个 locale 文件中都有条目。
+
+开发者级别的日志消息（`console.error`、ErrorBus 内部日志）保持英文，不走 i18n。
+
+## 十二、成功标准
 
 1. 无论 AI 写出什么代码，错误都至少被四层中的某一层捕获并记录
 2. 用户永远不会看到 "一直在转圈" — 超时、慢响应、断连都有明确反馈
