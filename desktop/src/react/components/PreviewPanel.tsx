@@ -10,13 +10,14 @@
  * - ArtifactEditor 不依赖 PreviewPanel，可脱离到独立窗口
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useStore } from '../stores';
 import { renderMarkdown } from '../utils/markdown';
 import { parseCSV, injectCopyButtons } from '../utils/format';
 import { fileIconSvg } from '../utils/icons';
-import { updateLayout } from './SidebarLayout';
 import { ArtifactEditor } from './ArtifactEditor';
+import { TabBar } from './preview/TabBar';
+import { FloatingActions } from './preview/FloatingActions';
 import type { Artifact } from '../types';
 import previewStyles from './Preview.module.css';
 
@@ -44,12 +45,6 @@ export function PreviewPanel() {
   const artifact = artifacts.find(a => a.id === activeTabId) ?? null;
   const editable = isEditable(artifact);
 
-  const closePreview = useCallback(() => {
-    setPreviewOpen(false);
-    useStore.setState({ activeTabId: null });
-    updateLayout();
-  }, [setPreviewOpen]);
-
   // 拆分到独立窗口
   const handleDetach = useCallback(() => {
     if (!artifact?.filePath) return;
@@ -71,9 +66,10 @@ export function PreviewPanel() {
   useEffect(() => {
     if (!previewOpen || !artifact || !bodyRef.current) return;
     const body = bodyRef.current;
-    // 清理命令式插入的节点（保留 React 管理的 .artifact-editor）
+    // 清理命令式插入的节点（保留 React 管理的元素）
     Array.from(body.children).forEach(child => {
-      if (!child.classList.contains('artifact-editor')) {
+      const el = child as HTMLElement;
+      if (!el.classList.contains('artifact-editor') && !el.hasAttribute('data-react-managed')) {
         child.remove();
       }
     });
@@ -209,53 +205,19 @@ export function PreviewPanel() {
     }
   }, [previewOpen, artifact, editable]);
 
-  const [copyLabel, setCopyLabel] = useState<string | null>(null);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }, []);
-  const handleCopy = useCallback(() => {
-    if (!artifact) return;
-    navigator.clipboard.writeText(artifact.content).then(() => {
-      const _t = window.t ?? ((p: string) => p);
-      setCopyLabel(_t('attach.copied'));
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopyLabel(null), 1500);
-    });
-  }, [artifact]);
-
   return (
     <div className={`${previewStyles.previewPanel}${previewOpen ? '' : ` ${previewStyles.previewPanelCollapsed}`}`} id="previewPanel">
       <div className="resize-handle resize-handle-left" id="previewResizeHandle"></div>
       <div className={previewStyles.previewPanelInner}>
-        <div className={previewStyles.previewPanelHeader}>
-          <span className={previewStyles.previewPanelTitle} id="previewTitle">
-            {artifact?.title ?? ''}
-          </span>
-          <div className={previewStyles.previewPanelActions}>
-            <button className={`${previewStyles.previewPanelActionBtn} ${previewStyles.previewPanelCopyBtn}`} onClick={handleCopy}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-              <span>{copyLabel ?? (window.t ?? ((p: string) => p))('attach.copy')}</span>
-            </button>
-            {editable && (
-              <button className={previewStyles.previewPanelActionBtn} title="Open in window" onClick={handleDetach}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                </svg>
-              </button>
-            )}
-            <button className={previewStyles.previewPanelActionBtn} title="Close" onClick={closePreview}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
+        <TabBar />
         <div className={previewStyles.previewPanelBody} id="previewBody" ref={bodyRef}>
+          {previewOpen && artifact && (
+            <FloatingActions
+              content={artifact.content}
+              editable={editable}
+              onDetach={handleDetach}
+            />
+          )}
           {previewOpen && artifact && editable && (
             <ArtifactEditor
               content={artifact.content}

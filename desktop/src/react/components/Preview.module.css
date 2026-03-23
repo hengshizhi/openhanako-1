@@ -37,58 +37,6 @@
     pointer-events: none;
 }
 
-.previewPanelHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-sm) var(--space-md);
-    border-bottom: 1px solid var(--overlay-light);
-    flex-shrink: 0;
-    -webkit-app-region: no-drag;
-}
-
-.previewPanelTitle {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-}
-
-.previewPanelActions {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-}
-
-.previewPanelActionBtn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    background: none;
-    border: none;
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.previewPanelActionBtn:hover {
-    color: var(--accent);
-    background: var(--accent-light);
-}
-
-.previewPanelCopyBtn {
-    width: auto;
-    gap: 4px;
-    padding: 0 8px;
-    font-size: 0.75rem;
-}
-
 .previewPanelBody {
     flex: 1;
     overflow: auto;

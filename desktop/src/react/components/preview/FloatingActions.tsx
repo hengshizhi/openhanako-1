@@ -25,7 +25,7 @@ export function FloatingActions({ content, editable, onDetach }: Props) {
   const t = window.t ?? ((p: string) => p);
 
   return (
-    <div className={styles.floatingActions}>
+    <div className={styles.floatingActions} data-react-managed>
       <button className={styles.actionBtn} onClick={handleCopy}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
