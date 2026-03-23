@@ -417,8 +417,17 @@ export class HanaEngine {
   async init(log = () => {}) {
     const startupTimer = Date.now();
 
-    // 0. Provider 迁移
+    // 0a. Provider 迁移
     this._configCoord.migrateProvidersToGlobal(log);
+
+    // 0b. Config scope 迁移（全局字段从 agent config → preferences）
+    const { migrateConfigScope } = await import("../shared/migrate-config-scope.js");
+    migrateConfigScope({
+      agentsDir: this.agentsDir,
+      prefs: this._prefs,
+      primaryAgentId: this._prefs.getPrimaryAgent(),
+      log,
+    });
 
     // 1. Pi SDK + 模型基础设施（必须在 agent init 之前，agent 需要解析记忆模型）
     log(`[init] 1/5 Pi SDK 初始化...`);
