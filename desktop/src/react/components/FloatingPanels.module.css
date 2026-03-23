@@ -737,28 +737,27 @@
 }
 
 .bridgeBubble {
-    max-width: 80%;
-    padding: 8px 12px;
-    border-radius: var(--radius-lg);
-    font-size: 0.82rem;
-    line-height: 1.5;
+    max-width: 92%;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    line-height: 1.75;
     word-break: break-word;
 }
 
 .bridgeBubbleIn .bridgeBubble {
-    background: var(--overlay-light);
+    background: none;
     color: var(--text);
-    border-bottom-left-radius: 2px;
+}
+
+.bridgeBubbleIn .bridgeBubble :global(.md-content) {
+    font-family: var(--font-serif);
 }
 
 .bridgeBubbleOut .bridgeBubble {
-    background: var(--accent-light);
+    background: rgba(0, 0, 0, 0.045);
     color: var(--text);
-    border-bottom-right-radius: 2px;
-}
-
-.bridgeBubble :global(.md-content) {
-    font-size: 0.82rem;
+    border-radius: var(--radius-md) var(--radius-md) var(--radius-sm) var(--radius-md);
 }
 
 .bridgeBubble p:last-child {

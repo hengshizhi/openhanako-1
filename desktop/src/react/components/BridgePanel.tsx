@@ -334,7 +334,7 @@ function ChatBubble({ message: m }: { message: BridgeMessage }) {
     const cleaned = (text || m.content).replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, '');
     return (
       <div className={`${fp.bridgeBubbleRow} ${fp.bridgeBubbleIn}`}>
-        <div className={fp.bridgeBubble} dangerouslySetInnerHTML={{ __html: renderMarkdown(cleaned) }} />
+        <div className={`${fp.bridgeBubble} md-content`} dangerouslySetInnerHTML={{ __html: renderMarkdown(cleaned) }} />
       </div>
     );
   }
