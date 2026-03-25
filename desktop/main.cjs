@@ -501,19 +501,41 @@ function writeCrashLog(errorMessage) {
   // 没有任何输出时，附加诊断信息帮助定位问题
   let diagnostics = "";
   if (!logs) {
-    const serverDir = path.join(__dirname, "..", "server");
-    const sqlitePath = path.join(__dirname, "..", "node_modules", "better-sqlite3", "build", "Release", "better_sqlite3.node");
-    diagnostics = [
+    // production 时 server 在 resources/server/，dev 时在 __dirname/../server/
+    const isPackaged = process.resourcesPath &&
+      fs.existsSync(path.join(process.resourcesPath, "server"));
+    const serverDir = isPackaged
+      ? path.join(process.resourcesPath, "server")
+      : path.join(__dirname, "..", "server");
+    const sqlitePath = path.join(serverDir, "node_modules", "better-sqlite3",
+      "build", "Release", "better_sqlite3.node");
+    const bundlePath = path.join(serverDir, "bundle", "index.js");
+
+    const items = [
       ``,
       `--- Diagnostics ---`,
       `HANA_HOME: ${hanakoHome}`,
       `Server dir: ${serverDir}`,
-      `boot.cjs exists: ${fs.existsSync(path.join(serverDir, "boot.cjs"))}`,
-      `index.js exists: ${fs.existsSync(path.join(serverDir, "index.js"))}`,
+      `Packaged: ${!!isPackaged}`,
+      `bundle/index.js exists: ${fs.existsSync(bundlePath)}`,
       `better_sqlite3.node exists: ${fs.existsSync(sqlitePath)}`,
       `ELECTRON_RUN_AS_NODE: ${process.env.ELECTRON_RUN_AS_NODE || "unset"}`,
       `Node ABI: ${process.versions.modules || "unknown"}`,
-    ].join("\n");
+    ];
+
+    // Windows: 检查 server 二进制、手动调试 wrapper 和 MinGit
+    if (process.platform === "win32" && isPackaged) {
+      const exePath = path.join(serverDir, "hana-server.exe");
+      const cmdPath = path.join(serverDir, "hana-server.cmd");
+      const gitRoot = path.join(process.resourcesPath, "git");
+      items.push(`hana-server.exe exists: ${fs.existsSync(exePath)}`);
+      items.push(`hana-server.cmd exists (manual debug): ${fs.existsSync(cmdPath)}`);
+      items.push(`MinGit dir exists: ${fs.existsSync(gitRoot)}`);
+      items.push(``);
+      items.push(`Manual debug: open cmd.exe, cd to "${serverDir}", run hana-server.cmd`);
+    }
+
+    diagnostics = items.join("\n");
   }
 
   const content = [
