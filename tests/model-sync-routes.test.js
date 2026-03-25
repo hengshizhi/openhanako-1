@@ -247,7 +247,7 @@ describe("model sync related routes", () => {
       availableModels: [],
       refreshAvailableModels: vi.fn().mockResolvedValue(undefined),
       authStorage: {
-        getOAuthProviders: () => [{ id: "minimax-oauth", name: "MiniMax (OAuth)" }],
+        getOAuthProviders: () => [{ id: "minimax", name: "MiniMax" }],
         getApiKey: vi.fn(),
       },
       configPath: "/tmp/test-config.yaml",

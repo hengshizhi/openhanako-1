@@ -21,12 +21,12 @@ export function createProvidersRoute(engine) {
     // ProviderRegistry 作为 OAuth 判断的权威来源
     const provRegistry = engine.providerRegistry;
 
-    // OAuth 白名单：authJsonKey 集合（auth.json 中的 key，如 minimax-oauth / openai-codex）
+    // OAuth 白名单：authJsonKey 集合（auth.json 中的 key，如 minimax / openai-codex）
     const ALLOWED_OAUTH = provRegistry
       ? new Set(provRegistry.getOAuthProviderIds().map(id => provRegistry.getAuthJsonKey(id)))
-      : new Set(["minimax-oauth", "openai-codex"]); // fallback
+      : new Set(["minimax", "openai-codex"]); // fallback
 
-    // authJsonKey → registryId 映射（如 openai-codex → openai-codex-oauth）
+    // authJsonKey → registryId 映射（如 minimax → minimax-oauth）
     const authKeyToRegistryId = new Map();
     if (provRegistry) {
       for (const id of provRegistry.getOAuthProviderIds()) {
@@ -64,9 +64,14 @@ export function createProvidersRoute(engine) {
       if (provRegistry) {
         // 直接匹配 registry ID（如 minimax-oauth）
         if (provRegistry.isOAuth(name)) return true;
-        // 或者 name 是某个 OAuth provider 的 authJsonKey
+        // name 可能是某个 OAuth provider 的 authJsonKey（如 minimax → minimax-oauth）
+        // 但如果 name 自身是已注册的非 OAuth 插件（如 minimax api-key），以其自身类型为准
         const registryId = authKeyToRegistryId.get(name);
-        if (registryId && provRegistry.isOAuth(registryId)) return true;
+        if (registryId && provRegistry.isOAuth(registryId)) {
+          const own = provRegistry.get(name);
+          if (own && own.authType !== "oauth") return false;
+          return true;
+        }
         return false;
       }
       return oauthLoginMap.has(name);

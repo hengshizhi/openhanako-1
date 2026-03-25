@@ -285,7 +285,7 @@ export class ProviderRegistry {
 
   /**
    * 获取 OAuth provider 在 auth.json 中的实际 key
-   * （部分 provider 的 authJsonKey 与 id 不同，如 openai-codex-oauth → openai-codex）
+   * （部分 provider 的 authJsonKey 与 id 不同，如 minimax-oauth → minimax）
    * @param {string} providerId
    * @returns {string}
    */
