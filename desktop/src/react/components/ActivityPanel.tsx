@@ -180,14 +180,16 @@ function ActivityCard({
   onOpen,
 }: {
   activity: ActivityItem;
-  agents: { id: string; yuan: string }[];
+  agents: { id: string; yuan: string; hasAvatar?: boolean }[];
   currentAgentId: string | null;
   agentName: string;
   onOpen: (id: string) => void;
 }) {
   const agentId = a.agentId || currentAgentId;
-  const avatarSrc = hanaUrl(`/api/agents/${agentId}/avatar?t=${_avatarTs}`);
   const ag = agents.find(x => x.id === agentId);
+  const avatarSrc = ag?.hasAvatar
+    ? hanaUrl(`/api/agents/${agentId}/avatar?t=${_avatarTs}`)
+    : yuanFallbackAvatar(ag?.yuan);
 
   const t = window.t ?? ((p: string) => p);
   const typeText = a.type === 'heartbeat' ? t('activity.heartbeat')
@@ -237,7 +239,9 @@ function ActivityCard({
 function DetailHeader({ detail }: { detail: DetailState }) {
   const agents = useStore(s => s.agents);
   const ag = agents.find(x => x.id === detail.agentId);
-  const avatarSrc = hanaUrl(`/api/agents/${detail.agentId}/avatar?t=${_avatarTs}`);
+  const avatarSrc = ag?.hasAvatar
+    ? hanaUrl(`/api/agents/${detail.agentId}/avatar?t=${_avatarTs}`)
+    : yuanFallbackAvatar(ag?.yuan);
 
   return (
     <div className={fp.detailHeaderInfo}>

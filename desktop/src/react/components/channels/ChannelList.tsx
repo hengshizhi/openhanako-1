@@ -59,7 +59,7 @@ export function resolveChannelMember(
     return {
       id: memberId,
       displayName: agent.name || agent.id,
-      avatarUrl: hanaUrl(`/api/agents/${agent.id}/avatar?t=${_avatarTs}`),
+      avatarUrl: agent.hasAvatar ? hanaUrl(`/api/agents/${agent.id}/avatar?t=${_avatarTs}`) : null,
       fallbackAvatar: yuanFallbackAvatar(agent.yuan),
       yuan: agent.yuan,
       isUser: false,

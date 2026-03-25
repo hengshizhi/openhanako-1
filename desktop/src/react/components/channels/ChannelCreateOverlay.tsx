@@ -7,6 +7,7 @@ import { useStore } from '../../stores';
 import { useI18n } from '../../hooks/use-i18n';
 import { hanaUrl } from '../../hooks/use-hana-fetch';
 import { createChannel } from '../../stores/channel-actions';
+import { yuanFallbackAvatar } from '../../utils/agent-helpers';
 import styles from './Channels.module.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- catch(err: any) 提取 message */
@@ -14,20 +15,22 @@ import styles from './Channels.module.css';
 let _avatarTs = Date.now();
 export function refreshCreateAvatarTs() { _avatarTs = Date.now(); }
 
-function AgentChipAvatar({ agentId, agentName }: { agentId: string; agentName: string }) {
+function AgentChipAvatar({ agentId, agentName, yuan, hasAvatar }: {
+  agentId: string; agentName: string; yuan?: string; hasAvatar?: boolean;
+}) {
   const [error, setError] = useState(false);
-  const src = hanaUrl(`/api/agents/${agentId}/avatar?t=${_avatarTs}`);
+  const src = hasAvatar ? hanaUrl(`/api/agents/${agentId}/avatar?t=${_avatarTs}`) : null;
 
   return (
     <span className={styles.chipAvatar}>
-      {!error ? (
+      {src && !error ? (
         <img
           src={src}
           className={styles.chipAvatarImg}
           onError={() => setError(true)}
         />
       ) : (
-        <>{(agentName || agentId).charAt(0).toUpperCase()}</>
+        <img src={yuanFallbackAvatar(yuan)} className={styles.chipAvatarImg} />
       )}
     </span>
   );
@@ -148,7 +151,7 @@ export function ChannelCreateOverlay() {
                   className={`${styles.channelCreateMemberChip}${isSelected ? ` ${styles.channelCreateMemberChipSelected}` : ''}`}
                   onClick={() => toggleMember(agent.id)}
                 >
-                  <AgentChipAvatar agentId={agent.id} agentName={agent.name} />
+                  <AgentChipAvatar agentId={agent.id} agentName={agent.name} yuan={agent.yuan} hasAvatar={agent.hasAvatar} />
                   <span>{agent.name || agent.id}</span>
                 </button>
               );

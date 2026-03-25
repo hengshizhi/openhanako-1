@@ -37,6 +37,8 @@ import { StatusBar } from './components/StatusBar';
 import { initTheme, initDragPrevention } from './bootstrap';
 import { initApp } from './app-init';
 import { MainContent } from './MainContent';
+import { hanaUrl } from './hooks/use-hana-fetch';
+import { yuanFallbackAvatar } from './utils/agent-helpers';
 
 declare function t(key: string, vars?: Record<string, string | number>): string;
 
@@ -125,9 +127,12 @@ function JianChannelInfo() {
             {dmAgents.map(a => (
               <div key={a!.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
                 <img
-                  src={`/api/agents/${a!.id}/avatar`}
+                  src={a!.hasAvatar ? hanaUrl(`/api/agents/${a!.id}/avatar?t=${Date.now()}`) : yuanFallbackAvatar(a!.yuan)}
                   style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  onError={e => {
+                    (e.target as HTMLImageElement).onerror = null;
+                    (e.target as HTMLImageElement).src = yuanFallbackAvatar(a!.yuan);
+                  }}
                 />
                 <span>{a!.name || a!.id}</span>
               </div>

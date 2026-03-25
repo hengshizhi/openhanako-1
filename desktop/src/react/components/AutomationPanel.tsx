@@ -180,7 +180,7 @@ function AutomationItem({
     setEditing(false);
   }, [editValue, labelText, job.id, onUpdate]);
 
-  const avatarSrc = agentAvatarUrl || hanaUrl(`/api/agents/${currentAgentId}/avatar`);
+  const avatarSrc = agentAvatarUrl || yuanFallbackAvatar(agentYuan);
 
   // 构建模型选项
   const modelOptions: string[] = [];

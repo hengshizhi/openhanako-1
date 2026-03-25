@@ -143,7 +143,11 @@ function SessionListCard({ onAction }: { onAction: () => void }) {
 
 function SessionAvatar({ sess, agents, agentYuan }: { sess: any; agents: any[]; agentYuan: string }) {
   const [src, setSrc] = useState(() => {
-    if (sess.agentId) return hanaUrl(`/api/agents/${sess.agentId}/avatar?t=${Date.now()}`);
+    if (sess.agentId) {
+      const ag = agents.find((x: any) => x.id === sess.agentId);
+      if (ag?.hasAvatar) return hanaUrl(`/api/agents/${sess.agentId}/avatar?t=${Date.now()}`);
+      return yuanFallbackAvatar(ag?.yuan || agentYuan);
+    }
     return yuanFallbackAvatar(agentYuan);
   });
   return (
