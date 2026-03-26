@@ -1,13 +1,10 @@
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const saveGlobalProviders = vi.fn();
 const clearConfigCache = vi.fn();
 
 vi.mock("../lib/memory/config-loader.js", () => ({
-  saveGlobalProviders,
   clearConfigCache,
-  getAllProviders: () => ({}),
   getRawConfig: () => ({}),
 }));
 
@@ -24,11 +21,14 @@ describe("model sync related routes", () => {
   it("provider-only config updates trigger model registry sync", async () => {
     const { createConfigRoute } = await import("../server/routes/config.js");
     const app = new Hono();
+    const saveProvider = vi.fn();
+    const reload = vi.fn();
     const engine = {
       config: {},
       setHomeFolder: vi.fn(),
       updateConfig: vi.fn().mockResolvedValue(undefined),
       syncModelsAndRefresh: vi.fn().mockResolvedValue(true),
+      providerRegistry: { saveProvider, removeProvider: vi.fn(), reload },
     };
 
     app.route("/api", createConfigRoute(engine));
@@ -49,7 +49,13 @@ describe("model sync related routes", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(saveGlobalProviders).toHaveBeenCalledTimes(1);
+    expect(saveProvider).toHaveBeenCalledTimes(1);
+    expect(saveProvider).toHaveBeenCalledWith("dashscope", {
+      base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      api: "openai-completions",
+      api_key: "sk-test",
+      models: ["qwen-plus"],
+    });
     expect(clearConfigCache).toHaveBeenCalledTimes(1);
     expect(engine.updateConfig).toHaveBeenCalledWith({});
     expect(engine.syncModelsAndRefresh).toHaveBeenCalledTimes(1);
@@ -170,6 +176,7 @@ describe("model sync related routes", () => {
         getOAuthProviders: () => [{ id: "openai-codex", name: "OpenAI Codex" }],
         getApiKey: vi.fn(),
       },
+      providerRegistry: { getCredentials: () => null },
       configPath: "/tmp/test-config.yaml",
     };
 
@@ -209,6 +216,7 @@ describe("model sync related routes", () => {
         getOAuthProviders: () => [{ id: "openai-codex", name: "OpenAI Codex" }],
         getApiKey: vi.fn(),
       },
+      providerRegistry: { getCredentials: () => null },
       configPath: "/tmp/test-config.yaml",
     };
 
@@ -250,6 +258,7 @@ describe("model sync related routes", () => {
         getOAuthProviders: () => [{ id: "minimax", name: "MiniMax" }],
         getApiKey: vi.fn(),
       },
+      providerRegistry: { getCredentials: () => null },
       configPath: "/tmp/test-config.yaml",
     };
 
@@ -315,6 +324,7 @@ describe("model sync related routes", () => {
         getOAuthProviders: () => [{ id: "openai-codex", name: "OpenAI Codex" }],
         getApiKey: vi.fn(),
       },
+      providerRegistry: { getCredentials: () => null },
       configPath: "/tmp/test-config.yaml",
     };
 

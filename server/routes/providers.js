@@ -3,7 +3,6 @@
  */
 import { Hono } from "hono";
 import { safeJson } from "../hono-helpers.js";
-import { getAllProviders } from "../../lib/memory/config-loader.js";
 import { buildProviderAuthHeaders, buildProbeUrl } from "../../lib/llm/provider-client.js";
 
 export function createProvidersRoute(engine) {
@@ -16,7 +15,18 @@ export function createProvidersRoute(engine) {
    * 前端新 ProvidersTab 的核心数据源
    */
   route.get("/providers/summary", async (c) => {
-    const providers = getAllProviders(engine.configPath);
+    const rawProviders = engine.providerRegistry.getAllProvidersRaw();
+    // 补全凭证和模型列表（getAllProvidersRaw 返回的是 providers.yaml 原始数据）
+    const providers = {};
+    for (const [name, p] of Object.entries(rawProviders)) {
+      const entry = engine.providerRegistry.get(name);
+      providers[name] = {
+        base_url: p.base_url || entry?.baseUrl || "",
+        api_key: p.api_key || "",
+        api: p.api || entry?.api || "",
+        models: p.models || [],
+      };
+    }
 
     // ProviderRegistry 作为 OAuth 判断的权威来源
     const provRegistry = engine.providerRegistry;
@@ -189,8 +199,11 @@ export function createProvidersRoute(engine) {
       return c.json({ error: "name or base_url is required" }, 400);
     }
 
-    const providers = name ? getAllProviders(engine.configPath) : {};
-    const savedProvider = name ? providers[name] || {} : {};
+    const savedProvider = name ? (() => {
+      const cred = engine.providerRegistry.getCredentials(name);
+      if (!cred) return {};
+      return { api_key: cred.apiKey, base_url: cred.baseUrl, api: cred.api };
+    })() : {};
     const savedKey = savedProvider.api_key || "";
     const effectiveBaseUrl = base_url || savedProvider.base_url || "";
     const effectiveApi = explicitApi || savedProvider.api || "";

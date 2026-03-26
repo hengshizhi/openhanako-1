@@ -26,7 +26,7 @@ import YAML from "js-yaml";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { safeJson } from "../hono-helpers.js";
-import { saveConfig, getAllProviders, saveGlobalProviders, clearConfigCache } from "../../lib/memory/config-loader.js";
+import { saveConfig, clearConfigCache } from "../../lib/memory/config-loader.js";
 import { rebuildIndex } from "../../lib/tools/experience.js";
 import { splitByScope, injectGlobalFields } from '../../shared/config-scope.js';
 
@@ -236,12 +236,13 @@ export function createAgentsRoute(engine) {
 
       // 供应商列表
       try {
-        const providers = getAllProviders(configPath);
+        const rawProviders = engine.providerRegistry.getAllProvidersRaw();
         const providerEntries = {};
-        for (const [name, p] of Object.entries(providers)) {
+        for (const [name, p] of Object.entries(rawProviders)) {
+          const entry = engine.providerRegistry.get(name);
           providerEntries[name] = {
-            base_url: p.base_url || "",
-            api: p.api || "",
+            base_url: p.base_url || entry?.baseUrl || "",
+            api: p.api || entry?.api || "",
             api_key: p.api_key || "",
             models: p.models || [],
             model_count: (p.models || []).length,
@@ -277,7 +278,13 @@ export function createAgentsRoute(engine) {
       // providers 块 → 全局 providers.yaml
       let providersChanged = false;
       if (agentPartial.providers) {
-        saveGlobalProviders({ providers: agentPartial.providers });
+        for (const [name, data] of Object.entries(agentPartial.providers)) {
+          if (data === null) {
+            engine.providerRegistry.removeProvider(name);
+          } else {
+            engine.providerRegistry.saveProvider(name, data);
+          }
+        }
         delete agentPartial.providers;
         providersChanged = true;
       }
@@ -297,7 +304,7 @@ export function createAgentsRoute(engine) {
           const provUpdate = {};
           if (block.api_key) provUpdate.api_key = block.api_key;
           if (block.base_url) provUpdate.base_url = block.base_url;
-          saveGlobalProviders({ providers: { [provName]: provUpdate } });
+          engine.providerRegistry.saveProvider(provName, provUpdate);
           block.api_key = "";
           block.base_url = "";
           providersChanged = true;

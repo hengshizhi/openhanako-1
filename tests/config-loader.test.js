@@ -13,7 +13,6 @@ import {
   loadConfig,
   saveConfig,
   clearConfigCache,
-  getAllProviders,
 } from "../lib/memory/config-loader.js";
 
 const tmpDir = path.join(os.tmpdir(), "hana-test-config-" + Date.now());
@@ -97,36 +96,6 @@ describe("loadConfig", () => {
     expect(cfg.api.api).toBe("openai-completions");
   });
 
-  it("getAllProviders 会合并 models.json 中的模型列表", () => {
-    fs.writeFileSync(
-      path.join(hanakoHome, "providers.yaml"),
-      YAML.dump({
-        providers: {
-          dashscope: {
-            base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-            api_key: "sk-test",
-            api: "openai-completions",
-          },
-        },
-      }),
-      "utf-8",
-    );
-    fs.writeFileSync(
-      path.join(hanakoHome, "models.json"),
-      JSON.stringify({
-        providers: {
-          dashscope: {
-            models: [{ id: "qwen-plus" }, { id: "qwen-max" }],
-          },
-        },
-      }, null, 2),
-      "utf-8",
-    );
-    writeYaml({ api: { provider: "dashscope" } });
-
-    const providers = getAllProviders(configPath);
-    expect(providers.dashscope.models).toEqual(["qwen-plus", "qwen-max"]);
-  });
 });
 
 describe("saveConfig", () => {
