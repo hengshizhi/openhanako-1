@@ -4,8 +4,8 @@
  * 职责：
  *   - 管理所有已知 provider 的静态声明（能力、协议、认证类型）
  *   - 将插件声明与 providers.yaml 用户配置合并为 ProviderEntry
- *   - 不管凭证（凭证由 AuthStore 负责）
- *   - 不管模型列表（模型列表由 ModelManager._availableModels 负责）
+ *   - 读取 provider 凭证（api_key / base_url / api）
+ *   - 管理 provider 的模型列表（CRUD + 持久化）
  *
  * 设计来源：OpenClaw 的插件注册表模式
  */
@@ -345,5 +345,108 @@ export class ProviderRegistry {
    */
   isOAuth(providerId) {
     return this.get(providerId)?.authType === "oauth";
+  }
+
+  // ── credential read + model CRUD ──────────────────────────────────────────
+
+  /**
+   * 读取 provider 的凭证信息（apiKey, baseUrl, api）
+   * 从 providers.yaml 读取用户配置值，baseUrl/api 不存在时回退到插件默认值
+   * @param {string} providerId
+   * @returns {{ apiKey: string, baseUrl: string, api: string } | null}
+   */
+  getCredentials(providerId) {
+    const userConfig = this._loadProvidersYaml();
+    const uc = userConfig[providerId];
+    if (!uc) return null;
+
+    const plugin = this._plugins.get(providerId);
+    return {
+      apiKey: uc.api_key || "",
+      baseUrl: uc.base_url || plugin?.defaultBaseUrl || "",
+      api: uc.api || plugin?.defaultApi || "",
+    };
+  }
+
+  /**
+   * 读取某 provider 在 providers.yaml 中的模型 ID 列表
+   * 模型条目可以是字符串或 {id, name?, context?, maxOutput?} 对象，统一提取 id
+   * @param {string} providerId
+   * @returns {string[]}
+   */
+  getProviderModels(providerId) {
+    const userConfig = this._loadProvidersYaml();
+    const uc = userConfig[providerId];
+    if (!uc?.models || !Array.isArray(uc.models)) return [];
+    return uc.models.map((m) => (typeof m === "object" ? m.id : m));
+  }
+
+  /**
+   * 返回 providers.yaml 的原始数据（不经过插件合并）
+   * @returns {Record<string, any>}
+   */
+  getAllProvidersRaw() {
+    return this._loadProvidersYaml();
+  }
+
+  /**
+   * 向某 provider 的 models 列表添加一个模型，立即持久化
+   * 不会添加重复项（按 id 判断）
+   * @param {string} providerId
+   * @param {string | { id: string, name?: string, context?: number, maxOutput?: number }} model
+   */
+  addModel(providerId, model) {
+    const userConfig = this._loadProvidersYaml();
+    if (!userConfig[providerId]) userConfig[providerId] = {};
+    if (!Array.isArray(userConfig[providerId].models)) {
+      userConfig[providerId].models = [];
+    }
+
+    const newId = typeof model === "object" ? model.id : model;
+    const exists = userConfig[providerId].models.some(
+      (m) => (typeof m === "object" ? m.id : m) === newId,
+    );
+    if (exists) return;
+
+    userConfig[providerId].models.push(model);
+    this._saveProvidersYaml(userConfig);
+    this._entries.clear();
+  }
+
+  /**
+   * 从某 provider 的 models 列表移除一个模型（按 id 匹配），立即持久化
+   * @param {string} providerId
+   * @param {string} modelId
+   */
+  removeModel(providerId, modelId) {
+    const userConfig = this._loadProvidersYaml();
+    const uc = userConfig[providerId];
+    if (!uc?.models || !Array.isArray(uc.models)) return;
+
+    uc.models = uc.models.filter(
+      (m) => (typeof m === "object" ? m.id : m) !== modelId,
+    );
+    this._saveProvidersYaml(userConfig);
+    this._entries.clear();
+  }
+
+  /**
+   * 创建或更新一个 provider 条目（合并写入 providers.yaml）
+   * @param {string} providerId
+   * @param {Record<string, any>} data - 要写入的字段（api_key, base_url, api, models 等）
+   */
+  saveProvider(providerId, data) {
+    const userConfig = this._loadProvidersYaml();
+    userConfig[providerId] = { ...(userConfig[providerId] || {}), ...data };
+    this._saveProvidersYaml(userConfig);
+    this._entries.clear();
+  }
+
+  /**
+   * 删除一个 provider（remove 的显式别名）
+   * @param {string} providerId
+   */
+  removeProvider(providerId) {
+    this.remove(providerId);
   }
 }
