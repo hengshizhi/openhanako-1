@@ -57,6 +57,13 @@ function buildModelEntry(modelEntry, provider) {
 
   if (known?.quirks?.length) entry.quirks = known.quirks;
 
+  // Pi SDK 的 detectCompat 只识别少数几个 provider 为 "non-standard"，
+  // 其余 provider 的 reasoning 模型会发 role:"developer" 导致 API 400。
+  // 只有 openai 原生 API 支持 developer role，其他 provider 一律关闭。
+  if (entry.reasoning && provider !== "openai") {
+    entry.compat = { supportsDeveloperRole: false };
+  }
+
   return entry;
 }
 
