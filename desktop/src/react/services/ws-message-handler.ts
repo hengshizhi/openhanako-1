@@ -249,7 +249,7 @@ export function handleServerMessage(msg: any): void {
       break;
 
     case 'error': {
-      showError(msg.message);
+      useStore.getState().setInlineError(msg.message);
       break;
     }
 
@@ -287,6 +287,8 @@ export function handleServerMessage(msg: any): void {
         const list: string[] = state.streamingSessions || [];
         if (msg.isStreaming) {
           if (!list.includes(sp)) useStore.setState({ streamingSessions: [...list, sp] });
+          // 新一轮 streaming 开始时清除上次的 inline error
+          if (sp === state.currentSessionPath) useStore.setState({ inlineError: null });
         } else {
           useStore.setState({ streamingSessions: list.filter((p: string) => p !== sp) });
         }

@@ -2002,7 +2002,7 @@ body.resizing .jian-sidebar-inner {
 }
 .hana-toast.error {
     background: var(--bg-secondary);
-    color: var(--text-secondary);
+    color: var(--text-muted);
 }
 .hana-toast-close {
     display: flex;

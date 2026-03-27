@@ -685,30 +685,35 @@
     color: var(--text-muted);
 }
 
-.slash-busy-dots {
-    display: inline-flex;
-    gap: 4px;
-    align-items: center;
-}
-
-.slash-busy-dots span {
-    width: 5px;
-    height: 5px;
+.slash-busy-dot {
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: var(--accent);
-    animation: slash-pulse 1.2s infinite;
+    animation: slash-pulse 1.2s ease-in-out infinite;
 }
 
-.slash-busy-dots span:nth-child(2) { animation-delay: 0.2s; }
-.slash-busy-dots span:nth-child(3) { animation-delay: 0.4s; }
+.slash-error-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #c08080;
+    animation: slash-pulse 1.2s ease-in-out infinite;
+}
 
 @keyframes slash-pulse {
-    0%, 60%, 100% { opacity: 0.3; }
-    30% { opacity: 1; }
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
 }
 
-.slash-result-error {
-    color: var(--error, #c75050);
+.slash-error-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    color: #c08080;
 }
 
 /* 输入框容器（双行布局） */
