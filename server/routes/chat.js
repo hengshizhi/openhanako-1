@@ -85,6 +85,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         hasOutput: false,
         hasToolCall: false,
         hasThinking: false,
+        hasError: false,
         titleRequested: false,
         titlePreview: "",
         ...createSessionStreamState(),
@@ -234,6 +235,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       } else if (sub === "toolcall_start") {
         // 不在这里关闭 thinking 状态
       } else if (sub === "error") {
+        ss.hasError = true;
         if (isActive) broadcast({ type: "error", message: event.assistantMessageEvent.error || "Unknown error" });
       }
     } else if (event.type === "tool_execution_start") {
@@ -455,7 +457,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       });
 
       // 空回复检测：本轮没有文本输出也没有工具调用，提示用户检查配置
-      if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && isActive) {
+      if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
         broadcast({ type: "error", message: t("error.modelNoResponse") });
       }
 
@@ -464,6 +466,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.hasOutput = false;
       ss.hasToolCall = false;
       ss.hasThinking = false;
+      ss.hasError = false;
       ss.thinkTagParser.reset();
       ss.moodParser.reset();
       ss.xingParser.reset();
