@@ -355,6 +355,8 @@
     padding: var(--space-xs);
     margin-bottom: var(--space-xs);
     min-width: 180px;
+    max-height: 360px;
+    overflow-y: auto;
     box-shadow: 0 4px 16px var(--shadow);
     z-index: 50;
     animation: dropdown-in 0.2s var(--ease-out);
