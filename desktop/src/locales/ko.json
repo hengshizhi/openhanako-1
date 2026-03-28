@@ -432,7 +432,7 @@
       "work": "업무",
       "skills": "스킬",
       "bridge": "소셜",
-      "plugins": "부가 기능",
+      "plugins": "플러그인",
       "about": "소개"
     },
     "appearance": {
@@ -810,9 +810,9 @@
       }
     },
     "plugins": {
-      "title": "부가 기능",
-      "desc": "이 인스턴스에 로드된 부가 기능 목록입니다.",
-      "empty": "부가 기능이 없습니다",
+      "title": "플러그인",
+      "desc": "커뮤니티 플러그인을 관리합니다.",
+      "empty": "플러그인이 없습니다",
       "reload": "새로고침",
       "statusLoaded": "로드됨",
       "statusFailed": "실패",

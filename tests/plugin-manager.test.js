@@ -312,6 +312,188 @@ describe("provider declarations", () => {
   });
 });
 
+// ── 权限执行 ─────────────────────────────────────────────────────────────────
+
+describe("permission enforcement", () => {
+  it("builtin plugin always gets full-access (routes and hooks loaded)", async () => {
+    const builtinDir = path.join(tmpHome, "builtin-plugins");
+    const dir = path.join(builtinDir, "core-plug");
+    fs.mkdirSync(path.join(dir, "routes"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "routes", "api.js"), `
+      export function register(app) { app.get("/test", (c) => c.text("ok")); }
+    `);
+    fs.writeFileSync(path.join(dir, "hooks.json"), JSON.stringify({
+      "test:event": "./hooks/handler.js"
+    }));
+    fs.mkdirSync(path.join(dir, "hooks"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "hooks", "handler.js"), `
+      export default async function(event) { return { hooked: true }; }
+    `);
+    const pm = new PluginManager({
+      pluginsDirs: [builtinDir],
+      dataDir,
+      bus: await makeBus(),
+    });
+    pm.scan();
+    await pm.loadAll();
+    const entry = pm.getPlugin("core-plug");
+    expect(entry.status).toBe("loaded");
+    expect(entry.accessLevel).toBe("full-access");
+    expect(pm.routeRegistry.has("core-plug")).toBe(true);
+    const hookResult = await pm.executeHook("test:event", { x: 1 });
+    expect(hookResult).toEqual({ hooked: true });
+  });
+
+  it("community restricted plugin skips routes/hooks/providers/lifecycle", async () => {
+    const builtinDir = path.join(tmpHome, "builtin-plugins-2");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-plugins");
+    const dir = path.join(communityDir, "comm-plug");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test tool";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+    fs.mkdirSync(path.join(dir, "routes"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "routes", "api.js"), `
+      export function register(app) { app.get("/x", (c) => c.text("x")); }
+    `);
+    fs.writeFileSync(path.join(dir, "hooks.json"), JSON.stringify({
+      "test:hook": "./hooks/h.js"
+    }));
+    fs.mkdirSync(path.join(dir, "hooks"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "hooks", "h.js"), `
+      export default async function() { return { hooked: true }; }
+    `);
+    fs.mkdirSync(path.join(dir, "providers"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "providers", "p.js"), `
+      export const id = "test-prov";
+    `);
+    fs.writeFileSync(path.join(dir, "index.js"), `
+      export default class Plug { async onload() { this.loaded = true; } }
+    `);
+
+    const pm = new PluginManager({
+      pluginsDirs: [builtinDir, communityDir],
+      dataDir,
+      bus: await makeBus(),
+    });
+    pm.scan();
+    await pm.loadAll();
+    const entry = pm.getPlugin("comm-plug");
+    expect(entry.status).toBe("loaded");
+    expect(entry.accessLevel).toBe("restricted");
+    // Declarative contributions loaded
+    expect(pm.getAllTools().some(t => t.name === "comm-plug.t")).toBe(true);
+    // System-level extension points NOT loaded
+    expect(pm.routeRegistry.has("comm-plug")).toBe(false);
+    expect(pm.getProviderPlugins().some(p => p._pluginId === "comm-plug")).toBe(false);
+    expect(entry.instance).toBeNull();
+    // Hook not registered
+    const hookResult = await pm.executeHook("test:hook", { x: 1 });
+    expect(hookResult).toEqual({ x: 1 }); // unchanged, no handler
+  });
+
+  it("community full-access plugin with global toggle OFF → status 'restricted', not loaded", async () => {
+    const builtinDir = path.join(tmpHome, "builtin-plugins-3");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-plugins-3");
+    const dir = path.join(communityDir, "fa-plug");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({
+      id: "fa-plug", name: "Full Access Plug", version: "1.0.0",
+      trust: "full-access",
+    }));
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const mockPrefs = {
+      getDisabledPlugins: () => [],
+      getAllowFullAccessPlugins: () => false,
+    };
+    const pm = new PluginManager({
+      pluginsDirs: [builtinDir, communityDir],
+      dataDir,
+      bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+    const entry = pm.getPlugin("fa-plug");
+    expect(entry.status).toBe("restricted");
+    // Nothing loaded
+    expect(pm.getAllTools().some(t => t._pluginId === "fa-plug")).toBe(false);
+  });
+
+  it("community full-access plugin with global toggle ON → status 'loaded', routes loaded", async () => {
+    const builtinDir = path.join(tmpHome, "builtin-plugins-4");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-plugins-4");
+    const dir = path.join(communityDir, "fa-plug-on");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({
+      id: "fa-plug-on", name: "FA ON", version: "1.0.0",
+      trust: "full-access",
+    }));
+    fs.mkdirSync(path.join(dir, "routes"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "routes", "api.js"), `
+      export function register(app) { app.get("/y", (c) => c.text("y")); }
+    `);
+
+    const mockPrefs = {
+      getDisabledPlugins: () => [],
+      getAllowFullAccessPlugins: () => true,
+    };
+    const pm = new PluginManager({
+      pluginsDirs: [builtinDir, communityDir],
+      dataDir,
+      bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+    const entry = pm.getPlugin("fa-plug-on");
+    expect(entry.status).toBe("loaded");
+    expect(entry.accessLevel).toBe("full-access");
+    expect(pm.routeRegistry.has("fa-plug-on")).toBe(true);
+  });
+
+  it("disabled plugin → status 'disabled', not loaded", async () => {
+    const dir = path.join(pluginsDir, "disabled-plug");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const mockPrefs = {
+      getDisabledPlugins: () => ["disabled-plug"],
+      getAllowFullAccessPlugins: () => false,
+    };
+    const pm = new PluginManager({
+      pluginsDir,
+      dataDir,
+      bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+    const entry = pm.getPlugin("disabled-plug");
+    expect(entry.status).toBe("disabled");
+    // Nothing loaded
+    expect(pm.getAllTools().some(t => t._pluginId === "disabled-plug")).toBe(false);
+  });
+});
+
 // ── 动态工具注册 ──────────────────────────────────────────────────────────────
 
 describe("addTool (dynamic registration)", () => {
@@ -355,5 +537,324 @@ describe("addTool (dynamic registration)", () => {
     // unload should clean up
     await pm.unloadPlugin("dyn-plug");
     expect(pm.getAllTools().some(t => t.name === "dyn-plug.dynamic-tool")).toBe(false);
+  });
+});
+
+// ── Hot operations ──────────────────────────────────────────────────────────
+
+function createMockPrefs(overrides = {}) {
+  return {
+    _data: {
+      allow_full_access_plugins: false,
+      disabled_plugins: [],
+      ...overrides,
+    },
+    getAllowFullAccessPlugins() { return this._data.allow_full_access_plugins; },
+    setAllowFullAccessPlugins(v) { this._data.allow_full_access_plugins = v; },
+    getDisabledPlugins() { return this._data.disabled_plugins; },
+    setDisabledPlugins(list) { this._data.disabled_plugins = list; },
+  };
+}
+
+describe("hot operations", () => {
+  it("installPlugin loads a new plugin at runtime", async () => {
+    const pm = new PluginManager({ pluginsDir, dataDir, bus: await makeBus() });
+    pm.scan();
+    await pm.loadAll();
+    expect(pm.listPlugins()).toHaveLength(0);
+
+    // Create new plugin dir after initial load
+    const newDir = path.join(pluginsDir, "hot-plug");
+    fs.mkdirSync(path.join(newDir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(newDir, "tools", "greet.js"), `
+      export const name = "greet";
+      export const description = "Greet someone";
+      export const parameters = {};
+      export async function execute() { return "hello"; }
+    `);
+
+    const entry = await pm.installPlugin(newDir);
+    expect(entry.status).toBe("loaded");
+    expect(pm.listPlugins()).toHaveLength(1);
+    expect(pm.getAllTools().some(t => t.name === "hot-plug.greet")).toBe(true);
+  });
+
+  it("installPlugin upgrades an existing plugin (same dirName)", async () => {
+    const dir = path.join(pluginsDir, "upgradeable");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "v1.js"), `
+      export const name = "v1";
+      export const description = "version 1";
+      export const parameters = {};
+      export async function execute() { return "v1"; }
+    `);
+
+    const pm = new PluginManager({ pluginsDir, dataDir, bus: await makeBus() });
+    pm.scan();
+    await pm.loadAll();
+    expect(pm.getAllTools().some(t => t.name === "upgradeable.v1")).toBe(true);
+
+    // "Upgrade": overwrite tool file
+    fs.writeFileSync(path.join(dir, "tools", "v2.js"), `
+      export const name = "v2";
+      export const description = "version 2";
+      export const parameters = {};
+      export async function execute() { return "v2"; }
+    `);
+
+    await pm.installPlugin(dir);
+    // Old tool cleaned up, new tools loaded
+    expect(pm.getAllTools().some(t => t.name === "upgradeable.v2")).toBe(true);
+  });
+
+  it("removePlugin unloads and removes from registry", async () => {
+    const dir = path.join(pluginsDir, "removable");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const pm = new PluginManager({ pluginsDir, dataDir, bus: await makeBus() });
+    pm.scan();
+    await pm.loadAll();
+    expect(pm.getPlugin("removable")).not.toBeNull();
+    expect(pm.getAllTools().some(t => t._pluginId === "removable")).toBe(true);
+
+    const pluginDir = await pm.removePlugin("removable");
+    expect(pluginDir).toBe(dir);
+    expect(pm.getPlugin("removable")).toBeNull();
+    expect(pm.listPlugins()).toHaveLength(0);
+    expect(pm.getAllTools().some(t => t._pluginId === "removable")).toBe(false);
+  });
+
+  it("removePlugin cleans disabled list in preferencesManager", async () => {
+    const dir = path.join(pluginsDir, "rm-disabled");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const mockPrefs = createMockPrefs({ disabled_plugins: ["rm-disabled"] });
+    const pm = new PluginManager({
+      pluginsDir, dataDir, bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+
+    await pm.removePlugin("rm-disabled");
+    expect(mockPrefs.getDisabledPlugins()).not.toContain("rm-disabled");
+  });
+
+  it("removePlugin throws for unknown pluginId", async () => {
+    const pm = new PluginManager({ pluginsDir, dataDir, bus: await makeBus() });
+    await expect(pm.removePlugin("nonexistent")).rejects.toThrow('Plugin "nonexistent" not found');
+  });
+
+  it("disablePlugin unloads and marks disabled", async () => {
+    const dir = path.join(pluginsDir, "disableable");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const mockPrefs = createMockPrefs();
+    const pm = new PluginManager({
+      pluginsDir, dataDir, bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+    expect(pm.getPlugin("disableable").status).toBe("loaded");
+
+    await pm.disablePlugin("disableable");
+    expect(pm.getPlugin("disableable").status).toBe("disabled");
+    expect(pm.getAllTools().some(t => t._pluginId === "disableable")).toBe(false);
+    expect(mockPrefs.getDisabledPlugins()).toContain("disableable");
+  });
+
+  it("enablePlugin loads previously disabled plugin", async () => {
+    const dir = path.join(pluginsDir, "enableable");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const mockPrefs = createMockPrefs({ disabled_plugins: ["enableable"] });
+    const pm = new PluginManager({
+      pluginsDir, dataDir, bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+    expect(pm.getPlugin("enableable").status).toBe("disabled");
+
+    await pm.enablePlugin("enableable");
+    expect(pm.getPlugin("enableable").status).toBe("loaded");
+    expect(pm.getAllTools().some(t => t.name === "enableable.t")).toBe(true);
+    expect(mockPrefs.getDisabledPlugins()).not.toContain("enableable");
+  });
+
+  it("setFullAccess(true) loads restricted community full-access plugins", async () => {
+    const builtinDir = path.join(tmpHome, "builtin-hot-1");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-hot-1");
+    const dir = path.join(communityDir, "fa-hot");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({
+      id: "fa-hot", name: "FA Hot", version: "1.0.0",
+      trust: "full-access",
+    }));
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const mockPrefs = createMockPrefs({ allow_full_access_plugins: false });
+    const pm = new PluginManager({
+      pluginsDirs: [builtinDir, communityDir],
+      dataDir, bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+    expect(pm.getPlugin("fa-hot").status).toBe("restricted");
+    expect(pm.getAllTools().some(t => t._pluginId === "fa-hot")).toBe(false);
+
+    await pm.setFullAccess(true);
+    expect(pm.getPlugin("fa-hot").status).toBe("loaded");
+    expect(pm.getAllTools().some(t => t._pluginId === "fa-hot")).toBe(true);
+    expect(mockPrefs.getAllowFullAccessPlugins()).toBe(true);
+  });
+
+  it("setFullAccess(false) unloads community full-access plugins", async () => {
+    const builtinDir = path.join(tmpHome, "builtin-hot-2");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-hot-2");
+    const dir = path.join(communityDir, "fa-hot-off");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({
+      id: "fa-hot-off", name: "FA Hot Off", version: "1.0.0",
+      trust: "full-access",
+    }));
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const mockPrefs = createMockPrefs({ allow_full_access_plugins: true });
+    const pm = new PluginManager({
+      pluginsDirs: [builtinDir, communityDir],
+      dataDir, bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+    expect(pm.getPlugin("fa-hot-off").status).toBe("loaded");
+    expect(pm.getAllTools().some(t => t._pluginId === "fa-hot-off")).toBe(true);
+
+    await pm.setFullAccess(false);
+    expect(pm.getPlugin("fa-hot-off").status).toBe("restricted");
+    expect(pm.getAllTools().some(t => t._pluginId === "fa-hot-off")).toBe(false);
+    expect(mockPrefs.getAllowFullAccessPlugins()).toBe(false);
+  });
+
+  it("setFullAccess skips disabled full-access plugins", async () => {
+    const builtinDir = path.join(tmpHome, "builtin-hot-3");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-hot-3");
+    const dir = path.join(communityDir, "fa-disabled");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({
+      id: "fa-disabled", name: "FA Disabled", version: "1.0.0",
+      trust: "full-access",
+    }));
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const mockPrefs = createMockPrefs({
+      allow_full_access_plugins: false,
+      disabled_plugins: ["fa-disabled"],
+    });
+    const pm = new PluginManager({
+      pluginsDirs: [builtinDir, communityDir],
+      dataDir, bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+    expect(pm.getPlugin("fa-disabled").status).toBe("disabled");
+
+    await pm.setFullAccess(true);
+    // Still disabled, not loaded
+    expect(pm.getPlugin("fa-disabled").status).toBe("disabled");
+  });
+
+  it("_isValidPluginDir detects valid plugin directories", async () => {
+    const pm = new PluginManager({ pluginsDir, dataDir, bus: await makeBus() });
+
+    const validDir = path.join(pluginsDir, "valid-check");
+    fs.mkdirSync(path.join(validDir, "tools"), { recursive: true });
+    expect(pm._isValidPluginDir(validDir)).toBe(true);
+
+    const manifestDir = path.join(pluginsDir, "manifest-check");
+    fs.mkdirSync(manifestDir, { recursive: true });
+    fs.writeFileSync(path.join(manifestDir, "manifest.json"), "{}");
+    expect(pm._isValidPluginDir(manifestDir)).toBe(true);
+
+    const emptyDir = path.join(pluginsDir, "empty-check");
+    fs.mkdirSync(emptyDir, { recursive: true });
+    expect(pm._isValidPluginDir(emptyDir)).toBe(false);
+  });
+
+  it("operations are serialized through the queue", async () => {
+    const dir1 = path.join(pluginsDir, "serial-1");
+    fs.mkdirSync(path.join(dir1, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir1, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+    const dir2 = path.join(pluginsDir, "serial-2");
+    fs.mkdirSync(path.join(dir2, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir2, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const pm = new PluginManager({ pluginsDir, dataDir, bus: await makeBus() });
+
+    // Fire both installs concurrently
+    const [e1, e2] = await Promise.all([
+      pm.installPlugin(dir1),
+      pm.installPlugin(dir2),
+    ]);
+    expect(e1.status).toBe("loaded");
+    expect(e2.status).toBe("loaded");
+    expect(pm.listPlugins()).toHaveLength(2);
   });
 });

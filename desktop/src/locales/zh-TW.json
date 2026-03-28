@@ -432,7 +432,7 @@
       "work": "工作",
       "skills": "技能",
       "bridge": "社群平台",
-      "plugins": "附加功能",
+      "plugins": "插件",
       "about": "關於"
     },
     "appearance": {
@@ -810,9 +810,9 @@
       }
     },
     "plugins": {
-      "title": "附加功能",
-      "desc": "目前實例中已載入的附加功能。",
-      "empty": "尚無附加功能",
+      "title": "插件",
+      "desc": "管理社群插件。",
+      "empty": "尚無插件",
       "reload": "重新整理",
       "statusLoaded": "已載入",
       "statusFailed": "載入失敗",

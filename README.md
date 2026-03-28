@@ -42,6 +42,8 @@ As a tool, it is powerful: it remembers everything you've said, operates your co
 
 **Sandbox** — Two-layer isolation: application-level PathGuard with four access tiers + OS-level sandboxing (macOS Seatbelt / Linux Bubblewrap).
 
+**Plugins** — Extensible plugin system with a convention-first architecture. Install community plugins by drag-and-drop. Plugins can contribute tools, skills, commands, agent templates, HTTP routes, event hooks, and LLM providers. Two-level permission model (restricted / full-access) keeps things safe.
+
 **Multi-Platform Bridge** — A single agent can connect to Telegram, Feishu, QQ, and WeChat bots simultaneously. Chat from any platform and remotely operate your computer.
 
 **i18n** — Interface available in 5 languages: Chinese, English, Japanese, Korean, and Traditional Chinese.
@@ -73,17 +75,18 @@ On first launch, an onboarding wizard will guide you through setup: choose a lan
 ## Architecture
 
 ```
-core/           Engine orchestration + Managers
+core/           Engine orchestration + Managers (including PluginManager)
 lib/            Core libraries (memory, tools, sandbox, bridge adapters)
 server/         Hono HTTP + WebSocket server (standalone Node.js process)
 hub/            Scheduler, ChannelRouter, EventBus
 desktop/        Electron app + React frontend
+plugins/        Built-in system plugins (bundled into app)
 tests/          Vitest test suite
 skills2set/     Built-in skill definitions
 scripts/        Build tools (server bundler, launcher, signing)
 ```
 
-The engine layer coordinates multiple managers (Agent, Session, Model, Preferences, Skill, Channel, BridgeSession, etc.) and exposes them through a unified facade. The Hub handles background tasks (heartbeat, cron, channel routing, agent messaging, DM routing) independently of the active chat session.
+The engine layer coordinates multiple managers (Agent, Session, Model, Preferences, Skill, Channel, BridgeSession, Plugin, etc.) and exposes them through a unified facade. The Hub handles background tasks (heartbeat, cron, channel routing, agent messaging, DM routing) independently of the active chat session.
 
 The server runs as a standalone Node.js process (spawned by Electron or independently), bundled via Vite with @vercel/nft for dependency tracing. It communicates with the Electron renderer through WebSocket.
 
@@ -139,4 +142,5 @@ npm run typecheck
 - [Report an Issue](https://github.com/liliMozi/openhanako/issues)
 - [Security](https://github.com/liliMozi/openhanako/security)
 - [Security Policy](SECURITY.md)
+- [Plugin Development](PLUGINS.md)
 - [Contributing](CONTRIBUTING.md)

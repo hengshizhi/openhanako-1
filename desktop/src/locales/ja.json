@@ -432,6 +432,7 @@
       "work": "ワーク",
       "skills": "スキル",
       "bridge": "ソーシャル",
+      "plugins": "プラグイン",
       "about": "概要"
     },
     "appearance": {
@@ -809,9 +810,9 @@
       }
     },
     "plugins": {
-      "title": "アドオン",
-      "desc": "このインスタンスで読み込まれているアドオン",
-      "empty": "アドオンはありません",
+      "title": "プラグイン",
+      "desc": "コミュニティプラグインを管理します。",
+      "empty": "プラグインはありません",
       "reload": "再読み込み",
       "statusLoaded": "読み込み済み",
       "statusFailed": "失敗",

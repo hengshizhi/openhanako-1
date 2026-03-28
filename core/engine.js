@@ -610,6 +610,7 @@ export class HanaEngine {
       pluginsDirs: [builtinPluginsDir, userPluginsDir],
       dataDir: pluginDataDir,
       bus,
+      preferencesManager: this._preferencesManager,
     });
     this._pluginManager.scan();
     await this._pluginManager.loadAll();

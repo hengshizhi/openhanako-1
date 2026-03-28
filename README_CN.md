@@ -47,6 +47,8 @@ OpenHanako 是一个更加易用的 AI agent，有记忆，有性格，会主动
 
 **安全沙盒** — 双层隔离：应用层 PathGuard 四级访问控制 + 操作系统级沙盒（macOS Seatbelt / Linux Bubblewrap）。Agent 的权限在你的掌控之中。平时只能访问工作目录和一些用户文件，如果你想放开权限，可以点五下关于里面的 HANAKO 图标。
 
+**插件系统** — 约定优先的可扩展插件架构。拖拽安装社区插件，插件可以贡献工具、技能、命令、Agent 模板、HTTP 路由、事件钩子和 LLM Provider。两级权限模型（restricted / full-access）保障安全。
+
 **多平台接入** — 同一个 Agent 可以同时接入 Telegram、飞书、QQ、微信机器人，在任何平台和 Ta 对话，可以远程操作电脑。
 
 **国际化** — 界面支持中文、英文、日文、韩文、繁体中文 5 种语言。
@@ -79,17 +81,18 @@ Linux 版本计划中。
 ## 架构
 
 ```
-core/           引擎编排层 + Manager
+core/           引擎编排层 + Manager（含 PluginManager）
 lib/            核心库（记忆、工具、沙盒、Bridge 适配器）
 server/         Hono HTTP + WebSocket 服务（独立 Node.js 进程）
 hub/            调度器、频道路由、事件总线
 desktop/        Electron 应用 + React 前端
+plugins/        内置系统插件（随应用打包）
 tests/          Vitest 测试
 skills2set/     内置技能定义
 scripts/        构建工具（server 打包、启动器、签名）
 ```
 
-引擎层协调多个 Manager（Agent、Session、Model、Preferences、Skill、Channel、BridgeSession 等），通过统一的 facade 暴露。Hub 负责后台任务（心跳巡检、定时任务、频道路由、Agent 间通信、DM 路由），独立于当前聊天会话运行。
+引擎层协调多个 Manager（Agent、Session、Model、Preferences、Skill、Channel、BridgeSession、Plugin 等），通过统一的 facade 暴露。Hub 负责后台任务（心跳巡检、定时任务、频道路由、Agent 间通信、DM 路由），独立于当前聊天会话运行。
 
 Server 以独立 Node.js 进程运行（由 Electron spawn 或独立启动），通过 Vite 打包，@vercel/nft 追踪依赖。与 Electron 渲染进程通过 WebSocket 通信。
 
@@ -145,4 +148,5 @@ npm run typecheck
 - [提交 Issue](https://github.com/liliMozi/openhanako/issues)
 - [安全页](https://github.com/liliMozi/openhanako/security)
 - [安全政策](SECURITY.md)
+- [插件开发指南](PLUGINS.md)
 - [贡献指南](CONTRIBUTING.md)

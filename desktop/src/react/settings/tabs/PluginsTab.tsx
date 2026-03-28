@@ -239,18 +239,6 @@ export function PluginsTab() {
 
         <p className={styles['settings-desc']}>{t('settings.plugins.desc')}</p>
 
-        {/* Full-access global toggle */}
-        <div className={styles['tool-caps-item']}>
-          <div className={styles['tool-caps-label']}>
-            <span className={styles['tool-caps-name']}>{t('settings.plugins.fullAccessToggle')}</span>
-            <span className={styles['tool-caps-desc']}>{t('settings.plugins.fullAccessDesc')}</span>
-          </div>
-          <button
-            className={`hana-toggle${settings.allow_full_access ? ' on' : ''}`}
-            onClick={toggleFullAccess}
-          />
-        </div>
-
         {/* Drag-and-drop install */}
         <div
           className={`${styles['skills-dropzone']}${dragOver ? ' ' + styles['drag-over'] : ''}`}
@@ -265,6 +253,20 @@ export function PluginsTab() {
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
           <span>{t('settings.plugins.dropzone')}</span>
+        </div>
+
+        {/* Full-access global toggle */}
+        <div className={styles['tool-caps-group']} style={{ marginBottom: 'var(--space-md)' }}>
+          <div className={styles['tool-caps-item']}>
+            <div className={styles['tool-caps-label']}>
+              <span className={styles['tool-caps-name']}>{t('settings.plugins.fullAccessToggle')}</span>
+              <span className={styles['tool-caps-desc']}>{t('settings.plugins.fullAccessDesc')}</span>
+            </div>
+            <button
+              className={`hana-toggle${settings.allow_full_access ? ' on' : ''}`}
+              onClick={toggleFullAccess}
+            />
+          </div>
         </div>
 
         {/* Plugin list */}

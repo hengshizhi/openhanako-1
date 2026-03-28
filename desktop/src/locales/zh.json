@@ -433,7 +433,7 @@
       "work": "工作",
       "skills": "技能",
       "bridge": "社交平台",
-      "plugins": "附加功能",
+      "plugins": "插件",
       "about": "关于"
     },
     "appearance": {
@@ -811,9 +811,9 @@
       }
     },
     "plugins": {
-      "title": "附加功能",
-      "desc": "当前实例中已加载的附加功能。",
-      "empty": "暂无附加功能",
+      "title": "插件",
+      "desc": "管理社区插件。",
+      "empty": "暂无插件",
       "reload": "刷新",
       "statusLoaded": "已加载",
       "statusFailed": "加载失败",

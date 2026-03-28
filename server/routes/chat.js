@@ -9,6 +9,7 @@ import { MoodParser, XingParser, ThinkTagParser } from "../../core/events.js";
 import { wsSend, wsParse } from "../ws-protocol.js";
 import { debugLog } from "../../lib/debug-log.js";
 import { t } from "../i18n.js";
+import { getLastAssistantUsage } from "@mariozechner/pi-coding-agent";
 import { BrowserManager } from "../../lib/browser/browser-manager.js";
 import {
   createSessionStreamState,
@@ -460,6 +461,23 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
         broadcast({ type: "error", message: t("error.modelNoResponse") });
       }
+
+      // ── token usage 事件（供插件监听做用量统计）──
+      try {
+        const sess = engine.getSessionByPath(sessionPath);
+        if (sess) {
+          const usage = getLastAssistantUsage(sess.entries ?? []);
+          if (usage) {
+            const model = sess.model;
+            hub.eventBus.emit({
+              type: "token_usage",
+              usage,
+              modelId: model?.id ?? null,
+              modelProvider: model?.provider ?? null,
+            }, sessionPath);
+          }
+        }
+      } catch (_) { /* 统计失败不阻塞主流程 */ }
 
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
       finishSessionStream(ss);

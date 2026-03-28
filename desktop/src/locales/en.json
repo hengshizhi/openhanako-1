@@ -433,7 +433,7 @@
       "work": "Work",
       "skills": "Skills",
       "bridge": "Social",
-      "plugins": "Add-ons",
+      "plugins": "Plugins",
       "about": "About"
     },
     "appearance": {
@@ -811,9 +811,9 @@
       }
     },
     "plugins": {
-      "title": "Add-ons",
-      "desc": "Add-ons loaded in this instance.",
-      "empty": "No add-ons available",
+      "title": "Plugins",
+      "desc": "Manage community plugins.",
+      "empty": "No plugins installed",
       "reload": "Reload",
       "statusLoaded": "loaded",
       "statusFailed": "failed",
