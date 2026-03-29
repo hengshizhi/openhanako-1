@@ -165,6 +165,9 @@ export async function switchSession(path: string): Promise<void> {
       browserRunning: !!data.browserRunning,
       browserUrl: data.browserUrl || null,
       browserThumbnail: data.browserRunning ? state.browserThumbnail : null,
+      attachedFiles: [],
+      deskContextAttached: false,
+      docContextAttached: false,
       ...agentPatch,
     });
 
@@ -223,6 +226,9 @@ export async function createNewSession(): Promise<void> {
     browserRunning: false,
     browserUrl: null,
     browserThumbnail: null,
+    attachedFiles: [],
+    deskContextAttached: false,
+    docContextAttached: false,
   });
 
   // 重置 context ring
