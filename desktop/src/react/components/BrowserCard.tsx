@@ -11,13 +11,13 @@ import { useStore } from '../stores';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 
 export function BrowserCard() {
-  const browserEntry = useStore(s => {
-    const entry = s.browserBySession[s.currentSessionPath || ''];
-    return entry || { running: s.browserRunning, url: s.browserUrl, thumbnail: s.browserThumbnail };
-  });
-  const browserRunning = browserEntry.running;
-  const browserUrl = browserEntry.url;
-  const browserThumbnail = browserEntry.thumbnail;
+  const browserEntry = useStore(s => s.browserBySession[s.currentSessionPath || '']);
+  const globalRunning = useStore(s => s.browserRunning);
+  const globalUrl = useStore(s => s.browserUrl);
+  const globalThumbnail = useStore(s => s.browserThumbnail);
+  const browserRunning = browserEntry?.running ?? globalRunning;
+  const browserUrl = browserEntry?.url ?? globalUrl;
+  const browserThumbnail = browserEntry?.thumbnail ?? globalThumbnail;
   const setBrowserRunning = useStore(s => s.setBrowserRunning);
   const setBrowserThumbnail = useStore(s => s.setBrowserThumbnail);
 
