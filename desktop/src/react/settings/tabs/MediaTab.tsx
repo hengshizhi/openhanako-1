@@ -7,8 +7,10 @@ import styles from '../Settings.module.css';
 
 interface MediaProvider {
   providerId: string;
+  displayName?: string;
   hasCredentials: boolean;
   models: { id: string; name: string }[];
+  availableModels: { id: string; name: string }[];
 }
 
 interface MediaConfig {
@@ -72,7 +74,7 @@ export function MediaTab() {
                 onClick={() => setSelected(pid)}
               >
                 <span className={`${styles['pv-status-dot']}${p.hasCredentials ? ' ' + styles['on'] : ''}`} />
-                <span className={styles['pv-list-item-name']}>{pid}</span>
+                <span className={styles['pv-list-item-name']}>{p.displayName || pid}</span>
                 <span className={styles['pv-list-item-count']}>{p.models.length}</span>
               </button>
             );

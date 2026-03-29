@@ -26,11 +26,33 @@ export default function (app, ctx) {
     });
   });
 
+  // Preset providers that support image generation
+  const IMAGE_PROVIDER_PRESETS = [
+    { id: "volcengine", displayName: "火山引擎 (豆包)" },
+    { id: "openai", displayName: "OpenAI" },
+  ];
+
+  // Known image models per provider (mirrors known-models.json type:image entries)
+  const KNOWN_IMAGE_MODELS = {
+    volcengine: [
+      { id: "doubao-seedream-3-0-t2i", name: "Seedream 3.0" },
+      { id: "doubao-seedream-4-0-250828", name: "Seedream 4.0" },
+      { id: "doubao-seedream-4-5-251128", name: "Seedream 4.5" },
+      { id: "doubao-seedream-5-0-lite-260128", name: "Seedream 5.0 Lite" },
+    ],
+    openai: [
+      { id: "gpt-image-1", name: "GPT Image 1" },
+      { id: "gpt-image-1.5", name: "GPT Image 1.5" },
+      { id: "gpt-image-1-mini", name: "GPT Image 1 Mini" },
+      { id: "dall-e-3", name: "DALL-E 3" },
+    ],
+  };
+
   // Provider summary for Media settings tab
   app.get("/providers", async (c) => {
     try {
       const { models } = await ctx.bus.request("provider:models-by-type", { type: "image" });
-      // Group by provider, check credentials
+      // Group added image models by provider
       const grouped = {};
       for (const m of (models || [])) {
         if (!grouped[m.provider]) {
@@ -39,9 +61,29 @@ export default function (app, ctx) {
             providerId: m.provider,
             hasCredentials: !creds.error,
             models: [],
+            availableModels: [],
           };
         }
         grouped[m.provider].models.push({ id: m.id, name: m.name });
+      }
+      // Ensure preset providers always appear + attach available models
+      for (const preset of IMAGE_PROVIDER_PRESETS) {
+        if (!grouped[preset.id]) {
+          const creds = await ctx.bus.request("provider:credentials", { providerId: preset.id });
+          grouped[preset.id] = {
+            providerId: preset.id,
+            displayName: preset.displayName,
+            hasCredentials: !creds.error,
+            models: [],
+            availableModels: [],
+          };
+        } else if (!grouped[preset.id].displayName) {
+          grouped[preset.id].displayName = preset.displayName;
+        }
+        // Compute available = known - already added
+        const known = KNOWN_IMAGE_MODELS[preset.id] || [];
+        const addedIds = new Set(grouped[preset.id].models.map(m => m.id));
+        grouped[preset.id].availableModels = known.filter(m => !addedIds.has(m.id));
       }
       return c.json({ providers: grouped, config: ctx.config.get() || {} });
     } catch (err) {
