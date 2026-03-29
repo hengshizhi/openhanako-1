@@ -14,6 +14,7 @@ import { Hono } from "hono";
 import { safeJson } from "../hono-helpers.js";
 import { parseSkillMetadata } from "../../lib/skills/skill-metadata.js";
 import { t } from "../i18n.js";
+import { resolveAgent } from "../utils/resolve-agent.js";
 
 /** 解析真实路径（跟踪 symlink），失败返回 null */
 function realPath(p) {
@@ -223,14 +224,14 @@ export function createDeskRoute(engine, hub) {
 
   /** 列出 cron 任务 */
   route.get("/desk/cron", async (c) => {
-    const store = engine.agent.cronStore;
+    const store = resolveAgent(engine, c).cronStore;
     if (!store) return c.json({ jobs: [] });
     return c.json({ jobs: store.listJobs() });
   });
 
   /** 操作 cron 任务 */
   route.post("/desk/cron", async (c) => {
-    const store = engine.agent.cronStore;
+    const store = resolveAgent(engine, c).cronStore;
     if (!store) return c.json({ error: "Desk not initialized" });
 
     const body = await safeJson(c);

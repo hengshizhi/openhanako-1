@@ -15,6 +15,7 @@ import { saveConfig } from "../../lib/memory/config-loader.js";
 import { sanitizeSkillName, safetyReview } from "../../lib/tools/install-skill.js";
 import { t } from "../i18n.js";
 import { safeCopyDir } from "../../shared/safe-fs.js";
+import { resolveAgent } from "../utils/resolve-agent.js";
 
 function validateId(id) {
   return id && !id.includes("..") && !id.includes("/") && !id.includes("\\");
@@ -193,7 +194,7 @@ export function createSkillsRoute(engine) {
       await engine.reloadSkills();
 
       // 将新技能加入当前 agent 的 enabled 列表
-      const agentId = engine.currentAgentId;
+      const agentId = c.req.query("agentId") || engine.currentAgentId;
       if (agentId) {
         const configPath = path.join(engine.agentsDir, agentId, "config.yaml");
         if (fs.existsSync(configPath)) {
@@ -265,7 +266,7 @@ export function createSkillsRoute(engine) {
 
       // 优先查用户技能目录，再查 agent 自学目录
       const userSkillPath = path.join(engine.skillsDir, name);
-      const agentDir = engine.agent?.agentDir;
+      const agentDir = resolveAgent(engine, c)?.agentDir;
       const learnedSkillPath = agentDir ? path.join(agentDir, "learned-skills", name) : null;
 
       let skillPath;

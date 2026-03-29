@@ -12,6 +12,7 @@ import { getWechatQrcode, pollWechatQrcodeStatus } from "../../lib/bridge/wechat
 import { debugLog } from "../../lib/debug-log.js";
 import { parseSessionKey, collectKnownUsers, KNOWN_PLATFORMS } from "../../lib/bridge/session-key.js";
 import { t } from "../i18n.js";
+import { resolveAgent } from "../utils/resolve-agent.js";
 
 export function createBridgeRoute(engine, bridgeManager) {
   const route = new Hono();
@@ -163,7 +164,7 @@ export function createBridgeRoute(engine, bridgeManager) {
   route.get("/bridge/sessions", async (c) => {
     const platform = c.req.query("platform"); // optional filter
     const index = engine.getBridgeIndex();
-    const bridgeDir = path.join(engine.agent.sessionDir, "bridge");
+    const bridgeDir = path.join(resolveAgent(engine, c).sessionDir, "bridge");
     const prefs = engine.getPreferences();
     const owner = prefs.bridge?.owner || {};
     const sessions = [];
@@ -213,7 +214,7 @@ export function createBridgeRoute(engine, bridgeManager) {
     const file = typeof raw === "string" ? raw : raw?.file;
     if (!file) return c.json({ error: "session not found", messages: [] });
 
-    const bridgeDir = path.join(engine.agent.sessionDir, "bridge");
+    const bridgeDir = path.join(resolveAgent(engine, c).sessionDir, "bridge");
     const fp = path.resolve(bridgeDir, file);
 
     // 防止 path traversal

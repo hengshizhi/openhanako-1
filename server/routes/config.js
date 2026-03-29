@@ -11,6 +11,7 @@ import { debugLog } from "../../lib/debug-log.js";
 import { getRawConfig, clearConfigCache } from "../../lib/memory/config-loader.js";
 import { FactStore } from "../../lib/memory/fact-store.js";
 import { splitByScope, injectGlobalFields } from '../../shared/config-scope.js';
+import { resolveAgent } from "../utils/resolve-agent.js";
 
 export function createConfigRoute(engine) {
   const route = new Hono();
@@ -139,7 +140,7 @@ export function createConfigRoute(engine) {
 
   route.get("/system-prompt", async (c) => {
     try {
-      return c.json({ content: engine.agent.systemPrompt || "" });
+      return c.json({ content: resolveAgent(engine, c).systemPrompt || "" });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     }
@@ -150,7 +151,7 @@ export function createConfigRoute(engine) {
   // 读取 ishiki.md 内容
   route.get("/ishiki", async (c) => {
     try {
-      const ishikiPath = path.join(engine.agentDir, "ishiki.md");
+      const ishikiPath = path.join(resolveAgent(engine, c).agentDir, "ishiki.md");
       const content = await fs.readFile(ishikiPath, "utf-8");
       return c.json({ content });
     } catch (err) {
@@ -166,7 +167,7 @@ export function createConfigRoute(engine) {
       if (typeof content !== "string") {
         return c.json({ error: "content must be a string" }, 400);
       }
-      const ishikiPath = path.join(engine.agentDir, "ishiki.md");
+      const ishikiPath = path.join(resolveAgent(engine, c).agentDir, "ishiki.md");
       await fs.writeFile(ishikiPath, content, "utf-8");
       debugLog()?.log("api", `PUT /api/ishiki (saved, ${content.length} chars)`);
       // 触发 system prompt 重建（updateConfig 内部会重新读取 ishiki.md）
@@ -182,7 +183,7 @@ export function createConfigRoute(engine) {
 
   route.get("/identity", async (c) => {
     try {
-      const identityPath = path.join(engine.agentDir, "identity.md");
+      const identityPath = path.join(resolveAgent(engine, c).agentDir, "identity.md");
       const content = await fs.readFile(identityPath, "utf-8");
       return c.json({ content });
     } catch (err) {
@@ -198,7 +199,7 @@ export function createConfigRoute(engine) {
       if (typeof content !== "string") {
         return c.json({ error: "content must be a string" }, 400);
       }
-      const identityPath = path.join(engine.agentDir, "identity.md");
+      const identityPath = path.join(resolveAgent(engine, c).agentDir, "identity.md");
       await fs.writeFile(identityPath, content, "utf-8");
       debugLog()?.log("api", `PUT /api/identity (saved, ${content.length} chars)`);
       await engine.updateConfig({});
@@ -248,7 +249,7 @@ export function createConfigRoute(engine) {
   // 读取 pinned.md，解析为逐条数组
   route.get("/pinned", async (c) => {
     try {
-      const pinnedPath = path.join(engine.agentDir, "pinned.md");
+      const pinnedPath = path.join(resolveAgent(engine, c).agentDir, "pinned.md");
       let content = "";
       try {
         content = await fs.readFile(pinnedPath, "utf-8");
@@ -281,7 +282,7 @@ export function createConfigRoute(engine) {
         .map(p => `- ${p}`)
         .join("\n")
         + "\n";
-      const pinnedPath = path.join(engine.agentDir, "pinned.md");
+      const pinnedPath = path.join(resolveAgent(engine, c).agentDir, "pinned.md");
       await fs.writeFile(pinnedPath, content, "utf-8");
       debugLog()?.log("api", `PUT /api/pinned (${pins.length} items)`);
       // 触发 system prompt 重建（updateConfig 内部会重新读取 pinned.md）

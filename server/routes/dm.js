@@ -12,6 +12,7 @@ import fs from "fs";
 import path from "path";
 import { Hono } from "hono";
 import { parseChannel } from "../../lib/channels/channel-store.js";
+import { resolveAgent } from "../utils/resolve-agent.js";
 
 export function createDmRoute(engine) {
   const route = new Hono();
@@ -19,12 +20,12 @@ export function createDmRoute(engine) {
   // ── 列出所有 DM 对话（包含未聊过的 agent 作为占位） ──
   route.get("/dm", async (c) => {
     try {
-      const agent = engine.agent;
+      const agent = resolveAgent(engine, c);
       if (!agent) {
         return c.json({ dms: [] });
       }
 
-      const currentAgentId = engine.currentAgentId;
+      const currentAgentId = agent.agentDir ? path.basename(agent.agentDir) : engine.currentAgentId;
       const dmDir = path.join(agent.agentDir, "dm");
 
       // 已有 DM 文件 → 读取消息摘要
@@ -80,7 +81,7 @@ export function createDmRoute(engine) {
   route.get("/dm/:peerId", async (c) => {
     try {
       const peerId = c.req.param("peerId");
-      const agent = engine.agent;
+      const agent = resolveAgent(engine, c);
       if (!agent) {
         return c.json({ error: "No active agent" }, 400);
       }

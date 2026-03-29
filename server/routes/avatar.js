@@ -13,15 +13,16 @@ import path from "path";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { safeJson } from "../hono-helpers.js";
+import { resolveAgent } from "../utils/resolve-agent.js";
 
 const VALID_ROLES = new Set(["agent", "user"]);
 
 export function createAvatarRoute(engine) {
   const route = new Hono();
 
-  // 根据 role 选择存储目录
-  function avatarDirFor(role) {
-    const base = role === "user" ? engine.userDir : engine.agentDir;
+  // 根据 role 选择存储目录（接受可选的 Hono context 来解析目标 agent）
+  function avatarDirFor(role, c) {
+    const base = role === "user" ? engine.userDir : (c ? resolveAgent(engine, c).agentDir : engine.agentDir);
     return path.join(base, "avatars");
   }
 
@@ -30,8 +31,8 @@ export function createAvatarRoute(engine) {
   fsSync.mkdirSync(avatarDirFor("user"), { recursive: true });
 
   /** 查找 role 对应的头像文件（支持 png/jpg/webp） */
-  async function findAvatar(role) {
-    const dir = avatarDirFor(role);
+  async function findAvatar(role, c) {
+    const dir = avatarDirFor(role, c);
     for (const ext of ["png", "jpg", "jpeg", "webp"]) {
       const p = path.join(dir, `${role}.${ext}`);
       try {
@@ -49,7 +50,7 @@ export function createAvatarRoute(engine) {
       return c.json({ error: "role must be agent or user" }, 400);
     }
 
-    const found = await findAvatar(role);
+    const found = await findAvatar(role, c);
     if (!found) {
       return c.json({ error: "no custom avatar" }, 404);
     }
@@ -81,7 +82,7 @@ export function createAvatarRoute(engine) {
 
     const ext = match[1] === "jpeg" ? "jpg" : match[1];
     const buf = Buffer.from(match[2], "base64");
-    const dir = avatarDirFor(role);
+    const dir = avatarDirFor(role, c);
 
     // 删除旧头像（可能是不同格式）
     for (const oldExt of ["png", "jpg", "jpeg", "webp"]) {
@@ -100,7 +101,7 @@ export function createAvatarRoute(engine) {
       return c.json({ error: "role must be agent or user" }, 400);
     }
 
-    const dir = avatarDirFor(role);
+    const dir = avatarDirFor(role, c);
     for (const ext of ["png", "jpg", "jpeg", "webp"]) {
       try { await fs.unlink(path.join(dir, `${role}.${ext}`)); } catch {}
     }
