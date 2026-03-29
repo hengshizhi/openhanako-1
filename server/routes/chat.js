@@ -263,7 +263,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         details: event.result?.details,
       });
 
-      if (event.toolName === "present_files") {
+      // COMPAT(v0.78): present_files → stage_files, remove after v0.90
+      if (event.toolName === "stage_files" || event.toolName === "present_files") {
         const details = event.result?.details || {};
         const files = details.files || [];
         if (files.length === 0 && details.filePath) {

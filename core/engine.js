@@ -770,6 +770,6 @@ export class HanaEngine {
     "recall_experience", "record_experience",
     "web_search", "web_fetch",
     "todo", "notify",
-    "present_files",
+    "stage_files",
   ];
 }

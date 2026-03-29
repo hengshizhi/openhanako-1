@@ -376,7 +376,7 @@
       "done": "✂️ {name} all tidied up",
       "failed": "✂️ {name} couldn't tidy up"
     },
-    "present_files": {
+    "stage_files": {
       "running": "📎 {name} is preparing the file",
       "done": "📎 Here it is!",
       "failed": "📎 Couldn't hand it over"
@@ -1483,9 +1483,9 @@
       "recordContentDesc": "The specific experience content, concise and direct, one sentence"
     },
     "outputFile": {
-      "label": "Present Files",
-      "description": "After successfully creating files for the user (PDF, Word, Excel, PPT, Markdown, etc.), call this tool to present them in the conversation so the user can click to open. Only call after files have actually been written to disk; do not call if file creation failed. The first path should be the file the user most wants to see. Don't just mention file paths in text — call this tool.",
-      "filepathsDesc": "Array of absolute file paths to present to the user",
+      "label": "Stage Files",
+      "description": "After successfully creating files for anyone (users, agents), or when asked to provide a file, call this tool to present them in the conversation so the user can click to open. Only call when the file exists; do not call if the file is missing or creation failed. Don't just mention file paths in text — call this tool.",
+      "filepathsDesc": "Array of absolute file paths to stage",
       "filePathDesc": "(Compat) Single file absolute path",
       "labelDesc": "(Compat) File name shown to the user"
     },

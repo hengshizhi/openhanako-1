@@ -73,7 +73,8 @@ export function createSessionsRoute(engine) {
           }
         } else if (m.role === "toolResult") {
           const d = m.details || {};
-          if (m.toolName === "present_files" && d.files?.length) {
+          // COMPAT(v0.78): present_files → stage_files, remove after v0.90
+          if ((m.toolName === "stage_files" || m.toolName === "present_files") && d.files?.length) {
             fileOutputs.push({ afterIndex: allMessages.length - 1, files: d.files });
           } else if (m.toolName === "create_artifact" && d.content) {
             artifacts.push({
