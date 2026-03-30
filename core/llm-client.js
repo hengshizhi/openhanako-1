@@ -85,6 +85,7 @@ export async function callText({
       model, temperature, max_tokens: maxTokens,
       ...(mergedSystem && { system: mergedSystem }),
       messages: anthropicMessages,
+      thinking: { type: "disabled" },
     };
   } else if (api === "openai-responses" || api === "openai-codex-responses") {
     // OpenAI Responses API
@@ -174,6 +175,9 @@ export async function callText({
       ? data.choices[0].message.content.trim()
       : "";
   }
+
+  // 清理 <think> 标签（部分 provider 用标签而非 content block 包裹思考内容）
+  text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, "").trim();
 
   if (!text) {
     if (combinedSignal.aborted) {
