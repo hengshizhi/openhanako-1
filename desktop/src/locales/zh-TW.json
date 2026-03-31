@@ -2,6 +2,7 @@
   "channel": {
     "tab": "頻道",
     "chatTab": "聊天",
+    "moreTabs": "更多標籤",
     "empty": "還沒有頻道 ✿",
     "dmLabel": "私聊",
     "dmHint": "僅顯示主助手的私聊",

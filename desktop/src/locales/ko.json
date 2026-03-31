@@ -2,6 +2,7 @@
   "channel": {
     "tab": "채널",
     "chatTab": "채팅",
+    "moreTabs": "더 많은 탭",
     "empty": "아직 채널이 없어요 ✿",
     "dmLabel": "메시지",
     "dmHint": "주 에이전트 전용",

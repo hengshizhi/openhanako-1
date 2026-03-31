@@ -67,6 +67,15 @@
     pointer-events: none;
 }
 
+/* ── Drag states ── */
+.tbTabDragging {
+    opacity: 0.4;
+}
+
+.tbTabDragOver {
+    box-shadow: inset 2px 0 0 var(--accent);
+}
+
 /* ========================================
    频道 — 频道列表
    ======================================== */

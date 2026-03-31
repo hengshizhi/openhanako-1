@@ -1,17 +1,23 @@
 /**
- * ChannelTabBar — tab 切换栏（chat/channels tab）
+ * ChannelTabBar — dynamic tab bar (chat / channels / plugin tabs)
  *
- * 管理 titlebar 中 tab 的点击、slider 动画和 badge 显示。
+ * Renders tabs dynamically from store state, supports drag-to-reorder
+ * for non-chat tabs, and overflows into a dropdown when >5 draggable tabs.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '../../stores';
-import type { TabType } from '../../types';
+import type { TabType, PluginPageInfo } from '../../types';
 import { toggleSidebar } from '../SidebarLayout';
 import { toggleJianSidebar } from '../../stores/desk-actions';
+import { resolvePluginTitle } from '../../utils/resolve-plugin-title';
+import { reorderTabs } from '../../stores/plugin-ui-actions';
+import { PluginTabOverflow } from '../plugin/PluginTabOverflow';
 import styles from './Channels.module.css';
 
 declare function t(key: string, vars?: Record<string, string | number>): string;
+
+const MAX_VISIBLE_DRAGGABLE = 5;
 
 // ── Tab switching logic ──
 
@@ -26,6 +32,9 @@ export function switchTab(tab: TabType) {
   s.setCurrentTab(tab);
   localStorage.setItem('hana-tab', tab);
 
+  // Plugin tabs don't have sidebar persistence
+  if (typeof tab === 'string' && tab.startsWith('plugin:')) return;
+
   const savedLeft = localStorage.getItem(`hana-sidebar-${tab}`);
   const wantLeftOpen = savedLeft !== 'closed';
   if (s.sidebarOpen !== wantLeftOpen) toggleSidebar(wantLeftOpen);
@@ -35,23 +44,76 @@ export function switchTab(tab: TabType) {
   if (s.jianOpen !== wantRightOpen) toggleJianSidebar(wantRightOpen);
 }
 
+// ── Build ordered tab list ──
+
+function buildTabList(pluginPages: PluginPageInfo[], tabOrder: string[]): TabType[] {
+  const pluginTabs: TabType[] = pluginPages.map(p => `plugin:${p.pluginId}` as TabType);
+  const draggable: TabType[] = ['channels' as TabType, ...pluginTabs];
+
+  // Order by user preference, with unordered at end
+  const ordered: TabType[] = [];
+  for (const id of tabOrder) {
+    if (draggable.includes(id as TabType)) ordered.push(id as TabType);
+  }
+  for (const tab of draggable) {
+    if (!ordered.includes(tab)) ordered.push(tab);
+  }
+
+  return ['chat' as TabType, ...ordered];
+}
+
+function getTabLabel(tab: TabType, pluginPages: PluginPageInfo[], locale: string): string {
+  if (tab === 'chat') return t('channel.chatTab');
+  if (tab === 'channels') return t('channel.tab');
+  if (typeof tab === 'string' && tab.startsWith('plugin:')) {
+    const pluginId = tab.slice(7);
+    const page = pluginPages.find(p => p.pluginId === pluginId);
+    if (page) return resolvePluginTitle(page.title, locale, pluginId);
+    return pluginId;
+  }
+  return tab;
+}
+
 // ── Component ──
 
 export function ChannelTabBar() {
   const currentTab = useStore(s => s.currentTab);
   const channelTotalUnread = useStore(s => s.channelTotalUnread);
   const locale = useStore(s => s.locale);
+  const pluginPages = useStore(s => s.pluginPages);
+  const tabOrder = useStore(s => s.tabOrder);
+
+  const allTabs = buildTabList(pluginPages, tabOrder);
+  // chat is always first and not draggable; split into visible and overflow
+  const draggableTabs = allTabs.slice(1);
+  const visibleDraggable = draggableTabs.slice(0, MAX_VISIBLE_DRAGGABLE);
+  const overflowDraggable = draggableTabs.slice(MAX_VISIBLE_DRAGGABLE);
+  const visibleTabs: TabType[] = ['chat' as TabType, ...visibleDraggable];
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
-  const chatTabRef = useRef<HTMLButtonElement>(null);
-  const channelsTabRef = useRef<HTMLButtonElement>(null);
+  const btnRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  // Drag state
+  const [dragTab, setDragTab] = useState<TabType | null>(null);
+  const [dragOverTab, setDragOverTab] = useState<TabType | null>(null);
+
+  const setBtnRef = useCallback((tab: TabType, el: HTMLButtonElement | null) => {
+    if (el) btnRefs.current.set(tab, el);
+    else btnRefs.current.delete(tab);
+  }, []);
 
   const moveSlider = useCallback((tab: TabType, animate: boolean) => {
     const container = tabsRef.current;
     const slider = sliderRef.current;
-    const target = tab === 'chat' ? chatTabRef.current : channelsTabRef.current;
-    if (!slider || !target || !container) return;
+    const target = btnRefs.current.get(tab);
+    if (!slider || !container) return;
+    if (!target) {
+      // Active tab is in overflow; hide slider
+      slider.style.width = '0px';
+      slider.style.transform = 'translateX(0px)';
+      return;
+    }
     const parentRect = container.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     const offsetX = targetRect.left - parentRect.left;
@@ -63,30 +125,114 @@ export function ChannelTabBar() {
 
   useEffect(() => { moveSlider(currentTab, true); }, [currentTab, moveSlider]);
   useEffect(() => { moveSlider(useStore.getState().currentTab || 'chat', false); }, [locale, moveSlider]);
-  useEffect(() => { moveSlider(useStore.getState().currentTab || 'chat', false); }, [moveSlider]);
+  // Initial position after mount
+  useEffect(() => {
+    requestAnimationFrame(() => moveSlider(useStore.getState().currentTab || 'chat', false));
+  }, [moveSlider, pluginPages, tabOrder]);
 
   // Restore saved tab on mount
   useEffect(() => {
     const savedTab = localStorage.getItem('hana-tab');
-    if (savedTab === 'channels') switchTab('channels');
+    if (savedTab && savedTab !== 'chat') switchTab(savedTab as TabType);
   }, []);
 
-  const handleTabClick = useCallback((e: React.MouseEvent) => {
-    const tabBtn = (e.target as HTMLElement).closest(`.${styles.tbTab}`) as HTMLElement | null;
-    if (!tabBtn) return;
-    switchTab((tabBtn.dataset.tab || 'chat') as TabType);
+  const handleTabClick = useCallback((tab: TabType) => {
+    switchTab(tab);
   }, []);
+
+  // ── Drag handlers ──
+
+  const onDragStart = useCallback((e: React.DragEvent, tab: TabType) => {
+    if (tab === 'chat') { e.preventDefault(); return; }
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', tab);
+    setDragTab(tab);
+  }, []);
+
+  const onDragOver = useCallback((e: React.DragEvent, tab: TabType) => {
+    if (tab === 'chat') return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverTab(tab);
+  }, []);
+
+  const onDragLeave = useCallback(() => {
+    setDragOverTab(null);
+  }, []);
+
+  const onDrop = useCallback((e: React.DragEvent, targetTab: TabType) => {
+    e.preventDefault();
+    setDragTab(null);
+    setDragOverTab(null);
+    const sourceTab = e.dataTransfer.getData('text/plain') as TabType;
+    if (!sourceTab || sourceTab === targetTab || targetTab === 'chat') return;
+
+    // Compute new order from current draggable list
+    const currentDraggable = [...draggableTabs];
+    const srcIdx = currentDraggable.indexOf(sourceTab);
+    if (srcIdx === -1) return;
+
+    // Remove source, then find target position in the mutated array
+    currentDraggable.splice(srcIdx, 1);
+    const insertIdx = currentDraggable.indexOf(targetTab);
+    if (insertIdx === -1) {
+      currentDraggable.push(sourceTab);
+    } else {
+      currentDraggable.splice(insertIdx, 0, sourceTab);
+    }
+
+    reorderTabs(currentDraggable);
+  }, [draggableTabs]);
+
+  const onDragEnd = useCallback(() => {
+    setDragTab(null);
+    setDragOverTab(null);
+  }, []);
+
+  // Overflow items
+  const overflowItems = overflowDraggable.map(tab => ({
+    id: tab,
+    label: getTabLabel(tab, pluginPages, locale),
+  }));
 
   return (
-    <div className={styles.tbTabs} ref={tabsRef} onClick={handleTabClick}>
+    <div className={styles.tbTabs} ref={tabsRef}>
       <div className={styles.tbTabsSlider} ref={sliderRef}></div>
-      <button ref={chatTabRef} className={`${styles.tbTab}${currentTab === 'chat' ? ` ${styles.tbTabActive}` : ''}`} data-tab="chat">
-        {t('channel.chatTab')}
-      </button>
-      <button ref={channelsTabRef} className={`${styles.tbTab}${currentTab === 'channels' ? ` ${styles.tbTabActive}` : ''}`} data-tab="channels">
-        {t('channel.tab')}
-        {channelTotalUnread > 0 && <span className={styles.tbTabBadge} />}
-      </button>
+      {visibleTabs.map(tab => {
+        const isActive = currentTab === tab;
+        const isDragging = dragTab === tab;
+        const isDragOver = dragOverTab === tab;
+        let cls = styles.tbTab;
+        if (isActive) cls += ` ${styles.tbTabActive}`;
+        if (isDragging) cls += ` ${styles.tbTabDragging}`;
+        if (isDragOver) cls += ` ${styles.tbTabDragOver}`;
+
+        return (
+          <button
+            key={tab}
+            ref={(el) => setBtnRef(tab, el)}
+            className={cls}
+            data-tab={tab}
+            draggable={tab !== 'chat'}
+            onClick={() => handleTabClick(tab)}
+            onDragStart={(e) => onDragStart(e, tab)}
+            onDragOver={(e) => onDragOver(e, tab)}
+            onDragLeave={onDragLeave}
+            onDrop={(e) => onDrop(e, tab)}
+            onDragEnd={onDragEnd}
+          >
+            {getTabLabel(tab, pluginPages, locale)}
+            {tab === 'channels' && channelTotalUnread > 0 && <span className={styles.tbTabBadge} />}
+          </button>
+        );
+      })}
+      {overflowItems.length > 0 && (
+        <PluginTabOverflow
+          tabs={overflowItems}
+          currentTab={currentTab}
+          onSelect={handleTabClick}
+        />
+      )}
     </div>
   );
 }

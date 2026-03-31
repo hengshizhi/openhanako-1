@@ -25,6 +25,7 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { ChatArea } from './components/chat/ChatArea';
 import { ChannelsPanel, ChannelMessages, ChannelMembers, ChannelInput, ChannelReadonly } from './components/ChannelsPanel';
 import { ChannelTabBar } from './components/channels/ChannelTabBar';
+import { WidgetButtons } from './components/plugin/WidgetButtons';
 import { ChannelListSidebar } from './components/channels/ChannelList';
 import { ChannelHeader } from './components/channels/ChannelHeader';
 import { ChannelCreateOverlay } from './components/channels/ChannelCreateOverlay';
@@ -209,6 +210,7 @@ function App() {
           </svg>
         </button>
         <ChannelTabBar />
+        <WidgetButtons />
         {!isPluginTab && (
           <button
             className={`tb-toggle tb-toggle-right${jianOpen ? ' active' : ''}`}

@@ -2,6 +2,7 @@
   "channel": {
     "tab": "Channels",
     "chatTab": "Chat",
+    "moreTabs": "More tabs",
     "empty": "No channels yet ✿",
     "dmLabel": "Messages",
     "dmHint": "Primary Agent Only",
