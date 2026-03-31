@@ -210,22 +210,24 @@ function App() {
           </svg>
         </button>
         <ChannelTabBar />
-        <WidgetButtons />
-        {!isPluginTab && (
-          <button
-            className={`tb-toggle tb-toggle-right${jianOpen ? ' active' : ''}`}
-            id="tbToggleRight"
-            title={currentTab === 'channels' ? t('channel.info') : t('sidebar.jian')}
-            onClick={() => { hideFloat(); toggleJianSidebar(); }}
-            onMouseEnter={(e) => showFloat('right', e.currentTarget)}
-            onMouseLeave={scheduleFloatHide}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="15" y1="3" x2="15" y2="21"></line>
-            </svg>
-          </button>
-        )}
+        <div className="tb-right-group">
+          <WidgetButtons />
+          {!isPluginTab && (
+            <button
+              className={`tb-toggle tb-toggle-right${jianOpen ? ' active' : ''}`}
+              id="tbToggleRight"
+              title={currentTab === 'channels' ? t('channel.info') : t('sidebar.jian')}
+              onClick={() => { hideFloat(); toggleJianSidebar(); }}
+              onMouseEnter={(e) => showFloat('right', e.currentTarget)}
+              onMouseLeave={scheduleFloatHide}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+              </svg>
+            </button>
+          )}
+        </div>
         <WindowControls />
       </div>
 

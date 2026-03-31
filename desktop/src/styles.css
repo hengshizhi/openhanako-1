@@ -139,6 +139,14 @@ body {
     margin-right: 4px;
 }
 
+.tb-right-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    pointer-events: auto;
+    -webkit-app-region: no-drag;
+}
+
 /* Windows/Linux：左侧不让位，右侧让位给 window controls */
 html[data-platform="win32"] .tb-toggle-left,
 html[data-platform="linux"] .tb-toggle-left {

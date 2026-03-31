@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import { useStore } from '../../stores';
 import { usePluginIframe } from '../../hooks/use-plugin-iframe';
+import { hanaUrl } from '../../hooks/use-hana-fetch';
 import s from './PluginWidgetView.module.css';
-
-declare function t(key: string): string;
 
 interface Props {
   pluginId: string;
@@ -16,15 +15,16 @@ export function PluginWidgetView({ pluginId }: Props) {
   const iframeSrc = useMemo(() => {
     if (!widget?.routeUrl) return null;
     const theme = document.documentElement.dataset.theme || 'warm-paper';
-    const cssUrl = `/api/plugins/theme.css?theme=${encodeURIComponent(theme)}`;
-    const sep = widget.routeUrl.includes('?') ? '&' : '?';
-    return `${widget.routeUrl}${sep}hana-theme=${encodeURIComponent(theme)}&hana-css=${encodeURIComponent(cssUrl)}`;
+    const cssUrl = hanaUrl(`/api/plugins/theme.css?theme=${encodeURIComponent(theme)}`);
+    const fullUrl = hanaUrl(widget.routeUrl);
+    const sep = fullUrl.includes('?') ? '&' : '?';
+    return `${fullUrl}${sep}hana-theme=${encodeURIComponent(theme)}&hana-css=${encodeURIComponent(cssUrl)}`;
   }, [widget?.routeUrl]);
 
   const { iframeRef, status, retry } = usePluginIframe(iframeSrc);
 
   if (!widget) {
-    return <div className={s.error}>{t?.('plugin.notFound') || 'Widget not found'}</div>;
+    return <div className={s.error}>Widget not found</div>;
   }
 
   return (
@@ -34,15 +34,15 @@ export function PluginWidgetView({ pluginId }: Props) {
       )}
       {status === 'error' && (
         <div className={s.overlay}>
-          <p>{t?.('plugin.loadFailed') || '加载失败'}</p>
-          <button className={s.retryBtn} onClick={retry}>{t?.('plugin.retry') || '重试'}</button>
+          <p>加载失败</p>
+          <button className={s.retryBtn} onClick={retry}>重试</button>
         </div>
       )}
       <iframe
         ref={iframeRef}
         className={s.iframe}
         src={iframeSrc || undefined}
-        sandbox="allow-scripts allow-forms allow-popups"
+        sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
         style={{ opacity: status === 'ready' ? 1 : 0 }}
       />
     </div>
