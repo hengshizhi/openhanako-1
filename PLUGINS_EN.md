@@ -305,6 +305,63 @@ Declare in `manifest.json` under `contributes.configuration` using JSON Schema:
 
 Read/write config via `ctx.config.get(key)` / `ctx.config.set(key, value)`, persisted in `plugin-data/{pluginId}/config.json`.
 
+### Page (Plugin Page) ⚡ full-access
+
+A plugin can register a full-page view in the top tab bar, at the same level as "Chat/Channel". When the user switches to that tab, the plugin's iframe occupies the entire window space.
+
+Declare in `manifest.json` under `contributes`:
+
+```json
+{
+  "contributes": {
+    "page": {
+      "title": { "zh": "金融", "en": "Finance" },
+      "icon": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'><polyline points='22 12 18 12 15 21 9 3 6 12 2 12'/></svg>",
+      "route": "/dashboard"
+    }
+  }
+}
+```
+
+- `title`: Display name. Accepts a plain string or an i18n object `{ zh, en, ... }`
+- `icon`: Strongly recommended to provide an inline SVG (stroke style, `currentColor`). Falls back to the first character of the title if omitted
+- `route`: Relative path for the plugin route. The actual URL is `/api/plugins/{pluginId}{route}`
+- A plugin can declare at most one `page` or one `widget`, not both
+- Hovering over the tab shows the plugin's full name (tooltip)
+- When there are more than 5 tabs, extras are collapsed into an overflow dropdown menu; users can drag to reorder
+
+Plugin pages are rendered via iframe. The plugin must send a handshake signal after loading:
+
+```js
+window.parent.postMessage({ type: 'ready' }, '*');
+```
+
+The host appends `hana-theme` and `hana-css` query parameters to the iframe URL. Plugins can optionally reference the theme CSS for visual consistency:
+
+```html
+<link rel="stylesheet" href="${new URLSearchParams(location.search).get('hana-css')}">
+```
+
+### Widget (Sidebar Component) ⚡ full-access
+
+A plugin can register a component in the right-side Jian sidebar, displayed mutually exclusively with the desk.
+
+```json
+{
+  "contributes": {
+    "widget": {
+      "title": { "zh": "盯盘", "en": "Monitor" },
+      "icon": "<svg viewBox='0 0 24 24' .../>",
+      "route": "/sidebar"
+    }
+  }
+}
+```
+
+Field rules are the same as Page. The widget appears alongside the desk in the Jian sidebar, controlled by a button on the right side of the titlebar. When no widgets are registered, the button area is automatically hidden.
+
+Widgets are also rendered via iframe and must send the `ready` handshake signal.
+
 ## Manifest
 
 Most plugins don't need a manifest. Only required for:

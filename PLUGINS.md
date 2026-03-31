@@ -305,6 +305,63 @@ export const defaultApi = "openai-completions";
 
 配置通过 `ctx.config.get(key)` / `ctx.config.set(key, value)` 读写，持久化在 `plugin-data/{pluginId}/config.json`。
 
+### Page（插件页面）⚡ full-access
+
+插件可以在顶部 tab 栏注册一个全页面视图，跟「聊天/频道」同级。切换到该 tab 后，插件的 iframe 占据整个窗口空间。
+
+在 `manifest.json` 的 `contributes` 中声明：
+
+```json
+{
+  "contributes": {
+    "page": {
+      "title": { "zh": "金融", "en": "Finance" },
+      "icon": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'><polyline points='22 12 18 12 15 21 9 3 6 12 2 12'/></svg>",
+      "route": "/dashboard"
+    }
+  }
+}
+```
+
+- `title`：显示名，支持字符串或 `{ zh, en, ... }` 国际化对象
+- `icon`：强烈建议提供内联 SVG（stroke 风格，`currentColor`）。缺省时取 title 首字
+- `route`：插件 route 的相对路径，实际 URL 为 `/api/plugins/{pluginId}{route}`
+- 一个插件最多声明一个 `page` 或一个 `widget`，不能同时声明
+- 悬停 tab 时显示插件全名（tooltip）
+- Tab 超过 5 个时自动折叠到 overflow 下拉菜单，用户可拖拽排序
+
+插件页面通过 iframe 渲染，需要在加载完成后发送握手信号：
+
+```js
+window.parent.postMessage({ type: 'ready' }, '*');
+```
+
+宿主会在 iframe URL 上附加 `hana-theme` 和 `hana-css` 参数，插件可选择引用主题 CSS 以保持视觉一致：
+
+```html
+<link rel="stylesheet" href="${new URLSearchParams(location.search).get('hana-css')}">
+```
+
+### Widget（侧栏组件）⚡ full-access
+
+插件可以在右侧 Jian 侧栏注册一个组件，跟书桌互斥显示。
+
+```json
+{
+  "contributes": {
+    "widget": {
+      "title": { "zh": "盯盘", "en": "Monitor" },
+      "icon": "<svg viewBox='0 0 24 24' .../>",
+      "route": "/sidebar"
+    }
+  }
+}
+```
+
+字段规则同 Page。Widget 在 Jian 侧栏的书桌旁显示，由 titlebar 右侧的按钮控制。没有 widget 注册时按钮区域自动隐藏。
+
+Widget 同样通过 iframe 渲染，需要发送 `ready` 握手信号。
+
 ## Manifest
 
 大多数 plugin 不需要 manifest。只有以下场景需要：
