@@ -30,6 +30,8 @@ function getPreviewWidth(): number {
 
 export function updateLayout(): void {
   const s = useStore.getState();
+  const currentTab = s.currentTab;
+  if (typeof currentTab === 'string' && currentTab.startsWith('plugin:')) return;
   const w = window.innerWidth;
   const leftW = s.sidebarOpen ? getSidebarWidth() : 0;
   const rightW = s.jianOpen ? getJianWidth() : 0;

@@ -17,6 +17,8 @@ import { BridgePanel } from './components/BridgePanel';
 const SkillViewerOverlay = lazy(() => import('./components/SkillViewerOverlay').then(m => ({ default: m.SkillViewerOverlay })));
 import { PreviewPanel } from './components/PreviewPanel';
 import { DeskSection } from './components/DeskSection';
+import { PluginPageView } from './components/plugin/PluginPageView';
+import { PluginWidgetView } from './components/plugin/PluginWidgetView';
 import { InputArea } from './components/InputArea';
 import { SessionList } from './components/SessionList';
 import { WelcomeScreen } from './components/WelcomeScreen';
@@ -173,6 +175,8 @@ function App() {
   const currentSessionPath = useStore(s => s.currentSessionPath);
   const currentAgentId = useStore(s => s.currentAgentId);
   const currentChannel = useStore(s => s.currentChannel);
+  const jianView = useStore(s => s.jianView);
+  const isPluginTab = typeof currentTab === 'string' && currentTab.startsWith('plugin:');
   const hasPanels = !welcomeVisible && !!currentSessionPath;
   const { floatCard, show: showFloat, scheduleHide: scheduleFloatHide, cancelHide: cancelFloatHide, hide: hideFloat } = useFloatCard();
 
@@ -205,26 +209,28 @@ function App() {
           </svg>
         </button>
         <ChannelTabBar />
-        <button
-          className={`tb-toggle tb-toggle-right${jianOpen ? ' active' : ''}`}
-          id="tbToggleRight"
-          title={currentTab === 'channels' ? t('channel.info') : t('sidebar.jian')}
-          onClick={() => { hideFloat(); toggleJianSidebar(); }}
-          onMouseEnter={(e) => showFloat('right', e.currentTarget)}
-          onMouseLeave={scheduleFloatHide}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="15" y1="3" x2="15" y2="21"></line>
-          </svg>
-        </button>
+        {!isPluginTab && (
+          <button
+            className={`tb-toggle tb-toggle-right${jianOpen ? ' active' : ''}`}
+            id="tbToggleRight"
+            title={currentTab === 'channels' ? t('channel.info') : t('sidebar.jian')}
+            onClick={() => { hideFloat(); toggleJianSidebar(); }}
+            onMouseEnter={(e) => showFloat('right', e.currentTarget)}
+            onMouseLeave={scheduleFloatHide}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="15" y1="3" x2="15" y2="21"></line>
+            </svg>
+          </button>
+        )}
         <WindowControls />
       </div>
 
       {/* ── App body ── */}
       <div className="app">
         {/* Left sidebar */}
-        <aside className={`sidebar${sidebarOpen ? '' : ' collapsed'}`} id="sidebar">
+        <aside className={`sidebar${sidebarOpen && !isPluginTab ? '' : ' collapsed'}`} id="sidebar">
           <div className="sidebar-inner">
             <div className={`sidebar-chat-content${currentTab === 'chat' ? '' : ' hidden'}`}>
               <div className="sidebar-header">
@@ -326,6 +332,12 @@ function App() {
             )}
           </div>
 
+          {isPluginTab && (
+            <div style={{ flex: 1, display: 'flex' }}>
+              <PluginPageView pluginId={currentTab.slice(7)} />
+            </div>
+          )}
+
           {/* Floating panels render into main-content */}
           <ActivityPanel />
           <AutomationPanel />
@@ -335,13 +347,21 @@ function App() {
         <PreviewPanel />
 
         {/* Right sidebar (Jian) */}
-        <aside className={`jian-sidebar${jianOpen ? '' : ' collapsed'}`} id="jianSidebar">
+        <aside className={`jian-sidebar${jianOpen && !isPluginTab ? '' : ' collapsed'}`} id="jianSidebar">
           <div className="resize-handle resize-handle-left" id="jianResizeHandle"></div>
           <div className="jian-sidebar-inner">
             <div className={`jian-chat-content${currentTab === 'chat' ? '' : ' hidden'}`}>
-              <RegionalErrorBoundary region="desk">
-                <DeskSection />
-              </RegionalErrorBoundary>
+              {jianView === 'desk' ? (
+                <RegionalErrorBoundary region="desk">
+                  <DeskSection />
+                </RegionalErrorBoundary>
+              ) : jianView.startsWith('widget:') ? (
+                <PluginWidgetView pluginId={jianView.slice(7)} />
+              ) : (
+                <RegionalErrorBoundary region="desk">
+                  <DeskSection />
+                </RegionalErrorBoundary>
+              )}
             </div>
 
             <div className={`jian-channel-content${currentTab === 'channels' ? '' : ' hidden'}`}>
