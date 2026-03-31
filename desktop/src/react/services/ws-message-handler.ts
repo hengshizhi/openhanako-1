@@ -31,7 +31,7 @@ const REACT_CHAT_EVENTS = new Set([
   'mood_start', 'mood_text', 'mood_end',
   'xing_start', 'xing_text', 'xing_end',
   'tool_start', 'tool_end', 'turn_end',
-  'file_output', 'skill_activated', 'artifact',
+  'file_output', 'plugin_card', 'skill_activated', 'artifact',
   'browser_screenshot', 'cron_confirmation', 'settings_confirmation',
   'compaction_start', 'compaction_end',
 ]);
