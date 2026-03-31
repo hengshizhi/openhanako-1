@@ -518,6 +518,18 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         }
       });
 
+      // Card fallback: if tool provided _cardHint but LLM didn't write <card>
+      if (ss._cardHints.length > 0 && !ss._cardEmitted) {
+        for (const hint of ss._cardHints) {
+          const attrs = { type: hint.type || 'iframe', plugin: hint.plugin, route: hint.route, title: hint.title };
+          emitStreamEvent(sessionPath, ss, { type: "card_start", attrs });
+          if (hint.defaultDescription) {
+            emitStreamEvent(sessionPath, ss, { type: "card_text", delta: hint.defaultDescription });
+          }
+          emitStreamEvent(sessionPath, ss, { type: "card_end" });
+        }
+      }
+
       // 空回复检测：本轮没有文本输出也没有工具调用，提示用户检查配置
       // 被 abort 的 turn 不弹此提示（用户主动停止 / WS 断开 / 连接超时）
       if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && !ss.isAborted && isActive) {
