@@ -213,8 +213,7 @@ function App() {
         <ChannelTabBar />
         <div className="tb-right-group">
           <WidgetButtons />
-          {!isPluginTab && (
-            <button
+          <button
               className={`tb-toggle tb-toggle-right${jianOpen ? ' active' : ''}`}
               id="tbToggleRight"
               title={currentTab === 'channels' ? t('channel.info') : t('sidebar.jian')}
@@ -227,7 +226,6 @@ function App() {
                 <line x1="15" y1="3" x2="15" y2="21"></line>
               </svg>
             </button>
-          )}
         </div>
         <WindowControls />
       </div>
