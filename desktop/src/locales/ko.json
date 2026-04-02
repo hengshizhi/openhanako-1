@@ -990,6 +990,8 @@
     "openInFinder": "폴더 열기",
     "jianLabel": "Jian",
     "jianPlaceholder": "이 폴더의 파일을 어떻게 처리할지 어시스턴트에게 알려주세요...",
+    "execLogLabel": "실행 기록",
+    "execLogDelete": "이 기록 삭제",
     "emptyTitle": "책상이 비어 있어요",
     "emptyHint": "책상은 어시스턴트의 순찰 작업 공간이자 모든 대화의 기본 디렉토리예요.\n설정에서 폴더를 지정하세요.",
     "goToSettings": "설정으로 이동",

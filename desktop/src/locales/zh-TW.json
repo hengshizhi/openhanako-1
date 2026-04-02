@@ -990,6 +990,8 @@
     "openInFinder": "打開資料夾",
     "jianLabel": "箋",
     "jianPlaceholder": "寫點什麼，告訴助手這個資料夾裡面的檔案該如何處理...",
+    "execLogLabel": "執行記錄",
+    "execLogDelete": "刪除此條記錄",
     "emptyTitle": "書桌還空空的呢",
     "emptyHint": "書桌是助手日常巡檢的工作空間，也是每次對話的預設目錄\n去設定裡指定一個資料夾吧",
     "goToSettings": "前往設定",

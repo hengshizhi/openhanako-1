@@ -1028,6 +1028,8 @@
     "openInFinder": "打开文件夹",
     "jianLabel": "笺",
     "jianPlaceholder": "写点什么，告诉助手这个文件夹里面的文件该如何处理...",
+    "execLogLabel": "执行记录",
+    "execLogDelete": "删除此条记录",
     "emptyTitle": "书桌还空空的呢",
     "emptyHint": "书桌是助手日常巡检的工作空间，也是每次对话的默认目录\n去设置里指定一个文件夹吧",
     "goToSettings": "前往设置",

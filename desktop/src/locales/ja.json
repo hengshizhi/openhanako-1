@@ -990,6 +990,8 @@
     "openInFinder": "フォルダを開く",
     "jianLabel": "Jian",
     "jianPlaceholder": "このフォルダのファイルの扱い方をアシスタントに伝えましょう...",
+    "execLogLabel": "実行記録",
+    "execLogDelete": "この記録を削除",
     "emptyTitle": "デスクは空です",
     "emptyHint": "デスクはアシスタントの巡回ワークスペースであり、各チャットのデフォルトディレクトリです。\n設定でフォルダを指定してください。",
     "goToSettings": "設定へ",

@@ -573,6 +573,80 @@
     opacity: 0.5;
 }
 
+/* ── 执行记录 ── */
+.execLog {
+    border-top: 1px solid var(--jian-note-border, rgba(200, 160, 110, 0.2));
+    padding: var(--space-sm) var(--space-md);
+    max-height: 140px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.execLogHeader {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.3em;
+    letter-spacing: 0.04em;
+}
+
+.execLogList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.execLogItem {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4em;
+    padding: 0.15em 0;
+    font-size: 0.66rem;
+    line-height: 1.4;
+    color: var(--text-light);
+}
+
+.execLogTime {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.execLogTask {
+    color: var(--text);
+}
+
+.execLogResult {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.execLogResult::before {
+    content: "— ";
+}
+
+.execLogDelete {
+    margin-left: auto;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.72rem;
+    padding: 0 0.2em;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.execLogItem:hover .execLogDelete {
+    opacity: 0.6;
+}
+
+.execLogDelete:hover {
+    opacity: 1 !important;
+    color: var(--danger, #c44);
+}
+
 /* ── 书桌技能快捷区 ── */
 .skillsSection {
     padding: 0.4rem 0.75rem 0.5rem;

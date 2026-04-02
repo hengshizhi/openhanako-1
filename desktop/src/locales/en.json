@@ -1028,6 +1028,8 @@
     "openInFinder": "Open Folder",
     "jianLabel": "Jian",
     "jianPlaceholder": "Write something to tell the assistant how to handle files in this folder...",
+    "execLogLabel": "Execution Log",
+    "execLogDelete": "Delete this entry",
     "emptyTitle": "Desk is empty",
     "emptyHint": "The desk is the assistant's patrol workspace and the default directory for every chat.\nSet a folder in settings.",
     "goToSettings": "Go to Settings",
