@@ -535,6 +535,29 @@ export class SessionCoordinator {
     this._titlesCache.set(sessionDir, { titles: { ...titles }, ts: Date.now() });
   }
 
+  async getTitlesForPaths(paths) {
+    const titles = {};
+    for (const p of paths) titles[p] = null;
+
+    const byDir = new Map();
+    for (const p of paths) {
+      const dir = path.dirname(p);
+      if (!byDir.has(dir)) byDir.set(dir, []);
+      byDir.get(dir).push(p);
+    }
+
+    for (const [dir, sessionPaths] of byDir) {
+      try {
+        const dirTitles = await this._loadSessionTitlesFor(dir);
+        for (const sp of sessionPaths) {
+          if (dirTitles[sp]) titles[sp] = dirTitles[sp];
+        }
+      } catch { /* ignore */ }
+    }
+
+    return titles;
+  }
+
   async _loadSessionTitlesFor(sessionDir) {
     const cached = this._titlesCache.get(sessionDir);
     if (cached && Date.now() - cached.ts < SessionCoordinator._TITLES_TTL) {

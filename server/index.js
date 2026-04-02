@@ -193,6 +193,13 @@ hub.eventBus.handle("deferred:query", ({ taskId }) => {
 hub.eventBus.handle("deferred:list-pending", ({ sessionPath }) => {
   return deferredResultStore.listPending(sessionPath);
 });
+hub.eventBus.handle("session:get-titles", async ({ paths }) => {
+  if (!Array.isArray(paths) || !paths.length) return { titles: {} };
+  const coord = engine._sessionCoord;
+  if (!coord?.getTitlesForPaths) return { titles: {} };
+  const titles = await coord.getTitlesForPaths(paths);
+  return { titles };
+});
 
 // Register Pi SDK extension factory
 engine.registerExtensionFactory(createDeferredResultExtension(deferredResultStore));
