@@ -2269,7 +2269,8 @@ wrapIpcHandler("screenshot-render", (_event, payload) => {
       const now = new Date();
       const pad = (n) => String(n).padStart(2, "0");
       const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-      const dir = path.join(hanakoHome, "截图");
+      const base = payload.saveDir || path.join(os.homedir(), "Desktop");
+      const dir = path.join(base, "截图");
       const filePath = path.join(dir, `hanako-${timestamp}.png`);
 
       fs.mkdirSync(dir, { recursive: true });

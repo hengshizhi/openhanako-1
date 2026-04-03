@@ -31,7 +31,8 @@ export async function takeScreenshot(targetMessageId: string, sessionPath: strin
   const theme = buildThemeName(color, width);
 
   // 3. 提取 payload
-  const payload = extractScreenshotPayload(messages, theme);
+  const payload = extractScreenshotPayload(messages, theme) as any;
+  payload.saveDir = state.homeFolder || null;
 
   // 4. 填充角色名和头像（conversation 模式）
   if (payload.messages) {
@@ -102,10 +103,12 @@ export async function takeArticleScreenshot(markdown: string): Promise<void> {
     return;
   }
 
+  const homeFolder = useStore.getState().homeFolder || null;
   const result = await hana.screenshotRender({
     mode: 'article',
     theme,
     markdown,
+    saveDir: homeFolder,
   });
 
   if (result.success) {
