@@ -34,6 +34,7 @@ import { createCheckDeferredTool } from "../lib/tools/check-deferred-tool.js";
 import { READ_ONLY_BUILTIN_TOOLS } from "./config-coordinator.js";
 import { formatSkillsForPrompt } from "../lib/pi-sdk/index.js";
 import { runCompatChecks } from "../lib/compat/index.js";
+import { getPlatformPromptNote } from "./platform-prompt.js";
 
 export class Agent {
   /**
@@ -613,6 +614,13 @@ export class Agent {
           : "The following is the user's self-description, manually maintained by the user.\n\n" + userMd
       ),
     ];
+    const platformPrompt = getPlatformPromptNote({ platform: process.platform, isZh });
+    if (platformPrompt) {
+      parts.push(...section(
+        isZh ? "# 平台执行规则" : "# Platform Execution Rules",
+        platformPrompt
+      ));
+    }
     // 记忆整体开关：master && session 都开启才注入记忆相关 prompt
     if (this.memoryEnabled) {
       const memoryRule = isZh ? [
