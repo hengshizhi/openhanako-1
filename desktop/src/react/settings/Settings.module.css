@@ -5102,8 +5102,8 @@ a.about-link:hover {
 
 .ss-layout-preview {
   flex-shrink: 0;
-  width: 90px;
-  height: 135px;
+  width: 100px;
+  height: 100px;
   border-radius: 6px;
   overflow: hidden;
   background: var(--bg, #f8f5ed);

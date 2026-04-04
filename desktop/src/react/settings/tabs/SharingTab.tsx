@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { t } from '../helpers';
 import styles from '../Settings.module.css';
 
-const platform = window.platform;
-
 const PREVIEW_ESSAY = `# 风
 
 风不是一个东西。风是空气决定换个位置时产生的动静。
@@ -13,6 +11,10 @@ const PREVIEW_ESSAY = `# 风
 午后三点的风带着温度。不热不凉，是那种"跟环境差不多，但吹过来你才意识到空气其实在移动"的风。像有人在你旁边轻轻叹了口气。不是冲着你，也不是冲着谁，就是它自己的呼吸。
 
 风穿过巷子和穿过大路完全是两个性格。巷子里的风是被挤过来的，带加速度，有点横冲直撞。大路上的风散漫，到处溜达，没什么目标。最有脾气的是高楼之间的风，两栋楼把它夹在中间，像一个漏斗，它挤出来的时候又快又急，带着被压缩过的委屈。`;
+
+const ALL_COMBOS = ['light', 'dark', 'sakura'].flatMap(c =>
+  ['mobile', 'desktop'].map(w => ({ color: c, width: w }))
+);
 
 function buildThemeNameLocal(color: string, width: string): string {
   const base = color === 'sakura' ? 'sakura-light' : `solarized-${color}`;
@@ -27,44 +29,35 @@ export function SharingTab() {
     () => localStorage.getItem('hana-screenshot-width') || 'mobile'
   );
 
-  // 预览图缓存 key → base64
+  // 预览图缓存 key → base64（一次性渲染全部 6 张）
   const [previews, setPreviews] = useState<Record<string, string>>({});
-  const renderingRef = useRef(new Set<string>());
+  const didRender = useRef(false);
 
-  // 渲染预览图
   useEffect(() => {
+    if (didRender.current) return;
+    didRender.current = true;
+
     const hana = (window as any).hana;
     if (!hana?.screenshotRender) return;
 
-    const needed = [
-      { color: screenshotColor, width: 'mobile' },
-      { color: screenshotColor, width: 'desktop' },
-    ];
-
-    for (const { color, width } of needed) {
+    // 串行渲染（共享离屏窗口有 mutex）
+    let chain = Promise.resolve();
+    for (const { color, width } of ALL_COMBOS) {
       const key = `${color}-${width}`;
-      if (previews[key] || renderingRef.current.has(key)) continue;
-      renderingRef.current.add(key);
-
-      const theme = buildThemeNameLocal(color, width);
-      hana.screenshotRender({
-        mode: 'article',
-        theme,
-        markdown: PREVIEW_ESSAY,
-        preview: true,
-      }).then((result: any) => {
-        if (result.success) {
-          setPreviews(prev => ({ ...prev, [key]: result.base64 }));
-        }
-        renderingRef.current.delete(key);
-      }).catch(() => {
-        renderingRef.current.delete(key);
-      });
+      chain = chain.then(() =>
+        hana.screenshotRender({
+          mode: 'article',
+          theme: buildThemeNameLocal(color, width),
+          markdown: PREVIEW_ESSAY,
+          preview: true,
+        }).then((result: any) => {
+          if (result.success) {
+            setPreviews(prev => ({ ...prev, [key]: result.base64 }));
+          }
+        }).catch(() => {})
+      );
     }
-  }, [screenshotColor]);
-
-  const mobileKey = `${screenshotColor}-mobile`;
-  const desktopKey = `${screenshotColor}-desktop`;
+  }, []);
 
   return (
     <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="sharing">
