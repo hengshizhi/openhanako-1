@@ -79,7 +79,7 @@ body::after {
   position: absolute;
   right: 0;
   bottom: 1rem;
-  width: 66.7%;
+  width: 45%;
   aspect-ratio: 1760 / 754;
   background-image: var(--sakura-branch-url);
   background-size: contain;

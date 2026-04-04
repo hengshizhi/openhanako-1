@@ -1683,10 +1683,15 @@ function buildScreenshotHTML(payload) {
     extraCSS = `:root { --sakura-branch-url: url('${branchUrl}'); --sakura-flower-url: url('${flowerUrl}'); }`;
   }
 
-  const logoPath = app.isPackaged
-    ? path.join(process.resourcesPath, "assets", "Hanako.png")
-    : path.join(__dirname, "src", "assets", "Hanako.png");
-  const logoUrl = pathToFileURL(logoPath).href;
+  // Logo 内联为 base64 data URL（asar 内文件无法被离屏窗口的 file:// 加载）
+  let logoUrl = "";
+  try {
+    const logoPath = app.isPackaged
+      ? path.join(__dirname, "src", "assets", "Hanako.png")
+      : path.join(__dirname, "src", "assets", "Hanako.png");
+    const logoBuf = fs.readFileSync(logoPath);
+    logoUrl = `data:image/png;base64,${logoBuf.toString("base64")}`;
+  } catch { /* logo 加载失败时水印无图 */ }
 
   function renderBlock(b) {
     if (b.type === "html") return b.content;
@@ -1736,8 +1741,8 @@ function buildScreenshotHTML(payload) {
       display: flex; align-items: center; justify-content: center;
       gap: 0.5em; padding: 1.5em 0 1em; opacity: 0.5;
     }
-    .watermark-logo { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
-    .watermark-text { font-size: 0.75em; color: #999; letter-spacing: 0.05em; }
+    .watermark-logo { width: ${themeName.endsWith("-desktop") ? "28px" : "20px"}; height: ${themeName.endsWith("-desktop") ? "28px" : "20px"}; border-radius: 50%; object-fit: cover; }
+    .watermark-text { font-size: ${themeName.endsWith("-desktop") ? "0.85em" : "0.75em"}; color: #999; letter-spacing: 0.05em; }
     html, body { scrollbar-width: none; -ms-overflow-style: none; }
     html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
   `;

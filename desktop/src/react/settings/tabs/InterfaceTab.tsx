@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useSettingsStore } from '../store';
 import { t, VALID_THEMES, autoSaveConfig } from '../helpers';
 import { SelectWidget } from '../widgets/SelectWidget';
@@ -12,13 +12,6 @@ export function InterfaceTab() {
   const { settingsConfig } = useSettingsStore();
   const currentTheme = localStorage.getItem('hana-theme') || 'auto';
   const serifEnabled = localStorage.getItem('hana-font-serif') !== '0';
-
-  const [screenshotColor, setScreenshotColor] = useState(
-    () => localStorage.getItem('hana-screenshot-color') || 'light'
-  );
-  const [screenshotWidth, setScreenshotWidth] = useState(
-    () => localStorage.getItem('hana-screenshot-width') || 'mobile'
-  );
 
   const locale = settingsConfig?.locale || 'zh-CN';
   const localeVal = ['zh-CN', 'zh-TW', 'ja', 'ko', 'en'].includes(locale) ? locale
@@ -119,43 +112,6 @@ export function InterfaceTab() {
           </div>
         </div>
 
-      </section>
-
-      {/* 截图分享 */}
-      <section className={styles['settings-section']}>
-        <h2 className={styles['settings-section-title']}>{t('settings.screenshot.title')}</h2>
-
-        {/* 配色卡片 */}
-        <div className={styles['theme-options']}>
-          {([
-            { key: 'light', bg: '#F8F5ED', color: '#3B3D3F', accent: '#537D96' },
-            { key: 'dark', bg: '#2D4356', color: '#C8D1D8', accent: '#A76F6F' },
-            { key: 'sakura', bg: '#8ABDCE', color: '#FFFFFF', accent: 'rgba(255,255,255,0.7)' },
-          ] as const).map(({ key, bg, color, accent }) => (
-            <button
-              key={key}
-              className={`${styles['theme-card']}${screenshotColor === key ? ' ' + styles['active'] : ''}`}
-              style={{ background: bg }}
-              onClick={() => { setScreenshotColor(key); localStorage.setItem('hana-screenshot-color', key); }}
-            >
-              <div className={styles['theme-card-name']} style={{ color }}>{t(`settings.screenshot.${key}`)}</div>
-              <div className={styles['theme-card-mode']} style={{ color: accent }}>{t('settings.screenshot.title')}</div>
-            </button>
-          ))}
-        </div>
-
-        {/* 宽度选择 */}
-        <div className={styles['ss-width-group']}>
-          {(['mobile', 'desktop'] as const).map(w => (
-            <button
-              key={w}
-              className={`${styles['ss-width-pill']} ${screenshotWidth === w ? styles['ss-width-pill-active'] : ''}`}
-              onClick={() => { setScreenshotWidth(w); localStorage.setItem('hana-screenshot-width', w); }}
-            >
-              {t(`settings.screenshot.${w}`)}
-            </button>
-          ))}
-        </div>
       </section>
 
       {/* 语言和地区 */}
