@@ -32,7 +32,7 @@ function buildTableDecorations(state: EditorState): DecorationSet {
         builder.add(
           node.from,
           node.to,
-          Decoration.replace({ widget: new TableWidget(source), block: true }),
+          Decoration.replace({ widget: new TableWidget(source, node.from), block: true }),
         );
       }
     },
