@@ -57,21 +57,30 @@ export function createPluginProxyRoute(routeRegistry) {
 export function createPluginsRoute(engine) {
   const route = new Hono();
 
-  // ── Management API (specific routes first) ──
-
-  route.get("/plugins", (c) => {
-    const pm = engine.pluginManager;
-    if (!pm) return c.json([]);
-    const source = c.req.query("source"); // ?source=community 或 ?source=builtin
+  /**
+   * 可见插件过滤 + 序列化（单一出口，所有返回插件列表的端点共用）。
+   * hidden 插件（系统插件）永远不暴露给前端管理页。
+   * @param {object} [opts]
+   * @param {string} [opts.source] - 按 source 过滤（"community" | "builtin"）
+   */
+  function visiblePlugins(pm, opts = {}) {
     let plugins = pm.listPlugins().filter(p => !p.hidden);
-    if (source) plugins = plugins.filter(p => p.source === source);
-    return c.json(plugins.map(p => ({
+    if (opts.source) plugins = plugins.filter(p => p.source === opts.source);
+    return plugins.map(p => ({
       id: p.id, name: p.name, version: p.version,
       description: p.description, status: p.status,
       source: p.source || "community", trust: p.trust || "restricted",
       contributions: p.contributions,
       error: p.error || null,
-    })));
+    }));
+  }
+
+  // ── Management API (specific routes first) ──
+
+  route.get("/plugins", (c) => {
+    const pm = engine.pluginManager;
+    if (!pm) return c.json([]);
+    return c.json(visiblePlugins(pm, { source: c.req.query("source") }));
   });
 
   route.get("/plugins/config-schemas", (c) => {
@@ -194,13 +203,7 @@ export function createPluginsRoute(engine) {
       await pm.setFullAccess(allow_full_access);
       engine.syncPluginExtensions();
     }
-    const plugins = pm.listPlugins();
-    return c.json(plugins.map(p => ({
-      id: p.id, name: p.name, version: p.version,
-      description: p.description, status: p.status,
-      source: p.source || "community", trust: p.trust || "restricted",
-      contributions: p.contributions, error: p.error || null,
-    })));
+    return c.json(visiblePlugins(pm, { source: "community" }));
   });
 
   // ── Plugin UI panel endpoints ──

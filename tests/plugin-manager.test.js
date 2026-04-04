@@ -521,8 +521,11 @@ describe("permission enforcement", () => {
     expect(pm.routeRegistry.has("fa-plug-on")).toBe(true);
   });
 
-  it("disabled plugin → status 'disabled', not loaded", async () => {
-    const dir = path.join(pluginsDir, "disabled-plug");
+  it("disabled community plugin → status 'disabled', not loaded", async () => {
+    const builtinDir = path.join(tmpHome, "builtin-perm-dis");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-perm-dis");
+    const dir = path.join(communityDir, "disabled-plug");
     fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
     fs.writeFileSync(path.join(dir, "tools", "t.js"), `
       export const name = "t";
@@ -536,7 +539,7 @@ describe("permission enforcement", () => {
       getAllowFullAccessPlugins: () => false,
     };
     const pm = new PluginManager({
-      pluginsDir,
+      pluginsDirs: [builtinDir, communityDir],
       dataDir,
       bus: await makeBus(),
       preferencesManager: mockPrefs,
@@ -547,6 +550,33 @@ describe("permission enforcement", () => {
     expect(entry.status).toBe("disabled");
     // Nothing loaded
     expect(pm.getAllTools().some(t => t._pluginId === "disabled-plug")).toBe(false);
+  });
+
+  it("builtin plugin ignores disabled list and always loads", async () => {
+    const dir = path.join(pluginsDir, "builtin-always");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+
+    const mockPrefs = {
+      getDisabledPlugins: () => ["builtin-always"],
+      getAllowFullAccessPlugins: () => false,
+    };
+    const pm = new PluginManager({
+      pluginsDir,
+      dataDir,
+      bus: await makeBus(),
+      preferencesManager: mockPrefs,
+    });
+    pm.scan();
+    await pm.loadAll();
+    const entry = pm.getPlugin("builtin-always");
+    expect(entry.status).toBe("loaded");
+    expect(entry.source).toBe("builtin");
   });
 });
 
@@ -664,7 +694,10 @@ describe("hot operations", () => {
   });
 
   it("removePlugin unloads and removes from registry", async () => {
-    const dir = path.join(pluginsDir, "removable");
+    const builtinDir = path.join(tmpHome, "builtin-remove");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-remove");
+    const dir = path.join(communityDir, "removable");
     fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
     fs.writeFileSync(path.join(dir, "tools", "t.js"), `
       export const name = "t";
@@ -673,7 +706,7 @@ describe("hot operations", () => {
       export async function execute() { return "ok"; }
     `);
 
-    const pm = new PluginManager({ pluginsDir, dataDir, bus: await makeBus() });
+    const pm = new PluginManager({ pluginsDirs: [builtinDir, communityDir], dataDir, bus: await makeBus() });
     pm.scan();
     await pm.loadAll();
     expect(pm.getPlugin("removable")).not.toBeNull();
@@ -686,8 +719,20 @@ describe("hot operations", () => {
     expect(pm.getAllTools().some(t => t._pluginId === "removable")).toBe(false);
   });
 
+  it("removePlugin rejects builtin plugins", async () => {
+    const dir = path.join(pluginsDir, "builtin-no-rm");
+    fs.mkdirSync(dir, { recursive: true });
+    const pm = new PluginManager({ pluginsDir, dataDir, bus: await makeBus() });
+    pm.scan();
+    await pm.loadAll();
+    await expect(pm.removePlugin("builtin-no-rm")).rejects.toThrow("cannot be removed");
+  });
+
   it("removePlugin cleans disabled list in preferencesManager", async () => {
-    const dir = path.join(pluginsDir, "rm-disabled");
+    const builtinDir = path.join(tmpHome, "builtin-rm-dis");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-rm-dis");
+    const dir = path.join(communityDir, "rm-disabled");
     fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
     fs.writeFileSync(path.join(dir, "tools", "t.js"), `
       export const name = "t";
@@ -698,7 +743,7 @@ describe("hot operations", () => {
 
     const mockPrefs = createMockPrefs({ disabled_plugins: ["rm-disabled"] });
     const pm = new PluginManager({
-      pluginsDir, dataDir, bus: await makeBus(),
+      pluginsDirs: [builtinDir, communityDir], dataDir, bus: await makeBus(),
       preferencesManager: mockPrefs,
     });
     pm.scan();
@@ -714,7 +759,11 @@ describe("hot operations", () => {
   });
 
   it("disablePlugin unloads and marks disabled", async () => {
-    const dir = path.join(pluginsDir, "disableable");
+    // 用双目录构造，让插件落在 community 索引（builtin 插件不可 disable）
+    const builtinDir = path.join(tmpHome, "builtin-disable");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-disable");
+    const dir = path.join(communityDir, "disableable");
     fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
     fs.writeFileSync(path.join(dir, "tools", "t.js"), `
       export const name = "t";
@@ -725,7 +774,7 @@ describe("hot operations", () => {
 
     const mockPrefs = createMockPrefs();
     const pm = new PluginManager({
-      pluginsDir, dataDir, bus: await makeBus(),
+      pluginsDirs: [builtinDir, communityDir], dataDir, bus: await makeBus(),
       preferencesManager: mockPrefs,
     });
     pm.scan();
@@ -738,8 +787,27 @@ describe("hot operations", () => {
     expect(mockPrefs.getDisabledPlugins()).toContain("disableable");
   });
 
+  it("disablePlugin rejects builtin plugins", async () => {
+    const dir = path.join(pluginsDir, "builtin-no-disable");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "tools", "t.js"), `
+      export const name = "t";
+      export const description = "test";
+      export const parameters = {};
+      export async function execute() { return "ok"; }
+    `);
+    const pm = new PluginManager({ pluginsDir, dataDir, bus: await makeBus() });
+    pm.scan();
+    await pm.loadAll();
+    await expect(pm.disablePlugin("builtin-no-disable")).rejects.toThrow("cannot be disabled");
+  });
+
   it("enablePlugin loads previously disabled plugin", async () => {
-    const dir = path.join(pluginsDir, "enableable");
+    // 用双目录构造，让插件落在 community 索引（builtin 插件跳过 disabled 列表）
+    const builtinDir = path.join(tmpHome, "builtin-enable");
+    fs.mkdirSync(builtinDir, { recursive: true });
+    const communityDir = path.join(tmpHome, "community-enable");
+    const dir = path.join(communityDir, "enableable");
     fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
     fs.writeFileSync(path.join(dir, "tools", "t.js"), `
       export const name = "t";
@@ -750,7 +818,7 @@ describe("hot operations", () => {
 
     const mockPrefs = createMockPrefs({ disabled_plugins: ["enableable"] });
     const pm = new PluginManager({
-      pluginsDir, dataDir, bus: await makeBus(),
+      pluginsDirs: [builtinDir, communityDir], dataDir, bus: await makeBus(),
       preferencesManager: mockPrefs,
     });
     pm.scan();

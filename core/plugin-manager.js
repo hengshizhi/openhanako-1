@@ -106,7 +106,8 @@ export class PluginManager {
     for (const desc of descriptors) {
       const entry = { ...desc, status: "loading", instance: null, _disposables: [] };
 
-      if (disabledList.includes(desc.id)) {
+      // builtin 插件不受 disabled 列表和全权开关约束，始终加载
+      if (desc.source !== "builtin" && disabledList.includes(desc.id)) {
         entry.status = "disabled";
         this._plugins.set(desc.id, entry);
         continue;
@@ -548,6 +549,7 @@ export class PluginManager {
     return this._enqueue(async () => {
       const entry = this._plugins.get(pluginId);
       if (!entry) throw new Error(`Plugin "${pluginId}" not found`);
+      if (entry.source === "builtin") throw new Error(`Builtin plugin "${pluginId}" cannot be removed`);
       if (entry.status === "loaded" || entry.status === "failed") {
         await this.unloadPlugin(pluginId);
       }
@@ -569,6 +571,7 @@ export class PluginManager {
     return this._enqueue(async () => {
       const entry = this._plugins.get(pluginId);
       if (!entry) throw new Error(`Plugin "${pluginId}" not found`);
+      if (entry.source === "builtin") throw new Error(`Builtin plugin "${pluginId}" cannot be disabled`);
       if (entry.status === "loaded") {
         await this.unloadPlugin(pluginId);
       }
@@ -589,6 +592,8 @@ export class PluginManager {
     return this._enqueue(async () => {
       const entry = this._plugins.get(pluginId);
       if (!entry) throw new Error(`Plugin "${pluginId}" not found`);
+      // builtin 插件始终 loaded，跳过偏好写入
+      if (entry.source === "builtin") return;
       if (this._preferencesManager) {
         const disabled = this._preferencesManager.getDisabledPlugins();
         this._preferencesManager.setDisabledPlugins(

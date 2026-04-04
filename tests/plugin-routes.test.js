@@ -185,7 +185,7 @@ describe("plugin management API", () => {
       const engine = mockEngine({
         setFullAccess: setFn,
         plugins: [
-          { id: "x", name: "X", version: "1.0", description: "", status: "active", trust: "restricted", contributions: {} },
+          { id: "x", name: "X", version: "1.0", description: "", status: "active", source: "community", trust: "restricted", contributions: {} },
         ],
       });
       const app = createApp(engine);
