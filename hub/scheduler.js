@@ -26,6 +26,7 @@ export class Scheduler {
     this._heartbeat = null;
     this._agentCrons = new Map(); // agentId → CronScheduler
     this._executingJobs = new Map(); // jobId → AbortController（per-job 锁 + abort 控制）
+    this._heartbeatSessions = new Map(); // agentId → { sessionPath, date }
   }
 
   /** @returns {import('../core/engine.js').HanaEngine} */
@@ -41,6 +42,51 @@ export class Scheduler {
 
   /** @deprecated 兼容旧访问 */
   get cronScheduler() { return this.getCronScheduler(); }
+
+  // ──────────── Heartbeat State ────────────
+
+  /** 读取 heartbeat-state.json（容错） */
+  _loadHeartbeatState(agentId) {
+    const cached = this._heartbeatSessions.get(agentId);
+    if (cached) return cached;
+    try {
+      const agent = this._engine.getAgent(agentId);
+      if (!agent) return null;
+      const statePath = path.join(agent.deskDir, "heartbeat-state.json");
+      const raw = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+      if (raw?.sessionPath && raw?.date) {
+        this._heartbeatSessions.set(agentId, raw);
+        return raw;
+      }
+    } catch {}
+    return null;
+  }
+
+  /** 写入 heartbeat-state.json（原子写入） */
+  _saveHeartbeatState(agentId, state) {
+    this._heartbeatSessions.set(agentId, state);
+    try {
+      const agent = this._engine.getAgent(agentId);
+      if (!agent) return;
+      const statePath = path.join(agent.deskDir, "heartbeat-state.json");
+      const tmpPath = statePath + ".tmp";
+      fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2), "utf-8");
+      fs.renameSync(tmpPath, statePath);
+    } catch (err) {
+      console.warn(`[scheduler] saveHeartbeatState 失败: ${err.message}`);
+    }
+  }
+
+  /** 清除某个 agent 的心跳 session 缓存 */
+  _clearHeartbeatState(agentId) {
+    this._heartbeatSessions.delete(agentId);
+    try {
+      const agent = this._engine.getAgent(agentId);
+      if (!agent) return;
+      const statePath = path.join(agent.deskDir, "heartbeat-state.json");
+      try { fs.unlinkSync(statePath); } catch {}
+    } catch {}
+  }
 
   // ──────────── 生命周期 ────────────
 
@@ -97,6 +143,15 @@ export class Scheduler {
       emitDevLog: (text, level) => engine.emitDevLog(text, level),
       locale: agent.config?.locale,
     });
+    // 注册 promote 回调：升格活跃心跳 session 时清除缓存
+    engine.setOnPromoteHeartbeat((oldPath, promotedAgentId) => {
+      const cached = this._heartbeatSessions.get(promotedAgentId);
+      if (cached && cached.sessionPath === oldPath) {
+        this._clearHeartbeatState(promotedAgentId);
+        engine.emitDevLog("[heartbeat] 活跃 session 被升格，下轮将新建", "heartbeat");
+      }
+    });
+
     if (hbEnabled) this._heartbeat.start();
   }
 
@@ -104,6 +159,7 @@ export class Scheduler {
     if (this._heartbeat) {
       await this._heartbeat.stop();
       this._heartbeat = null;
+      this._engine.setOnPromoteHeartbeat(null);
     }
   }
 
@@ -199,6 +255,103 @@ export class Scheduler {
   }
 
   /**
+   * 心跳专用执行：复用当天持久 session，单条 ActivityStore entry
+   */
+  async _executeHeartbeatForAgent(agentId, prompt, label, opts = {}) {
+    const engine = this._engine;
+    const agentDir = path.join(engine.agentsDir, agentId);
+    const activityDir = path.join(agentDir, "activity");
+    const today = new Date().toISOString().slice(0, 10);
+    const dailyId = `hb_daily_${today}`;
+
+    // ── 日轮换检测 ──
+    const cached = this._loadHeartbeatState(agentId);
+    let resumeSessionPath = null;
+    if (cached && cached.date === today && fs.existsSync(cached.sessionPath)) {
+      resumeSessionPath = cached.sessionPath;
+    }
+
+    const startedAt = Date.now();
+
+    // ── 执行 ──
+    const { signal, ...restOpts } = opts;
+    const result = await engine.executeIsolated(prompt, {
+      agentId,
+      persist: activityDir,
+      resumeSessionPath,
+      signal,
+      ...restOpts,
+    });
+    const { sessionPath, replyText, error } = result;
+    const finishedAt = Date.now();
+    const failed = !!error;
+
+    // ── 记住 session 路径 ──
+    if (sessionPath && !failed) {
+      this._saveHeartbeatState(agentId, { sessionPath, date: today });
+    }
+
+    // ── 摘要（用当轮 prompt + replyText，不读文件） ──
+    let summary = null;
+    if (!failed && replyText) {
+      try {
+        summary = await engine.summarizeActivity(null, {
+          userText: prompt.slice(0, 600),
+          assistantText: replyText.slice(0, 600),
+        });
+      } catch {}
+    }
+
+    const ag = engine.getAgent(agentId);
+    const agentName = ag?.agentName || agentId;
+    const isZh = getLocale().startsWith("zh");
+    const hbLabel = isZh ? "日常巡检" : "routine patrol";
+    const failSuffix = isZh ? "执行失败" : "execution failed";
+
+    // ── ActivityStore：首轮 add，后续 update ──
+    const store = engine.getActivityStore(agentId);
+    const existing = store.get(dailyId);
+
+    if (existing) {
+      // 后续轮次：update
+      const updated = store.update(dailyId, {
+        finishedAt,
+        summary: failed
+          ? `${hbLabel} ${failSuffix}`
+          : (summary || existing.summary || hbLabel),
+        status: failed ? "error" : "done",
+        error: error || null,
+      });
+      this._hub.eventBus.emit({ type: "activity_update", activity: updated }, null);
+    } else {
+      // 首轮：add
+      const entry = {
+        id: dailyId,
+        type: "heartbeat",
+        label: label || null,
+        agentId,
+        agentName,
+        startedAt,
+        finishedAt,
+        summary: failed ? `${hbLabel} ${failSuffix}` : (summary || hbLabel),
+        sessionFile: typeof sessionPath === "string" ? path.basename(sessionPath) : null,
+        status: failed ? "error" : "done",
+        error: error || null,
+      };
+      store.add(entry);
+      this._hub.eventBus.emit({ type: "activity_update", activity: entry }, null);
+    }
+
+    if (failed) {
+      const reason = error || (isZh ? "后台任务未生成 session" : "background task produced no session");
+      engine.emitDevLog(`[heartbeat] ${label || "巡检"} 失败: ${reason}`, "error");
+      throw new Error(reason);
+    }
+
+    engine.emitDevLog(`活动记录: ${summary || hbLabel}`, "heartbeat");
+  }
+
+  /**
    * 执行活动（任意 agent，统一走 executeIsolated）
    */
   async _executeActivityForAgent(agentId, prompt, type, label, opts = {}) {
@@ -274,6 +427,10 @@ export class Scheduler {
    * active agent 的心跳活动（保留向后兼容）
    */
   _executeActivity(prompt, type, label, opts = {}) {
-    return this._executeActivityForAgent(this._engine.currentAgentId, prompt, type, label, opts);
+    const agentId = this._engine.currentAgentId;
+    if (type === "heartbeat" && !label) {
+      return this._executeHeartbeatForAgent(agentId, prompt, label, opts);
+    }
+    return this._executeActivityForAgent(agentId, prompt, type, label, opts);
   }
 }
