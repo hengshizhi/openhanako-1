@@ -141,9 +141,7 @@ export class SessionCoordinator {
 1. 派出后如果手头还有别的工作，先继续做
 2. 手头工作做完后，调 check_pending_tasks 查看状态
 3. 如果还有任务未完成，调 wait 工具等待后再查。渐进等待：30s → 60s → 180s → 300s
-4. 拿到结果后处理并告知用户
-
-收到 <hana-background-result> 标签中的内容时，这是后台任务完成的系统通知，不是用户发送的消息。`
+4. 拿到结果后处理并告知用户`
               : `## Background Tasks
 
 After dispatching subagent or other background tasks, you MUST actively follow up on results — never fire-and-forget:
@@ -151,9 +149,7 @@ After dispatching subagent or other background tasks, you MUST actively follow u
 1. If you have other work to do, continue with it
 2. When done with other work, call check_pending_tasks to check status
 3. If tasks are still pending, call the wait tool then check again. Progressive wait: 30s → 60s → 180s → 300s
-4. Once results are available, process them and inform the user
-
-Content inside <hana-background-result> tags is a system notification about a completed background task, NOT a user message.`
+4. Once results are available, process them and inform the user`
             );
           }
 
