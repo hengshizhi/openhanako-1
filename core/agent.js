@@ -381,6 +381,7 @@ export class Agent {
       currentAgentId: this.channelsDir && this.agentsDir ? path.basename(this.agentDir) : undefined,
       agentDir: this.agentDir,
       emitEvent: (event, sp) => this._cb?.emitEvent?.(event, sp),
+      promptSession: (sp, text) => this._cb?.promptSession?.(sp, text),
     });
 
     // 12. 组装 system prompt
