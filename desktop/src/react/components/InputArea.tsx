@@ -495,8 +495,11 @@ function InputAreaInner() {
         </div>
       )}
       {slashMenuOpen && filteredCommands.length > 0 && (
-        <SlashCommandMenu commands={filteredCommands} selected={slashSelected} busy={slashBusy}
-          onSelect={handleSlashSelect} onHover={(i) => setSlashSelected(i)} />
+        <>
+          <div className={styles['slash-backdrop']} onClick={() => setSlashMenuOpen(false)} />
+          <SlashCommandMenu commands={filteredCommands} selected={slashSelected} busy={slashBusy}
+            onSelect={handleSlashSelect} onHover={(i) => setSlashSelected(i)} />
+        </>
       )}
       <div className={styles['input-wrapper']}>
         <div
@@ -525,7 +528,7 @@ function InputAreaInner() {
             <button
               className={styles['attach-btn']}
               title={t('input.commandMenu')}
-              onClick={() => setSlashMenuOpen(true)}
+              onClick={() => setSlashMenuOpen(v => !v)}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2L14 10L22 12L14 14L12 22L10 14L2 12L10 10Z" />
