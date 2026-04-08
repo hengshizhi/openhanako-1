@@ -103,22 +103,39 @@ export function createSessionsRoute(engine) {
           .map(b => ({ ...b, afterIndex: b.afterIndex - startIdx }));
       }
 
-      // 用 deferred store 修正 subagent blocks 的状态
-      // （工具返回时写入 running，子代理完成后状态在 deferred store 里但没回写 JSONL）
-      const deferredStore = engine.deferredResults;
-      if (deferredStore) {
+      // 修正 subagent blocks 的状态：从子代理 session 文件读取完成状态
+      // 子代理 session 保留在 subagent-sessions/ 下（persist 模式），不依赖 deferred store
+      {
+        const fsSync = (await import("fs")).default;
+        const deferredStore = engine.deferredResults;
         for (const b of slicedBlocks) {
           if (b.type !== "subagent" || !b.taskId) continue;
           if (b.streamStatus !== "running") continue;
-          const task = deferredStore.query(b.taskId);
-          if (!task) continue;
-          if (task.status === "resolved") {
-            b.streamStatus = "done";
-            b.summary = typeof task.result === "string" ? task.result.slice(0, 200) : "";
-          } else if (task.status === "failed") {
-            b.streamStatus = "failed";
-            b.summary = task.reason || "";
+          // 找到子代理 session 文件路径：优先从 block.streamKey，其次从 deferred store meta
+          let sp = b.streamKey || null;
+          if (!sp && deferredStore) {
+            const task = deferredStore.query(b.taskId);
+            sp = task?.meta?.sessionPath || null;
+            if (sp) b.streamKey = sp; // 同时补上 streamKey
           }
+          if (!sp) continue;
+          try {
+            if (!fsSync.existsSync(sp)) continue;
+            const lines = fsSync.readFileSync(sp, "utf-8").trim().split("\n");
+            for (let j = lines.length - 1; j >= 0; j--) {
+              const entry = JSON.parse(lines[j]);
+              const msg = entry.message;
+              if (msg?.role !== "assistant") continue;
+              const content = msg.content;
+              if (!Array.isArray(content)) continue;
+              const textBlock = content.find(c => c.type === "text");
+              if (textBlock?.text) {
+                b.streamStatus = "done";
+                b.summary = textBlock.text.slice(0, 200);
+              }
+              break;
+            }
+          } catch { /* session 文件读取失败，保持 running */ }
         }
       }
 
