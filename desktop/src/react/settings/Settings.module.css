@@ -5215,6 +5215,7 @@ a.about-link:hover {
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
+    margin-right: 4px;
 }
 
 .bridge-agent-info {

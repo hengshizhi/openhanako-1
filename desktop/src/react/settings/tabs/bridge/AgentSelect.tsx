@@ -79,7 +79,6 @@ export function AgentSelect({ value, onChange }: AgentSelectProps) {
 
   return (
     <div className={styles['bridge-agent-select']}>
-      <label className={styles['bridge-agent-select-label']}>{t('settings.bridge.agent')}</label>
       <SelectWidget
         options={options}
         value={value || ''}
