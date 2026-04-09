@@ -309,18 +309,18 @@ export function createConfigRoute(engine) {
    * 返回 { store, isTemp }，调用方用完 isTemp===true 的 store 需要 close。
    */
   function getStoreForAgent(agentId) {
-    if (!agentId || agentId === engine.currentAgentId) {
-      return { store: engine.factStore, isTemp: false };
+    const resolvedId = agentId || engine.currentAgentId;
+    const agent = engine.getAgent(resolvedId);
+    if (agent?.factStore) {
+      return { store: agent.factStore, isTemp: false };
     }
-    if (/[\/\\.]/.test(agentId)) {
-      throw new Error("Invalid agent ID");
-    }
-    const dbPath = path.join(engine.agentsDir, agentId, "memory", "facts.db");
+    if (/[\/\\.]/.test(resolvedId)) throw new Error("Invalid agent ID");
+    const dbPath = path.join(engine.agentsDir, resolvedId, "memory", "facts.db");
     try {
       const store = new FactStore(dbPath);
       return { store, isTemp: true };
     } catch (err) {
-      throw new Error(`Cannot open fact DB for agent "${agentId}": ${err.message}`);
+      throw new Error(`Cannot open fact DB for agent "${resolvedId}": ${err.message}`);
     }
   }
 
@@ -341,11 +341,8 @@ export function createConfigRoute(engine) {
   // 读取编译后的 memory.md
   route.get("/memories/compiled", async (c) => {
     try {
-      const agentId = c.req.query("agentId");
       const agent = resolveAgent(engine, c);
-      const mdPath = (!agentId || agentId === engine.currentAgentId)
-        ? engine.memoryMdPath
-        : path.join(engine.agentsDir, agentId, "memory", "memory.md");
+      const mdPath = agent.memoryMdPath;
       const content = await fs.readFile(mdPath, "utf-8").catch(() => "");
       return c.json({ content });
     } catch (err) {
@@ -356,19 +353,16 @@ export function createConfigRoute(engine) {
   // 清除编译产物（today/week/longterm/facts/memory.md + fingerprints）
   route.delete("/memories/compiled", async (c) => {
     try {
-      const agentId = c.req.query("agentId");
-      const isCurrent = !agentId || agentId === engine.currentAgentId;
-      const memDir = isCurrent
-        ? path.dirname(engine.memoryMdPath)
-        : path.join(engine.agentsDir, agentId, "memory");
+      const agent = resolveAgent(engine, c);
+      const memDir = path.dirname(agent.memoryMdPath);
       const targets = ["memory.md", "today.md", "week.md", "longterm.md", "facts.md"];
       for (const f of targets) {
         const p = path.join(memDir, f);
         await fs.writeFile(p, "", "utf-8").catch(() => {});
         await fs.unlink(p + ".fingerprint").catch(() => {});
       }
-      debugLog()?.log("api", `DELETE /api/memories/compiled agent=${agentId || engine.currentAgentId}`);
-      if (isCurrent) await engine.updateConfig({});
+      debugLog()?.log("api", `DELETE /api/memories/compiled agent=${path.basename(agent.agentDir)}`);
+      if (agent === engine.agent) await engine.updateConfig({});
       return c.json({ ok: true });
     } catch (err) {
       return c.json({ error: err.message }, 500);
@@ -379,17 +373,14 @@ export function createConfigRoute(engine) {
   route.delete("/memories", async (c) => {
     let tempStore = null;
     try {
-      const agentId = c.req.query("agentId");
-      const { store, isTemp } = getStoreForAgent(agentId);
+      const agent = resolveAgent(engine, c);
+      const { store, isTemp } = getStoreForAgent(c.req.query("agentId"));
       if (isTemp) tempStore = store;
       store.clearAll();
-      const isCurrent = !agentId || agentId === engine.currentAgentId;
-      const mdPath = isCurrent
-        ? engine.memoryMdPath
-        : path.join(engine.agentsDir, agentId, "memory", "memory.md");
+      const mdPath = agent.memoryMdPath;
       await fs.writeFile(mdPath, "", "utf-8");
-      debugLog()?.log("api", `DELETE /api/memories agent=${agentId || engine.currentAgentId}`);
-      if (!isTemp) await engine.updateConfig({});
+      debugLog()?.log("api", `DELETE /api/memories agent=${path.basename(agent.agentDir)}`);
+      if (agent === engine.agent) await engine.updateConfig({});
       return c.json({ ok: true });
     } catch (err) {
       return c.json({ error: err.message }, 500);
