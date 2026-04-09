@@ -178,14 +178,14 @@ export class Hub {
   }
 
   /**
-   * Agent 切换前暂停：只停 heartbeat（cron 全 agent 并发，不中断），ChannelRouter 持续跑
+   * Agent 切换前暂停：停所有 heartbeat（cron 全 agent 并发，不中断），ChannelRouter 持续跑
    */
   async pauseForAgentSwitch() {
     await this._scheduler.stopHeartbeat();
   }
 
   /**
-   * Agent 切换完成后恢复：重启新 agent 的 heartbeat，重新注入 handler
+   * Agent 切换完成后恢复：重启所有 agent 的 heartbeat（幂等），重新注入 handler
    */
   resumeAfterAgentSwitch() {
     this._scheduler.startHeartbeat();

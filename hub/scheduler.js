@@ -1,10 +1,8 @@
 /**
  * Scheduler — Heartbeat + Cron 调度（v2）
  *
- * Heartbeat：只跑当前 active agent（有书桌才有心跳）
+ * Heartbeat：所有有 desk 的 agent 各自并行跑，不依赖焦点 agent
  * Cron：所有 agent 独立并发，不随 active agent 切换而中断
- *
- * Agent 切换时只 reload heartbeat，cron 持续跑。
  *
  * 通知策略：agent 自行决定是否调用 notify 工具，scheduler 不做通知判断。
  */
@@ -23,7 +21,7 @@ export class Scheduler {
    */
   constructor({ hub }) {
     this._hub = hub;
-    this._heartbeat = null;
+    this._heartbeats = new Map(); // agentId → heartbeat instance
     this._agentCrons = new Map(); // agentId → CronScheduler
     this._executingJobs = new Map(); // jobId → AbortController（per-job 锁 + abort 控制）
   }
@@ -31,8 +29,11 @@ export class Scheduler {
   /** @returns {import('../core/engine.js').HanaEngine} */
   get _engine() { return this._hub.engine; }
 
-  /** 暴露 heartbeat（给 desk route 的 triggerNow 用） */
-  get heartbeat() { return this._heartbeat; }
+  /** 获取某个 agent 的 heartbeat 实例 */
+  getHeartbeat(agentId) {
+    if (!agentId) return null;
+    return this._heartbeats.get(agentId) ?? null;
+  }
 
   /** 暴露某个 agent 的 cronScheduler */
   getCronScheduler(agentId) {
@@ -69,42 +70,75 @@ export class Scheduler {
     }
   }
 
-  /** Agent 切换：只重建 heartbeat，cron 不中断 */
-  async reloadHeartbeat() {
+  /** 重建 heartbeat（支持指定 agentId 或全量） */
+  async reloadHeartbeat(agentId) {
+    if (agentId) {
+      await this.stopHeartbeat(agentId);
+      const agent = this._engine.getAgent(agentId);
+      if (agent) this._startAgentHeartbeat(agentId, agent);
+      return;
+    }
     await this.stopHeartbeat();
     this.startHeartbeat();
   }
 
   startHeartbeat() {
-    const engine = this._engine;
-    const agent = engine.agent;
+    for (const [agentId, agent] of this._engine.agents || []) {
+      this._startAgentHeartbeat(agentId, agent);
+    }
+  }
+
+  _startAgentHeartbeat(agentId, agent) {
+    if (this._heartbeats.has(agentId)) return; // 幂等
     if (!agent.deskManager || !agent.cronStore) return;
 
+    const engine = this._engine;
     const hbInterval = agent.config?.desk?.heartbeat_interval;
     const hbEnabled = agent.config?.desk?.heartbeat_enabled !== false;
-    this._heartbeat = createHeartbeat({
-      getDeskFiles: () => engine.listDeskFiles(),
-      getWorkspacePath: () => engine.homeCwd,
-      getAgentName: () => engine.agentName,
+    // home_folder 是全局 prefs，不是 per-agent config，所有 agent 共享同一个工作目录
+    const getWorkspace = () => engine.homeCwd;
+    const hb = createHeartbeat({
+      getDeskFiles: () => {
+        try {
+          const dir = getWorkspace();
+          if (!dir || !fs.existsSync(dir)) return [];
+          return fs.readdirSync(dir, { withFileTypes: true })
+            .filter(e => !e.name.startsWith("."))
+            .map(e => {
+              const fp = path.join(dir, e.name);
+              let mtime = 0;
+              try { mtime = fs.statSync(fp).mtimeMs; } catch {}
+              return { name: e.name, isDir: e.isDirectory(), mtime };
+            });
+        } catch { return []; }
+      },
+      getWorkspacePath: getWorkspace,
+      getAgentName: () => agent.agentName,
       registryPath: path.join(agent.deskDir, "jian-registry.json"),
       overwatchPath: path.join(agent.deskDir, "overwatch.md"),
-      onBeat: (prompt) => this._executeActivity(prompt, "heartbeat", null, { withMemory: true }),
+      onBeat: (prompt) => this._executeActivityForAgent(agentId, prompt, "heartbeat", null, { withMemory: true }),
       onJianBeat: (prompt, cwd) => {
         const isZh = getLocale().startsWith("zh");
-        this._executeActivity(prompt, "heartbeat", `${isZh ? "笺" : "jian"}:${path.basename(cwd)}`, { cwd, withMemory: true });
+        this._executeActivityForAgent(agentId, prompt, "heartbeat", `${isZh ? "笺" : "jian"}:${path.basename(cwd)}`, { cwd, withMemory: true });
       },
       intervalMinutes: hbInterval,
       emitDevLog: (text, level) => engine.emitDevLog(text, level),
       locale: agent.config?.locale,
     });
-    if (hbEnabled) this._heartbeat.start();
+    this._heartbeats.set(agentId, hb);
+    if (hbEnabled) hb.start();
   }
 
-  async stopHeartbeat() {
-    if (this._heartbeat) {
-      await this._heartbeat.stop();
-      this._heartbeat = null;
+  async stopHeartbeat(agentId) {
+    if (agentId) {
+      const hb = this._heartbeats.get(agentId);
+      if (hb) { await hb.stop(); this._heartbeats.delete(agentId); }
+      return;
     }
+    for (const [, hb] of this._heartbeats) {
+      await hb.stop();
+    }
+    this._heartbeats.clear();
   }
 
   // ──────────── Per-agent Cron ────────────
@@ -270,10 +304,4 @@ export class Scheduler {
     engine.emitDevLog(`活动记录: ${entry.summary}`, "heartbeat");
   }
 
-  /**
-   * active agent 的心跳活动（保留向后兼容）
-   */
-  _executeActivity(prompt, type, label, opts = {}) {
-    return this._executeActivityForAgent(this._engine.currentAgentId, prompt, type, label, opts);
-  }
 }

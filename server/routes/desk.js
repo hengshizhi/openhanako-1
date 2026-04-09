@@ -211,7 +211,8 @@ export function createDeskRoute(engine, hub) {
 
   /** 手动触发心跳巡检（调试用） */
   route.post("/desk/heartbeat", async (c) => {
-    const hb = hub?.scheduler?.heartbeat;
+    const agentId = c.req.query("agentId") || engine.currentAgentId;
+    const hb = hub?.scheduler?.getHeartbeat(agentId);
     if (!hb) return c.json({ error: "Heartbeat not initialized" });
     hb.triggerNow();
     return c.json({ ok: true, message: t("error.heartbeatTriggered") });

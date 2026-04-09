@@ -311,15 +311,16 @@ export class ConfigCoordinator {
       this._d.getSkills().syncAgentSkills(agent);
     }
 
-    // desk（heartbeat 等）只在焦点 agent 时联动
-    if (isFocusAgent && partial.desk) {
+    // desk（heartbeat 等）联动对应 agent 的 heartbeat
+    if (partial.desk) {
       const scheduler = this._d.getHub()?.scheduler;
+      const resolvedAgentId = agentId || this._d.getActiveAgentId?.();
       if ("heartbeat_interval" in partial.desk && scheduler) {
         // 间隔变更：需要完整重建 heartbeat（INTERVAL 在创建时固化）
         this._d.emitDevLog(`[heartbeat] 巡检间隔已更新: ${partial.desk.heartbeat_interval} 分钟`);
-        await scheduler.reloadHeartbeat();
+        await scheduler.reloadHeartbeat(resolvedAgentId);
       } else if ("heartbeat_enabled" in partial.desk) {
-        const hb = scheduler?.heartbeat;
+        const hb = scheduler?.getHeartbeat(resolvedAgentId);
         if (hb) {
           if (partial.desk.heartbeat_enabled === false) {
             this._d.emitDevLog("[heartbeat] 巡检已关闭");
