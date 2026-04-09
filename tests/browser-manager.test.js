@@ -272,8 +272,8 @@ describe("BrowserManager multi-instance", () => {
 
     expect(manager._saveColdUrl).toHaveBeenCalledWith(SP1, "https://example.com/page");
     expect(manager.isRunning(SP1)).toBe(false);
-    // session entry should still exist (suspended, not deleted)
-    expect(manager._sessions.has(SP1)).toBe(true);
+    // suspend 后 entry 从 Map 中移除（冷状态已写磁盘，避免僵尸条目累积）
+    expect(manager._sessions.has(SP1)).toBe(false);
   });
 
   it("closeBrowserForSession on running session delegates to close()", async () => {

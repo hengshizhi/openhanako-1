@@ -80,8 +80,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   function getState(sessionPath) {
     if (!sessionPath) return null;
     if (!sessionState.has(sessionPath)) {
-      // 超过上限时，淘汰非流式的最久未访问 entry
-      if (sessionState.size >= MAX_SESSION_STATES) {
+      // 超过上限时，循环淘汰非流式的最久未访问 entry
+      while (sessionState.size >= MAX_SESSION_STATES) {
         let oldest = null;
         let oldestTime = Infinity;
         for (const [sp, ss] of sessionState) {
@@ -91,6 +91,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
           }
         }
         if (oldest) sessionState.delete(oldest);
+        else break; // 全是流式 session，无法淘汰
       }
       sessionState.set(sessionPath, {
         thinkTagParser: new ThinkTagParser(),
@@ -130,12 +131,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     _browserThumbTimer = setInterval(async () => {
       const browser = BrowserManager.instance();
       if (!browser.hasAnyRunning) { stopBrowserThumbPoll(); return; }
-      for (const sp of browser.runningSessions) {
+      await Promise.all(browser.runningSessions.map(async (sp) => {
         const thumbnail = await browser.thumbnail(sp);
         if (thumbnail) {
           broadcast({ type: "browser_status", running: true, url: browser.currentUrl(sp), thumbnail, sessionPath: sp });
         }
-      }
+      }));
     }, 30_000);
   }
   function stopBrowserThumbPoll() {
