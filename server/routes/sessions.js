@@ -180,7 +180,7 @@ export function createSessionsRoute(engine) {
       }
       engine.persistSessionMeta();
 
-      // 从刚设置的焦点读取（此时焦点就是新创建的 session）
+      // 刚由 createSession / createSessionForAgent 同步设置，非竞争读取
       const newSessionPath = engine.currentSessionPath;
       const newAgentId = engine.currentAgentId;
 
@@ -223,7 +223,7 @@ export function createSessionsRoute(engine) {
       }
       // 切换前挂起浏览器（保存当前 session 的浏览器状态）
       const bm = BrowserManager.instance();
-      const suspendPath = oldSessionPath || engine.currentSessionPath;
+      const suspendPath = oldSessionPath;
       if (suspendPath && bm.isRunning(suspendPath)) {
         await bm.suspendForSession(suspendPath);
       }
@@ -242,6 +242,7 @@ export function createSessionsRoute(engine) {
         planMode: engine.planMode,
         memoryModelUnavailableReason: engine.memoryModelUnavailableReason || null,
         cwd: engine.cwd,
+        // 刚由 switchSession 同步设置，非竞争读取
         agentId: engine.currentAgentId,
         agentName: engine.agentName,
         browserRunning: bm.isRunning(sessionPath),

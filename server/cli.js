@@ -32,6 +32,7 @@ export function startCLI({ port, token, agentName, userName }) {
   let currentMood = "";
   let inMood = false;
   let inThinking = false;
+  let sessionPath = null;
 
   // ── HTTP 工具 ──
   async function api(path, opts = {}) {
@@ -48,7 +49,19 @@ export function startCLI({ port, token, agentName, userName }) {
   function connect() {
     ws = new WebSocket(wsUrl);
 
-    ws.on("open", () => {
+    ws.on("open", async () => {
+      // 获取当前 session 或创建新 session
+      try {
+        const sessions = await api("/api/sessions");
+        if (sessions.length > 0) {
+          sessionPath = sessions[0].path;
+        } else {
+          const data = await api("/api/sessions/new", { method: "POST" });
+          sessionPath = data.path || null;
+        }
+      } catch (err) {
+        console.error(`${c.red}${t("cli.error", { msg: err.message })}${c.reset}`);
+      }
       showPrompt();
     });
 
@@ -174,7 +187,7 @@ ${c.red}${t("cli.error", { msg: msg.message })}${c.reset}
 
       // ESC
       if (keyStr === "\x1b" && isStreaming) {
-        ws.send(JSON.stringify({ type: "abort" }));
+        ws.send(JSON.stringify({ type: "abort", sessionPath }));
         process.stdout.write(`
 ${c.dim}${t("cli.interrupted")}${c.reset}
 `);
@@ -187,7 +200,7 @@ ${c.dim}${t("cli.interrupted")}${c.reset}
       // Ctrl+C
       if (keyStr === "\x03") {
         if (isStreaming) {
-          ws.send(JSON.stringify({ type: "abort" }));
+          ws.send(JSON.stringify({ type: "abort", sessionPath }));
           isStreaming = false;
           inThinking = false;
           process.stdout.write(`
@@ -231,7 +244,7 @@ ${c.dim}${t("cli.goodbye")}${c.reset}`);
     }
 
     // 发送消息
-    ws.send(JSON.stringify({ type: "prompt", text: line }));
+    ws.send(JSON.stringify({ type: "prompt", text: line, sessionPath }));
   });
 
   // ── 斜杠命令 ──
@@ -314,7 +327,8 @@ ${c.bold}${t("cli.helpTitle")}${c.reset}
 
       case "session": {
         if (args[0] === "new") {
-          await api("/api/sessions/new", { method: "POST" });
+          const newData = await api("/api/sessions/new", { method: "POST" });
+          if (newData.path) sessionPath = newData.path;
           console.log(`${c.green}${t("cli.sessionCreated")}${c.reset}`);
           showPrompt();
         } else if (args[0] === "list") {

@@ -109,7 +109,7 @@ export async function switchSession(path: string): Promise<void> {
     const res = await hanaFetch('/api/sessions/switch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path, currentSessionPath: s.currentSessionPath }),
     });
     const data = await res.json();
     if (myVersion !== _switchVersion) return;
@@ -194,7 +194,7 @@ export async function switchSession(path: string): Promise<void> {
     import('../services/websocket').then(({ getWebSocket }) => {
       const wsConn = getWebSocket();
       if (wsConn?.readyState === WebSocket.OPEN) {
-        wsConn.send(JSON.stringify({ type: 'context_usage' }));
+        wsConn.send(JSON.stringify({ type: 'context_usage', sessionPath: path }));
       }
     });
   } catch (err) {
@@ -260,6 +260,7 @@ export async function ensureSession(): Promise<boolean> {
     if (s.selectedAgentId && s.selectedAgentId !== s.currentAgentId) {
       body.agentId = s.selectedAgentId;
     }
+    body.currentSessionPath = s.currentSessionPath;
 
     const res = await hanaFetch('/api/sessions/new', {
       method: 'POST',

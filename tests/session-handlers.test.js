@@ -38,8 +38,8 @@ function registerHandlers(bus, engine) {
     if (!text || typeof text !== "string" || !text.trim()) {
       throw new Error("text is required");
     }
-    const sp = sessionPath || engine.currentSessionPath;
-    if (!sp) throw new Error("no active session");
+    const sp = sessionPath;
+    if (!sp) throw new Error("sessionPath is required for session:send");
     if (engine.isSessionStreaming(sp)) throw new Error("session_busy");
     engine.promptSession(sp, text, opts).catch(err => {
       console.error("[Hub] session:send promptSession error:", err.message);
@@ -50,7 +50,7 @@ function registerHandlers(bus, engine) {
 
   // session:abort
   cleanups.push(bus.handle("session:abort", async ({ sessionPath } = {}) => {
-    const sp = sessionPath || engine.currentSessionPath;
+    const sp = sessionPath;
     if (!sp) return { aborted: false };
     const result = await engine.abortSession(sp);
     return { aborted: !!result };
@@ -144,12 +144,13 @@ beforeEach(() => {
 
 describe("session:send", () => {
   it("sends prompt and returns accepted", async () => {
-    const result = await bus.request("session:send", { text: "hello" });
-    expect(result).toEqual({ sessionPath: "/agents/agent1/sessions/current.jsonl", accepted: true });
+    const sp = "/agents/agent1/sessions/current.jsonl";
+    const result = await bus.request("session:send", { text: "hello", sessionPath: sp });
+    expect(result).toEqual({ sessionPath: sp, accepted: true });
     // promptSession called fire-and-forget — give microtasks a tick
     await Promise.resolve();
     expect(mockEngine.promptSession).toHaveBeenCalledWith(
-      "/agents/agent1/sessions/current.jsonl",
+      sp,
       "hello",
       {},
     );
@@ -164,10 +165,9 @@ describe("session:send", () => {
     expect(result.accepted).toBe(true);
   });
 
-  it("defaults to focus session (currentSessionPath)", async () => {
-    mockEngine.currentSessionPath = "/agents/agentX/sessions/x.jsonl";
-    const result = await bus.request("session:send", { text: "test" });
-    expect(result.sessionPath).toBe("/agents/agentX/sessions/x.jsonl");
+  it("throws when sessionPath is missing (no focus fallback)", async () => {
+    await expect(bus.request("session:send", { text: "test" }))
+      .rejects.toThrow("sessionPath is required for session:send");
   });
 
   it("throws when text is empty", async () => {
@@ -182,7 +182,7 @@ describe("session:send", () => {
 
   it("throws session_busy when isSessionStreaming returns true", async () => {
     mockEngine.isSessionStreaming.mockReturnValue(true);
-    await expect(bus.request("session:send", { text: "hello" }))
+    await expect(bus.request("session:send", { text: "hello", sessionPath: "/agents/agent1/sessions/current.jsonl" }))
       .rejects.toThrow("session_busy");
   });
 
@@ -191,7 +191,7 @@ describe("session:send", () => {
     const errorEvents = [];
     bus.subscribe(ev => errorEvents.push(ev), { types: ["error"] });
 
-    await bus.request("session:send", { text: "hello" });
+    await bus.request("session:send", { text: "hello", sessionPath: "/agents/agent1/sessions/current.jsonl" });
     // allow the .catch to run
     await new Promise(r => setTimeout(r, 0));
 
@@ -211,12 +211,11 @@ describe("session:abort", () => {
     expect(mockEngine.abortSession).toHaveBeenCalledWith("/agents/a1/sessions/s.jsonl");
   });
 
-  it("defaults to focus session", async () => {
+  it("returns aborted: false when sessionPath is missing (no focus fallback)", async () => {
     mockEngine.currentSessionPath = "/agents/focus/sessions/f.jsonl";
-    mockEngine.abortSession.mockResolvedValue(true);
     const result = await bus.request("session:abort", {});
-    expect(result).toEqual({ aborted: true });
-    expect(mockEngine.abortSession).toHaveBeenCalledWith("/agents/focus/sessions/f.jsonl");
+    expect(result).toEqual({ aborted: false });
+    expect(mockEngine.abortSession).not.toHaveBeenCalled();
   });
 
   it("returns aborted: false when no session available", async () => {

@@ -39,7 +39,7 @@ export function ContextRing() {
     if (compacting) return;
     const ws = getWebSocket();
     if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'compact' }));
+      ws.send(JSON.stringify({ type: 'compact', sessionPath: useStore.getState().currentSessionPath }));
     }
   }, [compacting]);
 

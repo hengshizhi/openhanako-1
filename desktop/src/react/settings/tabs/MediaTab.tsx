@@ -26,7 +26,8 @@ export function MediaTab() {
 
   const load = useCallback(async () => {
     try {
-      const res = await hanaFetch('/api/plugins/image-gen/providers');
+      const agentId = useSettingsStore.getState().getSettingsAgentId();
+      const res = await hanaFetch(`/api/plugins/image-gen/providers?agentId=${agentId}`);
       const data = await res.json();
       setProviders(data.providers || {});
       setConfig(data.config || {});
@@ -47,7 +48,8 @@ export function MediaTab() {
 
   const saveConfig = async (updates: Partial<MediaConfig>) => {
     try {
-      await hanaFetch('/api/plugins/image-gen/config', {
+      const agentId = useSettingsStore.getState().getSettingsAgentId();
+      await hanaFetch(`/api/plugins/image-gen/config?agentId=${agentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),

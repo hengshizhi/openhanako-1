@@ -10,6 +10,7 @@ interface Props {
 
 export function PluginWidgetView({ pluginId }: Props) {
   const widgets = useStore(st => st.pluginWidgets);
+  const agentId = useStore(st => st.currentAgentId);
   const widget = useMemo(() => widgets.find(w => w.pluginId === pluginId), [widgets, pluginId]);
 
   const iframeSrc = useMemo(() => {
@@ -18,8 +19,8 @@ export function PluginWidgetView({ pluginId }: Props) {
     const cssUrl = hanaUrl(`/api/plugins/theme.css?theme=${encodeURIComponent(theme)}`);
     const fullUrl = hanaUrl(widget.routeUrl);
     const sep = fullUrl.includes('?') ? '&' : '?';
-    return `${fullUrl}${sep}hana-theme=${encodeURIComponent(theme)}&hana-css=${encodeURIComponent(cssUrl)}`;
-  }, [widget?.routeUrl]);
+    return `${fullUrl}${sep}agentId=${encodeURIComponent(agentId || '')}&hana-theme=${encodeURIComponent(theme)}&hana-css=${encodeURIComponent(cssUrl)}`;
+  }, [widget?.routeUrl, agentId]);
 
   const { iframeRef, status, retry } = usePluginIframe(iframeSrc);
 

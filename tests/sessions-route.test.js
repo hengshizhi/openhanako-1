@@ -68,7 +68,7 @@ describe("sessions route", () => {
     const res = await app.request("/api/sessions/switch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: "/tmp/agents/a/sessions/new.jsonl" }),
+      body: JSON.stringify({ path: "/tmp/agents/a/sessions/new.jsonl", currentSessionPath: "/tmp/agents/a/sessions/old.jsonl" }),
     });
 
     const data = await res.json();

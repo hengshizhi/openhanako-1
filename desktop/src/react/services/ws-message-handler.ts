@@ -116,7 +116,7 @@ export function handleServerMessage(msg: any): void {
       loadSessionsAction();
       const ws = getWebSocket();
       if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'context_usage' }));
+        ws.send(JSON.stringify({ type: 'context_usage', sessionPath: msg.sessionPath || useStore.getState().currentSessionPath }));
       }
     }
     // tool_end 后更新 todo

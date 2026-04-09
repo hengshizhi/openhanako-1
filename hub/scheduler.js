@@ -37,11 +37,9 @@ export class Scheduler {
 
   /** 暴露某个 agent 的 cronScheduler */
   getCronScheduler(agentId) {
-    return this._agentCrons.get(agentId ?? this._engine.currentAgentId) ?? null;
+    if (!agentId) return null;
+    return this._agentCrons.get(agentId) ?? null;
   }
-
-  /** @deprecated 兼容旧访问 */
-  get cronScheduler() { return this.getCronScheduler(); }
 
   // ──────────── 生命周期 ────────────
 

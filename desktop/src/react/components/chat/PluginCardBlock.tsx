@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { hanaUrl } from '../../hooks/use-hana-fetch';
+import { useStore } from '../../stores';
 import type { PluginCardDetails } from '../../types';
 import s from './PluginCardBlock.module.css';
 
@@ -18,6 +19,7 @@ export function PluginCardBlock({ card }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
+  const agentId = useStore(st => st.currentAgentId);
 
   // Compute initial size from aspectRatio hint; 0 means unknown
   const ratio = parseRatio(card.aspectRatio);
@@ -36,8 +38,8 @@ export function PluginCardBlock({ card }: Props) {
     const cssUrl = hanaUrl(`/api/plugins/theme.css?theme=${encodeURIComponent(theme)}`);
     const base = hanaUrl(`/api/plugins/${card.pluginId}${card.route}`);
     const sep = base.includes('?') ? '&' : '?';
-    return `${base}${sep}hana-theme=${encodeURIComponent(theme)}&hana-css=${encodeURIComponent(cssUrl)}`;
-  }, [card.pluginId, card.route, isIframe]);
+    return `${base}${sep}agentId=${encodeURIComponent(agentId || '')}&hana-theme=${encodeURIComponent(theme)}&hana-css=${encodeURIComponent(cssUrl)}`;
+  }, [card.pluginId, card.route, isIframe, agentId]);
 
   useEffect(() => {
     if (!isIframe) return;

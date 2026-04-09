@@ -235,8 +235,8 @@ export class Hub {
       if (!text || typeof text !== "string" || !text.trim()) {
         throw new Error("text is required");
       }
-      const sp = sessionPath || engine.currentSessionPath;
-      if (!sp) throw new Error("no active session");
+      const sp = sessionPath;
+      if (!sp) throw new Error("sessionPath is required for session:send");
       if (engine.isSessionStreaming(sp)) throw new Error("session_busy");
       engine.promptSession(sp, text, opts).catch(err => {
         console.error("[Hub] session:send promptSession error:", err.message);
@@ -247,7 +247,7 @@ export class Hub {
 
     // ── session:abort ──
     this._sessionHandlerCleanups.push(bus.handle("session:abort", async ({ sessionPath } = {}) => {
-      const sp = sessionPath || engine.currentSessionPath;
+      const sp = sessionPath;
       if (!sp) return { aborted: false };
       const result = await engine.abortSession(sp);
       return { aborted: !!result };

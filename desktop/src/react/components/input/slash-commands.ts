@@ -6,6 +6,7 @@
 
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { getWebSocket } from '../../services/websocket';
+import { useStore } from '../../stores';
 
 // ── Xing Prompt ──
 
@@ -76,7 +77,7 @@ export function executeCompact(
     try {
       const ws = getWebSocket();
       if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'compact' }));
+        ws.send(JSON.stringify({ type: 'compact', sessionPath: useStore.getState().currentSessionPath }));
       }
     } finally {
       setTimeout(() => setBusy(null), 1500);

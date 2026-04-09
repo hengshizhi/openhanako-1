@@ -1168,8 +1168,23 @@ const SNAPSHOT_SCRIPT = `(function() {
   };
 })()`;
 
+/** 按 sessionPath 查找 view，fallback 到当前活跃 view（兼容旧调用） */
+function _getViewForSession(sessionPath) {
+  if (sessionPath && _browserViews.has(sessionPath)) {
+    return _browserViews.get(sessionPath);
+  }
+  return _browserWebView;
+}
+
+/** 确保指定 session 有 browser view */
+function _ensureBrowserForSession(sessionPath) {
+  const view = _getViewForSession(sessionPath);
+  if (!view) throw new Error("No browser instance" + (sessionPath ? ` for session ${sessionPath}` : ""));
+  return view;
+}
+
 function _ensureBrowser() {
-  if (!_browserWebView) throw new Error("Browser not launched. Call start first.");
+  return _ensureBrowserForSession(null);
 }
 
 function _delay(ms) {
@@ -1209,7 +1224,12 @@ async function handleBrowserCommand(cmd, params) {
 
     // ── launch ──
     case "launch": {
-      if (_browserWebView) return {};
+      const sp = params.sessionPath || null;
+      // 该 session 已有 view → 直接返回
+      if (sp && _browserViews.has(sp)) return {};
+      // 无 sessionPath 且已有活跃 view → 直接返回（兼容旧调用）
+      if (!sp && _browserWebView) return {};
+
       const ses = session.fromPartition("persist:hana-browser");
       const view = new WebContentsView({
         webPreferences: {
@@ -1220,9 +1240,13 @@ async function handleBrowserCommand(cmd, params) {
         },
       });
 
-      // 监听导航事件，实时更新 URL 栏
-      view.webContents.on("did-navigate", (_e, url) => _notifyViewerUrl(url));
-      view.webContents.on("did-navigate-in-page", (_e, url) => _notifyViewerUrl(url));
+      // 监听导航事件，实时更新 URL 栏（只在该 view 是活跃 view 时通知）
+      view.webContents.on("did-navigate", (_e, url) => {
+        if (view === _browserWebView) _notifyViewerUrl(url);
+      });
+      view.webContents.on("did-navigate-in-page", (_e, url) => {
+        if (view === _browserWebView) _notifyViewerUrl(url);
+      });
 
       // 在新窗口中打开链接（target=_blank）时，在当前视图中打开
       view.webContents.setWindowOpenHandler(({ url }) => {
@@ -1232,51 +1256,56 @@ async function handleBrowserCommand(cmd, params) {
         return { action: "deny" };
       });
 
-      // 页面标题变化时更新标题栏
+      // 页面标题变化时更新标题栏（只在该 view 是活跃 view 时通知）
       view.webContents.on("page-title-updated", () => {
-        _notifyViewerUrl(view.webContents.getURL());
+        if (view === _browserWebView) _notifyViewerUrl(view.webContents.getURL());
       });
 
       // 卡片圆角
       view.setBorderRadius(10);
 
-      // 绑定到 session
-      _browserWebView = view;
-      _currentBrowserSession = params.sessionPath || null;
-      if (_currentBrowserSession) {
-        _browserViews.set(_currentBrowserSession, view);
-      }
+      // 存入 Map
+      if (sp) _browserViews.set(sp, view);
 
-      // 始终静默创建窗口（不弹出），等用户手动点击才 show
-      createBrowserViewerWindow({ show: false });
-      // 如果 HTML 已加载完毕（窗口复用），did-finish-load 不会再触发，手动挂载
-      if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
-        try { browserViewerWindow.contentView.removeChildView(_browserWebView); } catch {}
-        browserViewerWindow.contentView.addChildView(_browserWebView);
-        _updateBrowserViewBounds();
-        console.log("[browser] launch: view 已挂载 (silent), bounds:", _browserWebView.getBounds());
-        setTimeout(() => {
-          if (_browserWebView) {
-            _browserWebView.webContents.focus();
-          }
-        }, 300);
+      // 如果当前没有活跃 view，设为活跃（挂载到窗口）
+      if (!_browserWebView) {
+        _browserWebView = view;
+        _currentBrowserSession = sp;
+
+        // 始终静默创建窗口（不弹出），等用户手动点击才 show
+        createBrowserViewerWindow({ show: false });
+        // 如果 HTML 已加载完毕（窗口复用），did-finish-load 不会再触发，手动挂载
+        if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
+          try { browserViewerWindow.contentView.removeChildView(_browserWebView); } catch {}
+          browserViewerWindow.contentView.addChildView(_browserWebView);
+          _updateBrowserViewBounds();
+          console.log("[browser] launch: view 已挂载 (silent), bounds:", _browserWebView.getBounds());
+          setTimeout(() => {
+            if (_browserWebView) {
+              _browserWebView.webContents.focus();
+            }
+          }, 300);
+        }
       }
+      // 否则，新 view 只存在 Map 中，不挂载到窗口（后台可操作）
       return {};
     }
 
-    // ── close ──（真正销毁当前浏览器实例）
+    // ── close ──（真正销毁指定 session 的浏览器实例）
     case "close": {
-      if (_browserWebView) {
-        if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
-          try { browserViewerWindow.contentView.removeChildView(_browserWebView); } catch {}
+      const sp = params.sessionPath;
+      const view = sp ? _browserViews.get(sp) : _browserWebView;
+      if (view) {
+        // 如果是当前活跃 view，从窗口移除
+        if (view === _browserWebView) {
+          if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
+            try { browserViewerWindow.contentView.removeChildView(view); } catch {}
+          }
+          _browserWebView = null;
+          _currentBrowserSession = null;
         }
-        _browserWebView.webContents.close();
-        // 从 Map 中移除
-        if (_currentBrowserSession) {
-          _browserViews.delete(_currentBrowserSession);
-        }
-        _browserWebView = null;
-        _currentBrowserSession = null;
+        view.webContents.close();
+        if (sp) _browserViews.delete(sp);
       }
       // 通知浮窗状态变化，但不自动隐藏（让用户自己决定关不关）
       if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
@@ -1287,14 +1316,17 @@ async function handleBrowserCommand(cmd, params) {
 
     // ── suspend ──（从窗口摘下来，但不销毁，页面状态完全保留）
     case "suspend": {
-      if (_browserWebView) {
+      const sp = params.sessionPath;
+      const view = sp ? _browserViews.get(sp) : _browserWebView;
+      if (view && view === _browserWebView) {
+        // 只有当前活跃 view 需要从窗口摘下
         if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
-          try { browserViewerWindow.contentView.removeChildView(_browserWebView); } catch {}
+          try { browserViewerWindow.contentView.removeChildView(view); } catch {}
         }
-        // view 留在 _browserViews Map 里，不 close
         _browserWebView = null;
         _currentBrowserSession = null;
       }
+      // 非活跃 view 本来就不在窗口上，suspend 是 no-op（view 留在 Map 里）
       if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
         browserViewerWindow.webContents.send("browser-update", { running: false });
       }
@@ -1330,8 +1362,8 @@ async function handleBrowserCommand(cmd, params) {
       if (!isAllowedBrowserUrl(params.url)) {
         throw new Error("Only http/https URLs are allowed");
       }
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const wc = view.webContents;
       const NAV_TIMEOUT = 30000;
       await Promise.race([
         wc.loadURL(params.url),
@@ -1347,23 +1379,23 @@ async function handleBrowserCommand(cmd, params) {
 
     // ── snapshot ──
     case "snapshot": {
-      _ensureBrowser();
-      const snap = await _browserWebView.webContents.executeJavaScript(SNAPSHOT_SCRIPT);
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const snap = await view.webContents.executeJavaScript(SNAPSHOT_SCRIPT);
       return { currentUrl: snap.currentUrl, text: snap.text };
     }
 
     // ── screenshot ──
     case "screenshot": {
-      _ensureBrowser();
-      const img = await _browserWebView.webContents.capturePage();
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const img = await view.webContents.capturePage();
       const jpeg = img.toJPEG(75);
       return { base64: jpeg.toString("base64") };
     }
 
     // ── thumbnail ──
     case "thumbnail": {
-      _ensureBrowser();
-      const img = await _browserWebView.webContents.capturePage();
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const img = await view.webContents.capturePage();
       const resized = img.resize({ width: 400 });
       const jpeg = resized.toJPEG(60);
       return { base64: jpeg.toString("base64") };
@@ -1371,8 +1403,8 @@ async function handleBrowserCommand(cmd, params) {
 
     // ── click ──
     case "click": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const wc = view.webContents;
       const clickRef = Number(params.ref);
       await wc.executeJavaScript(
         "(function(){ var el = document.querySelector('[data-hana-ref=\"" + clickRef + "\"]');" +
@@ -1386,8 +1418,8 @@ async function handleBrowserCommand(cmd, params) {
 
     // ── type ──
     case "type": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const wc = view.webContents;
       if (params.ref != null) {
         const typeRef = Number(params.ref);
         await wc.executeJavaScript(
@@ -1412,8 +1444,8 @@ async function handleBrowserCommand(cmd, params) {
 
     // ── scroll ──
     case "scroll": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const wc = view.webContents;
       const delta = (params.direction === "up" ? -1 : 1) * (params.amount || 3) * 300;
       await wc.executeJavaScript("window.scrollBy({top:" + delta + ",behavior:'smooth'})");
       await _delay(500);
@@ -1423,8 +1455,8 @@ async function handleBrowserCommand(cmd, params) {
 
     // ── select ──
     case "select": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const wc = view.webContents;
       const selRef = Number(params.ref);
       const safeValue = JSON.stringify(params.value);
       await wc.executeJavaScript(
@@ -1440,8 +1472,8 @@ async function handleBrowserCommand(cmd, params) {
 
     // ── pressKey ──
     case "pressKey": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const wc = view.webContents;
       const parts = params.key.split("+");
       const keyCode = parts[parts.length - 1];
       const modifiers = parts.slice(0, -1).map(function(m) { return m.toLowerCase(); });
@@ -1456,10 +1488,10 @@ async function handleBrowserCommand(cmd, params) {
 
     // ── wait ──
     case "wait": {
-      _ensureBrowser();
+      const view = _ensureBrowserForSession(params.sessionPath);
       const timeout = Math.min(params.timeout || 5000, 10000);
       await _delay(timeout);
-      const snap = await _browserWebView.webContents.executeJavaScript(SNAPSHOT_SCRIPT);
+      const snap = await view.webContents.executeJavaScript(SNAPSHOT_SCRIPT);
       return { currentUrl: snap.currentUrl, text: snap.text };
     }
 
@@ -1469,25 +1501,43 @@ async function handleBrowserCommand(cmd, params) {
         throw new Error("Expression too long (max 10000 chars)");
       }
       console.log(`[browser:evaluate] ${params.expression.slice(0, 200)}${params.expression.length > 200 ? "..." : ""}`);
-      _ensureBrowser();
-      const result = await _browserWebView.webContents.executeJavaScript(params.expression);
+      const view = _ensureBrowserForSession(params.sessionPath);
+      const result = await view.webContents.executeJavaScript(params.expression);
       const serialized = typeof result === "string" ? result : JSON.stringify(result, null, 2);
       return { value: serialized || "undefined" };
     }
 
-    // ── show ──
+    // ── show ──（按 sessionPath 切换显示的 view 并弹出窗口）
     case "show": {
+      const sp = params.sessionPath;
+      const view = sp ? _browserViews.get(sp) : _browserWebView;
+      if (!view) return {};
+
+      // 如果不是当前活跃 view，先切换
+      if (view !== _browserWebView) {
+        // 摘下旧 view
+        if (_browserWebView && browserViewerWindow && !browserViewerWindow.isDestroyed()) {
+          try { browserViewerWindow.contentView.removeChildView(_browserWebView); } catch {}
+        }
+        _browserWebView = view;
+        _currentBrowserSession = sp;
+        if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
+          browserViewerWindow.contentView.addChildView(view);
+          _updateBrowserViewBounds();
+        }
+      }
+
       if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
         browserViewerWindow.show();
         browserViewerWindow.focus();
         // 延迟 focus：等窗口完全显示后再转移焦点到 WebContentsView
-        if (_browserWebView) {
-          _browserWebView.webContents.focus();
-          setTimeout(() => {
-            if (_browserWebView) _browserWebView.webContents.focus();
-          }, 100);
-        }
-      } else if (_browserWebView) {
+        view.webContents.focus();
+        setTimeout(() => {
+          if (view === _browserWebView) view.webContents.focus();
+        }, 100);
+      } else {
+        _browserWebView = view;
+        _currentBrowserSession = sp;
         createBrowserViewerWindow();
       }
       return {};
