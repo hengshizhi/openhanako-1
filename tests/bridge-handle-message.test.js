@@ -39,8 +39,9 @@ function createMocks() {
   };
 
   const engine = {
-    getPreferences: vi.fn().mockReturnValue({
-      bridge: { owner: { telegram: "owner123" } },
+    getAgent: vi.fn().mockImplementation((id) => {
+      if (id === "hana") return { agentName: "TestAgent", config: { bridge: { telegram: { owner: "owner123" } } } };
+      return null;
     }),
     isBridgeSessionStreaming: vi.fn().mockReturnValue(false),
     abortBridgeSession: vi.fn().mockResolvedValue(false),
@@ -56,8 +57,8 @@ function createMocks() {
   };
 
   const bm = new BridgeManager({ engine, hub });
-  // Inject mock adapter directly (bypass startPlatform)
-  bm._platforms.set("telegram", { adapter, status: "connected", agentId: "hana", platform: "telegram" });
+  // Inject mock adapter directly (bypass startPlatform) — use composite key
+  bm._platforms.set("telegram:hana", { adapter, status: "connected", agentId: "hana", platform: "telegram" });
   // Disable block streaming for simpler assertions
   bm.blockStreaming = false;
 
@@ -318,7 +319,15 @@ describe("BridgeManager._handleMessage", () => {
 
   describe("agent isolation via sessionKey", () => {
     it("same userId with different agentId produces different sessionKeys", async () => {
-      const { bm, hub } = createMocks();
+      const { bm, hub, engine } = createMocks();
+      // Register a second agent adapter
+      const kuroAdapter = { sendReply: vi.fn().mockResolvedValue(), sendBlockReply: vi.fn().mockResolvedValue(), stop: vi.fn() };
+      bm._platforms.set("telegram:kuro", { adapter: kuroAdapter, status: "connected", agentId: "kuro", platform: "telegram" });
+      engine.getAgent.mockImplementation((id) => {
+        if (id === "hana") return { agentName: "TestAgent", config: { bridge: { telegram: { owner: "owner123" } } } };
+        if (id === "kuro") return { agentName: "Kuro", config: { bridge: { telegram: { owner: "owner123" } } } };
+        return null;
+      });
 
       bm._handleMessage("telegram", {
         sessionKey: "tg_dm_owner123@hana",
@@ -351,7 +360,15 @@ describe("BridgeManager._handleMessage", () => {
     });
 
     it("messages are properly isolated between agents (debounce per sessionKey)", async () => {
-      const { bm, hub } = createMocks();
+      const { bm, hub, engine } = createMocks();
+      // Register a second agent adapter
+      const kuroAdapter = { sendReply: vi.fn().mockResolvedValue(), sendBlockReply: vi.fn().mockResolvedValue(), stop: vi.fn() };
+      bm._platforms.set("telegram:kuro", { adapter: kuroAdapter, status: "connected", agentId: "kuro", platform: "telegram" });
+      engine.getAgent.mockImplementation((id) => {
+        if (id === "hana") return { agentName: "TestAgent", config: { bridge: { telegram: { owner: "owner123" } } } };
+        if (id === "kuro") return { agentName: "Kuro", config: { bridge: { telegram: { owner: "owner123" } } } };
+        return null;
+      });
 
       // Send two messages with different agentIds — they should NOT merge
       bm._handleMessage("telegram", {

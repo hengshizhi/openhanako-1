@@ -383,7 +383,7 @@ try {
   }
 
   // 自动启动已配置的外部平台
-  bridgeManager.autoStart();
+  bridgeManager.autoStart(engine.agents);
   dlog.log("server", "bridge autoStart done");
 
   // 通知就绪（server-info.json 已在上方写入，无需额外动作）
