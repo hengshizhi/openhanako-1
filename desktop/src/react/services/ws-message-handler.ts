@@ -116,13 +116,19 @@ export function handleServerMessage(msg: any): void {
       loadSessionsAction();
       const ws = getWebSocket();
       if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'context_usage', sessionPath: msg.sessionPath || useStore.getState().currentSessionPath }));
+        const turnSp = msg.sessionPath;
+        if (turnSp) {
+          ws.send(JSON.stringify({ type: 'context_usage', sessionPath: turnSp }));
+        } else {
+          console.warn('[ws] turn_end missing sessionPath, skipping context_usage request');
+        }
       }
     }
     // tool_end 后更新 todo
     if (msg.type === 'tool_end' && msg.name === 'todo' && msg.details?.todos) {
-      const sp = msg.sessionPath || useStore.getState().currentSessionPath;
-      if (sp) useStore.getState().setSessionTodosForPath(sp, msg.details.todos);
+      const sp = msg.sessionPath;
+      if (!sp) { console.warn('[ws] tool_end(todo) missing sessionPath, skipping'); }
+      else useStore.getState().setSessionTodosForPath(sp, msg.details.todos);
     }
     // compaction_end 后更新 token
     if (msg.type === 'compaction_end') {
@@ -177,16 +183,15 @@ export function handleServerMessage(msg: any): void {
       break;
 
     case 'browser_status': {
-      const bsp = msg.sessionPath || state.currentSessionPath;
+      const bsp = msg.sessionPath;
+      if (!bsp) { console.warn('[ws] event missing sessionPath:', msg.type); break; }
       const bRunning = !!msg.running;
       const bUrl = msg.url || null;
-      const prevThumbnail = bsp ? (state.browserBySession[bsp]?.thumbnail ?? null) : null;
+      const prevThumbnail = state.browserBySession[bsp]?.thumbnail ?? null;
       const bThumbnail = bRunning ? (msg.thumbnail || prevThumbnail) : null;
-      if (bsp) {
-        updateKeyed('browserBySession', bsp,
-          { running: bRunning, url: bUrl, thumbnail: bThumbnail },
-        );
-      }
+      updateKeyed('browserBySession', bsp,
+        { running: bRunning, url: bUrl, thumbnail: bThumbnail },
+      );
       // renderBrowserCard — no-op (browser card rendering handled by React)
       if (window.platform?.updateBrowserViewer) {
         window.platform.updateBrowserViewer({
@@ -199,24 +204,20 @@ export function handleServerMessage(msg: any): void {
     }
 
     case 'browser_bg_status': {
-      const bgSp = msg.sessionPath || state.currentSessionPath;
-      if (bgSp) {
-        const prev = useStore.getState().browserBySession[bgSp] || { running: false, url: null, thumbnail: null };
-        updateKeyed('browserBySession', bgSp,
-          { ...prev, running: !!msg.running },
-        );
-      }
+      const bgSp = msg.sessionPath;
+      if (!bgSp) { console.warn('[ws] event missing sessionPath:', msg.type); break; }
+      const prev = useStore.getState().browserBySession[bgSp] || { running: false, url: null, thumbnail: null };
+      updateKeyed('browserBySession', bgSp,
+        { ...prev, running: !!msg.running },
+      );
       break;
     }
 
     case 'block_update': {
       const { taskId, patch, sessionPath: sp } = msg;
       if (!taskId || !patch) break;
-      // Find the session that contains this block and patch it
-      const targetSp = sp || state.currentSessionPath;
-      if (targetSp) {
-        useStore.getState().patchBlockByTaskId(targetSp, taskId, patch);
-      }
+      if (!sp) { console.warn('[ws] event missing sessionPath:', msg.type); break; }
+      useStore.getState().patchBlockByTaskId(sp, taskId, patch);
       break;
     }
 
@@ -278,8 +279,9 @@ export function handleServerMessage(msg: any): void {
     }
 
     case 'context_usage': {
-      const sp = msg.sessionPath || state.currentSessionPath;
-      if (sp && msg.tokens != null && msg.contextWindow != null) {
+      const sp = msg.sessionPath;
+      if (!sp) { console.warn('[ws] event missing sessionPath:', msg.type); break; }
+      if (msg.tokens != null && msg.contextWindow != null) {
         updateKeyed('contextBySession', sp,
           { tokens: msg.tokens ?? null, window: msg.contextWindow ?? null, percent: msg.percent ?? null },
           (_s, d) => ({ contextTokens: d.tokens, contextWindow: d.window, contextPercent: d.percent }),
@@ -289,10 +291,9 @@ export function handleServerMessage(msg: any): void {
     }
 
     case 'error': {
-      const sp = msg.sessionPath || useStore.getState().currentSessionPath;
-      if (sp) {
-        useStore.setState(s => ({ inlineErrors: { ...s.inlineErrors, [sp]: msg.message } }));
-      }
+      const sp = msg.sessionPath;
+      if (!sp) { console.warn('[ws] event missing sessionPath:', msg.type); break; }
+      useStore.setState(s => ({ inlineErrors: { ...s.inlineErrors, [sp]: msg.message } }));
       break;
     }
 

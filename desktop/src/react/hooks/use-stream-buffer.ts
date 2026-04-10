@@ -151,8 +151,11 @@ class StreamBufferManager {
   // ── 公开事件处理器 ──
 
   handle(msg: any): void {
-    const sessionPath = msg.sessionPath || useStore.getState().currentSessionPath;
-    if (!sessionPath) return;
+    const sessionPath = msg.sessionPath;
+    if (!sessionPath) {
+      console.warn('[ws] stream event missing sessionPath:', msg.type);
+      return;
+    }
     const buf = this.getBuffer(sessionPath);
 
     switch (msg.type) {
