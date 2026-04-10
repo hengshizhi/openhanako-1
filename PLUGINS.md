@@ -28,7 +28,7 @@ export async function execute(input) {
 ```
 
 2. 打开 Hanako → 设置 → 插件，把文件夹拖进安装区（或压缩成 .zip 拖入）
-3. 安装后 Agent 立即可以调用 `my-plugin.hello` 工具
+3. 安装后 Agent 立即可以调用 `my-plugin_hello` 工具
 4. 卸载：在插件页面点删除按钮
 
 ## 安装与管理

@@ -28,7 +28,7 @@ export async function execute(input) {
 ```
 
 2. Open Hanako → Settings → Plugins, drag the folder into the install area (or drag a .zip)
-3. After installation, the Agent can immediately call `my-plugin.hello`
+3. After installation, the Agent can immediately call `my-plugin_hello`
 4. Uninstall: click the delete button on the plugins page
 
 ## Installation & Management

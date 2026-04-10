@@ -45,7 +45,7 @@ OpenHanako 是一个更加易用的 AI agent，有记忆，有性格，会主动
 
 **定时任务与心跳** — Agent 可以设置定时任务（Cron），也会定期巡检书桌上的文件变化。你不在的时候，Ta 也能按计划自主工作。
 
-**安全沙盒** — 双层隔离：应用层 PathGuard 四级访问控制 + 操作系统级沙盒（macOS Seatbelt / Linux Bubblewrap）。Agent 的权限在你的掌控之中。平时只能访问工作目录和一些用户文件，如果你想放开权限，可以点五下关于里面的 HANAKO 图标。
+**安全沙盒** — 双层隔离：应用层 PathGuard 四级访问控制 + 操作系统级沙盒（macOS Seatbelt / Linux Bubblewrap）。Agent 的权限在你的掌控之中。平时只能访问工作目录和一些用户文件，如果你想调整权限，可以在设置 → 安全页面修改沙盒级别。
 
 **插件系统** — 约定优先的可扩展插件架构。拖拽安装社区插件，插件可以贡献工具、技能、命令、Agent 模板、HTTP 路由、事件钩子和 LLM Provider。路由可直接访问核心服务（PluginContext 注入），通过 Session Bus 与 Agent 对话、获取历史、管理 session。两级权限模型（restricted / full-access）保障安全。
 
@@ -76,7 +76,7 @@ Linux 版本计划中。
 ### 首次运行
 
 首次启动时，引导向导会带你完成配置：选择语言、输入你的名字、连接模型提供商（API key + base URL），并选择三个模型：**对话模型**（主对话）、**小工具模型**（摘要等轻量任务）、**大工具模型**（记忆编译和深度分析）。Hanako 使用 OpenAI 兼容协议，支持任意兼容的提供商（OpenAI、DeepSeek、通义千问、Ollama 本地模型等）。
-目前也添加了 OpenAI 和 Minimax 的 OAuth 登录，鉴于 Anthropic 会有封号风险，所以暂时不提供。
+目前也添加了 OpenAI 的 OAuth 登录，鉴于 Anthropic 会有封号风险，所以暂时不提供。
 
 ## 架构
 
@@ -86,10 +86,11 @@ lib/            核心库（记忆、工具、沙盒、Bridge 适配器）
 server/         Hono HTTP + WebSocket 服务（独立 Node.js 进程）
 hub/            调度器、频道路由、事件总线
 desktop/        Electron 应用 + React 前端
+shared/         跨层共享工具（config schema、error bus、模型引用等）
 plugins/        内置系统插件（随应用打包）
-tests/          Vitest 测试
 skills2set/     内置技能定义
 scripts/        构建工具（server 打包、启动器、签名）
+tests/          Vitest 测试
 ```
 
 引擎层协调多个 Manager（Agent、Session、Model、Preferences、Skill、Channel、BridgeSession、Plugin 等），通过统一的 facade 暴露。Hub 负责后台任务（心跳巡检、定时任务、频道路由、Agent 间通信、DM 路由），独立于当前聊天会话运行。

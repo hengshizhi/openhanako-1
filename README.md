@@ -80,10 +80,11 @@ lib/            Core libraries (memory, tools, sandbox, bridge adapters)
 server/         Hono HTTP + WebSocket server (standalone Node.js process)
 hub/            Scheduler, ChannelRouter, EventBus
 desktop/        Electron app + React frontend
+shared/         Cross-layer utilities (config schema, error bus, model refs)
 plugins/        Built-in system plugins (bundled into app)
-tests/          Vitest test suite
 skills2set/     Built-in skill definitions
 scripts/        Build tools (server bundler, launcher, signing)
+tests/          Vitest test suite
 ```
 
 The engine layer coordinates multiple managers (Agent, Session, Model, Preferences, Skill, Channel, BridgeSession, Plugin, etc.) and exposes them through a unified facade. The Hub handles background tasks (heartbeat, cron, channel routing, agent messaging, DM routing) independently of the active chat session.

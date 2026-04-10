@@ -225,6 +225,42 @@ describe("BridgeManager._handleMessage", () => {
         expect.objectContaining({ role: "guest" }),
       );
     });
+
+    it("passes message_id when downloading feishu image attachments", async () => {
+      const { bm, hub } = createMocks();
+      const feishuAdapter = {
+        sendReply: vi.fn().mockResolvedValue(),
+        sendBlockReply: vi.fn().mockResolvedValue(),
+        stop: vi.fn(),
+        downloadImage: vi.fn().mockResolvedValue(Buffer.from([0x89, 0x50, 0x4e, 0x47])),
+      };
+      bm._platforms.set("feishu:hana", { adapter: feishuAdapter, status: "connected", agentId: "hana", platform: "feishu" });
+
+      bm._handleMessage("feishu", {
+        sessionKey: "fs_dm_owner123@hana",
+        text: "",
+        userId: "stranger",
+        senderName: "Stranger",
+        chatId: "oc_123",
+        agentId: "hana",
+        attachments: [{
+          type: "image",
+          platformRef: "img_123",
+          _messageId: "om_123",
+          mimeType: "image/jpeg",
+        }],
+      });
+
+      await vi.advanceTimersByTimeAsync(2100);
+
+      expect(feishuAdapter.downloadImage).toHaveBeenCalledWith("img_123", "om_123");
+      expect(hub.send).toHaveBeenCalledWith(
+        tagged("Stranger: "),
+        expect.objectContaining({
+          images: [expect.objectContaining({ mimeType: "image/png" })],
+        }),
+      );
+    });
   });
 
   // ── Abort ──
