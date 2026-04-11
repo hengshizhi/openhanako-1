@@ -256,6 +256,7 @@ export function createSessionsRoute(engine) {
       // switchSession 已同步设置焦点到目标 session。
       // cwd/planMode/memoryEnabled/model 是 session 级状态，此时读焦点是安全的。
       // agentId/agentName 已从 sessionPath 解析，不依赖焦点。
+      const activeModel = engine.activeSessionModel ?? engine.currentModel;
       return c.json({
         ok: true,
         messageCount: session?.messages?.length || 0,
@@ -268,8 +269,12 @@ export function createSessionsRoute(engine) {
         browserRunning: bm.isRunning(sessionPath),
         browserUrl: bm.currentUrl(sessionPath) || null,
         isStreaming: engine.isSessionStreaming(sessionPath),
-        currentModelId: (engine.activeSessionModel ?? engine.currentModel)?.id || null,
-        currentModelProvider: (engine.activeSessionModel ?? engine.currentModel)?.provider || null,
+        currentModelId: activeModel?.id || null,
+        currentModelProvider: activeModel?.provider || null,
+        currentModelName: activeModel?.name || null,
+        currentModelVision: activeModel?.vision ?? null,
+        currentModelReasoning: activeModel?.reasoning ?? null,
+        currentModelContextWindow: activeModel?.contextWindow ?? null,
       });
     } catch (err) {
       const errDetail = `${err.message}\n${err.stack || ""}`;
