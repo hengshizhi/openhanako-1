@@ -176,7 +176,8 @@ function titleBarOpts(trafficLight = { x: 16, y: 16 }) {
     return { titleBarStyle: "hiddenInset", trafficLightPosition: trafficLight };
   }
   // Windows/Linux：无框窗口 + 前端自绘 window controls
-  return { frame: false };
+  const icoPath = path.join(__dirname, "src", "assets", "tray.ico");
+  return { frame: false, icon: icoPath };
 }
 
 /**
