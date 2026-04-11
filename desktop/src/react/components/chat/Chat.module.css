@@ -1110,16 +1110,19 @@
     animation: subagentPulse 2s ease-in-out infinite;
 }
 
-.subagent-done .subagentName::after {
-    content: " ✓";
-    color: #7a9e7a;
+.subagentStatus {
     font-weight: normal;
+    font-size: 0.75rem;
+    margin-left: 6px;
+    color: var(--text-muted);
 }
 
-.subagent-failed .subagentName::after {
-    content: " ✗";
+.subagent-done .subagentStatus {
+    color: #7a9e7a;
+}
+
+.subagent-failed .subagentStatus {
     color: #a67272;
-    font-weight: normal;
 }
 
 @keyframes subagentPulse {

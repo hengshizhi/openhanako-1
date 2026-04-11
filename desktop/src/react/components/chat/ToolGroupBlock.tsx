@@ -23,9 +23,13 @@ function getToolLabel(name: string, phase: string, agentName: string): string {
   return t?.(`tool._fallback.${phase}`, vars) || name;
 }
 
-export const ToolGroupBlock = memo(function ToolGroupBlock({ tools, collapsed: initialCollapsed, agentName = 'Hanako' }: Props) {
+export const ToolGroupBlock = memo(function ToolGroupBlock({ tools: rawTools, collapsed: initialCollapsed, agentName = 'Hanako' }: Props) {
+  // subagent 有独立卡片，不在工具组里重复显示
+  const tools = rawTools.filter(t => t.name !== 'subagent');
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const toggle = useCallback(() => setCollapsed(v => !v), []);
+
+  if (tools.length === 0) return null;
 
   const allDone = tools.every(t => t.done);
   const failCount = tools.filter(t => t.done && !t.success).length;

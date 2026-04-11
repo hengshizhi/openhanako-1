@@ -114,9 +114,14 @@ export const SubagentCard = memo(function SubagentCard({ block }: SubagentCardPr
         }}
       />
       <div className={styles.subagentBody}>
-        <div className={styles.subagentName}>{agentName}</div>
+        <div className={styles.subagentName}>
+          {agentName}
+          <span className={styles.subagentStatus}>
+            {isInterrupted ? '已中断' : status === 'done' ? '已完成' : status === 'failed' ? '失败' : '已派出'}
+          </span>
+        </div>
         <div className={styles.subagentDisplay}>
-          {isInterrupted ? '已中断' : display}
+          {isInterrupted ? '' : display}
         </div>
       </div>
     </div>
