@@ -2,7 +2,7 @@
  * chat-slice.ts — Per-session 消息数据 + 滚动位置
  */
 
-import type { ChatListItem, ChatMessage, SessionMessages } from './chat-types';
+import type { ChatListItem, ChatMessage, SessionMessages, SessionModel } from './chat-types';
 
 export interface ChatSlice {
   chatSessions: Record<string, SessionMessages>;
@@ -15,6 +15,7 @@ export interface ChatSlice {
   patchBlockByTaskId: (sessionPath: string, taskId: string, patch: Record<string, any>) => void;
   _pendingBlockPatches: Record<string, Record<string, any>>;
 
+  updateSessionModel: (path: string, model: SessionModel) => void;
   setLoadingMore: (path: string, loading: boolean) => void;
   clearSession: (path: string) => void;
   saveScrollPosition: (path: string, scrollTop: number) => void;
@@ -31,7 +32,7 @@ export const createChatSlice = (
 
   initSession: (path, items, hasMore) => set((s) => {
     const sessions = { ...s.chatSessions };
-    sessions[path] = { items, hasMore, loadingMore: false, oldestId: items[0]?.type === 'message' ? items[0].data.id : undefined };
+    sessions[path] = { items, hasMore, loadingMore: false, oldestId: items[0]?.type === 'message' ? items[0].data.id : undefined, model: sessions[path]?.model };
     // LRU 淘汰
     const keys = Object.keys(sessions);
     if (keys.length > MAX_CACHED_SESSIONS) {
@@ -125,6 +126,12 @@ export const createChatSlice = (
       pending[taskId] = { ...(pending[taskId] || {}), ...patch };
     }
   },
+
+  updateSessionModel: (path, model) => set((s) => {
+    const session = s.chatSessions[path];
+    if (!session) return {};
+    return { chatSessions: { ...s.chatSessions, [path]: { ...session, model } } };
+  }),
 
   setLoadingMore: (path, loading) => set((s) => {
     const session = s.chatSessions[path];

@@ -78,6 +78,17 @@ export type ChatListItem =
   | { type: 'message'; data: ChatMessage }
   | { type: 'compaction'; id: string; yuan: string };
 
+// ── Per-session 模型快照 ──
+
+export interface SessionModel {
+  id: string;
+  name: string;
+  provider: string;
+  vision?: boolean;
+  reasoning?: boolean;
+  contextWindow?: number;
+}
+
 // ── Per-session 消息状态 ──
 
 export interface SessionMessages {
@@ -85,6 +96,7 @@ export interface SessionMessages {
   hasMore: boolean;
   loadingMore: boolean;
   oldestId?: string;
+  model?: SessionModel;
 }
 
 // ── 流式缓冲（不入 Zustand） ──

@@ -5,6 +5,9 @@ export interface StreamingSlice {
   removeStreamingSession: (path: string) => void;
   /** 按 session path 存储的内联错误（权威源） */
   inlineErrors: Record<string, string | null>;
+  /** 模型切换进行中（阻止发送） */
+  modelSwitching: boolean;
+  setModelSwitching: (v: boolean) => void;
 }
 
 export const createStreamingSlice = (
@@ -20,4 +23,6 @@ export const createStreamingSlice = (
     streamingSessions: s.streamingSessions.filter(p => p !== path),
   })),
   inlineErrors: {},
+  modelSwitching: false,
+  setModelSwitching: (v) => set({ modelSwitching: v }),
 });
