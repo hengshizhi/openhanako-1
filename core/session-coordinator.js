@@ -739,6 +739,10 @@ After dispatching subagent or other background tasks:
         catch (err) { log.warn(`closeAllSessions ${path.basename(sessionPath)}: abort failed: ${err.message}`); }
       }
       await this._teardownSessionEntry(entry, sessionPath, "close_all");
+      // sidecar cleanup: 与 closeSession 保持语义一致
+      // pending confirmation 必须 abort, pending deferred task 必须 clear
+      this._d.getConfirmStore?.()?.abortBySession(sessionPath);
+      this._d.getDeferredResultStore?.()?.clearBySession(sessionPath);
     }
     this._sessions.clear();
     this._session = null;
