@@ -13,6 +13,7 @@ import {
   loadSessionHistoryMessages,
   isValidSessionPath,
 } from "../../core/message-utils.js";
+import { extractLatestTodos } from "../../lib/tools/todo-compat.js";
 
 export function createSessionsRoute(engine) {
   const route = new Hono();
@@ -156,15 +157,8 @@ export function createSessionsRoute(engine) {
         }
       }
 
-      // 从历史中提取最新 todo 状态
-      let todos = null;
-      for (let i = sourceMessages.length - 1; i >= 0; i--) {
-        const m = sourceMessages[i];
-        if (m.role === "toolResult" && m.toolName === "todo" && m.details?.todos) {
-          todos = m.details.todos;
-          break;
-        }
-      }
+      // 从历史中提取最新 todo 状态（通过 compat helper 兼容新旧工具名和格式）
+      const todos = extractLatestTodos(sourceMessages);
 
       return c.json({ messages, blocks: slicedBlocks, todos, hasMore });
     } catch (err) {
