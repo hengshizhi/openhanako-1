@@ -77,6 +77,7 @@ export function WechatSection({ status, showToast, onSaveConfig, onReload, agent
           </div>
         )}
         <span className={styles['settings-field-hint']}>{t('settings.bridge.wechatHint')}</span>
+        <span className={styles['settings-field-hint']}>{t('settings.bridge.wechatExclusive')}</span>
       </div>
     </section>
   );
