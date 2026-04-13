@@ -154,6 +154,11 @@ function InputAreaInner() {
   }, [previewOpen, activeTabId, artifacts]);
   const hasDoc = !!currentDoc;
 
+  // doc 消失时同步清 attach，避免悬空的 docContextAttached 干扰 hasContent / 发送态
+  useEffect(() => {
+    if (!hasDoc && docContextAttached) setDocContextAttached(false);
+  }, [hasDoc, docContextAttached, setDocContextAttached]);
+
   // ── 统一命令发送 ──
 
   const sendAsUser = useCallback(async (text: string, displayText?: string): Promise<boolean> => {
@@ -589,7 +594,7 @@ function InputAreaInner() {
               </svg>
             </button>
             <PlanModeButton enabled={planMode} onToggle={setPlanMode} />
-            <DocContextButton active={docContextAttached} disabled={!hasDoc} onToggle={toggleDocContext} />
+            {hasDoc && <DocContextButton active={docContextAttached} disabled={false} onToggle={toggleDocContext} />}
             <ContextRing />
           </div>
           <div className={styles['input-controls']}>

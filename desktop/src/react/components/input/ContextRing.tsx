@@ -45,6 +45,8 @@ export function ContextRing() {
 
   const pct = percent ?? 0;
   if (tokens == null) return null;
+  // 压缩中保留显示以给出反馈，否则低于 50% 隐藏
+  if (!compacting && pct < 50) return null;
 
   // SVG 圆环参数（更小更粗）
   const r = 6;
