@@ -7,6 +7,7 @@ import { browseAgent, switchToAgent, loadSettingsConfig, loadAgents } from '../a
 import { AgentCardStack } from './agent/AgentCardStack';
 import { YuanSelector } from './agent/YuanSelector';
 import { MemorySection } from './agent/AgentMemory';
+import { AgentToolsSection } from './agent/AgentToolsSection';
 import styles from '../Settings.module.css';
 import {
   type ExpCategory, parseExperience,
@@ -274,6 +275,11 @@ export function AgentTab() {
           </div>
         )}
       </section>
+
+      <AgentToolsSection
+        availableTools={settingsConfig?.availableTools || []}
+        disabled={settingsConfig?.tools?.disabled || []}
+      />
 
     </div>
   );
