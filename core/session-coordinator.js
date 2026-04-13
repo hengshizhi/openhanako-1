@@ -203,13 +203,18 @@ After dispatching subagent or other background tasks:
 
     if (restore) {
       if (sessionPath) {
-        const metaPathForRestore = path.join(this._d.getAgent().sessionDir, "session-meta.json");
+        const metaPathForRestore = path.join(agent.sessionDir, "session-meta.json");
         let metaEntry = null;
         try {
-          const meta = await this._readMetaCached(metaPathForRestore);
+          const raw = await fsp.readFile(metaPathForRestore, "utf-8");
+          const meta = JSON.parse(raw);
           metaEntry = meta[path.basename(sessionPath)];
-        } catch {
-          // treat as Case B
+        } catch (err) {
+          if (err.code !== "ENOENT") {
+            // Surface permission / parse errors; silent Case B fallback would
+            // re-enable disabled tools on restore, violating the user contract.
+            log.warn(`session-meta read for tool-snapshot restore failed: ${err.message}`);
+          }
         }
         if (metaEntry && Array.isArray(metaEntry.toolNames)) {
           snapshotToolNames = metaEntry.toolNames;  // Case A
@@ -234,17 +239,22 @@ After dispatching subagent or other background tasks:
     });
     this._sessions.set(mapKey, sessionEntry);
 
-    // If plan mode was pending, apply tool restriction now
+    // Plan mode restricts to read-only SDK tools + custom tools. When a session
+    // has a tool snapshot (Case A/C), intersect with it so user-disabled optional
+    // tools stay disabled in plan mode too. Legacy sessions (Case B) fall back to
+    // the full custom tool list since they have no snapshot to honor.
     if (initialPlanMode) {
-      const agent = this._d.getAgent();
-      const customNames = (agent.tools || []).map(t => t.name);
-      session.setActiveToolsByName([...READ_ONLY_BUILTIN_TOOLS, ...customNames]);
+      const customBase = snapshotToolNames !== null
+        ? snapshotToolNames.filter((n) => !READ_ONLY_BUILTIN_TOOLS.includes(n))
+        : (agent.tools || []).map((t) => t.name).filter(Boolean);
+      session.setActiveToolsByName([...READ_ONLY_BUILTIN_TOOLS, ...customBase]);
     }
 
-    // Apply tool snapshot (Case A / Case C). Plan mode takes precedence:
-    // if initialPlanMode fired above, its restricted tool list wins and the
-    // snapshot is not re-applied. Case B leaves snapshotToolNames === null
-    // so this branch is a no-op and the session keeps all tools.
+    // Apply tool snapshot (Case A / Case C). Plan mode already ran above and
+    // intersected with the snapshot, so this branch is skipped in plan mode to
+    // avoid clobbering plan mode's restricted list. Case B leaves
+    // snapshotToolNames === null so this branch is a no-op and the session
+    // keeps all tools.
     if (!initialPlanMode && snapshotToolNames !== null) {
       session.setActiveToolsByName(snapshotToolNames);
     }
