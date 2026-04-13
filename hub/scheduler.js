@@ -9,7 +9,7 @@
 
 import fs from "fs";
 import path from "path";
-import { createHeartbeat } from "../lib/desk/heartbeat.js";
+import { createHeartbeat, HEARTBEAT_ACTIVITY_DIR } from "../lib/desk/heartbeat.js";
 import { createCronScheduler } from "../lib/desk/cron-scheduler.js";
 import { CronStore } from "../lib/desk/cron-store.js";
 import { getLocale } from "../server/i18n.js";
@@ -107,7 +107,7 @@ export class Scheduler {
           const dir = getWorkspace();
           if (!dir || !fs.existsSync(dir)) return [];
           return fs.readdirSync(dir, { withFileTypes: true })
-            .filter(e => !e.name.startsWith("."))
+            .filter(e => !e.name.startsWith(".") && e.name !== HEARTBEAT_ACTIVITY_DIR)
             .map(e => {
               const fp = path.join(dir, e.name);
               let mtime = 0;
