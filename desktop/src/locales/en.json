@@ -864,6 +864,11 @@
     "skills": {
       "title": "Skills",
       "desc": "Enable or disable skills for this agent. When enabled, the agent will automatically recognize and use matching skills in conversations.",
+      "agentConfigTitle": "Agent Skill Configuration",
+      "configureFor": "Configuring:",
+      "userSkillsTitle": "User Skills",
+      "learnedSkillsTitle": "Learned Skills",
+      "learnedEmpty": "This agent hasn't learned any skills yet",
       "user": "User Skills",
       "system": "System Skills",
       "add": "Add Skill",
