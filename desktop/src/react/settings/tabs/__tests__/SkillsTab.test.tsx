@@ -102,7 +102,7 @@ vi.mock('../skills/LearnedSkillsBlock', () => ({
 // ─── Real imports (after mocks so the mocked modules win) ─────────────────────
 
 import { SkillsTab } from '../SkillsTab';
-import { useSettingsStore } from '../../store';
+import { useSettingsStore, type SettingsState } from '../../store';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -121,8 +121,8 @@ function jsonResponse(body: unknown): Response {
 }
 
 /** Seed a clean store state, matching the real SettingsState shape. */
-function seedStore(partial: Partial<ReturnType<typeof useSettingsStore.getState>>) {
-  useSettingsStore.setState({
+function seedStore(partial: Partial<SettingsState> = {}) {
+  const base: Partial<SettingsState> = {
     serverPort: null,
     serverToken: null,
     agents: [],
@@ -146,16 +146,29 @@ function seedStore(partial: Partial<ReturnType<typeof useSettingsStore.getState>
     toastMessage: '',
     toastType: '',
     toastVisible: false,
-    ...partial,
-  } as never);
+  };
+  useSettingsStore.setState({ ...base, ...partial });
 }
 
-/** Flush 2-3 microtask ticks so chained promise .then() callbacks settle. */
-async function flushMicrotasks() {
+/** Flush queued microtasks so chained promise .then() callbacks settle. */
+async function flushMicrotasks(ticks = 3) {
   await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let i = 0; i < ticks; i++) {
+      await Promise.resolve();
+    }
+  });
+}
+
+/** Default fetch routing for tests that don't need agent-specific responses. */
+function defaultFetchMock() {
+  fetchMock.mockImplementation((url: string) => {
+    if (url.includes('/api/skills/external-paths')) {
+      return Promise.resolve(jsonResponse({ configured: [], discovered: [] }));
+    }
+    if (url.includes('/api/skills')) {
+      return Promise.resolve(jsonResponse({ skills: [] }));
+    }
+    return Promise.resolve(jsonResponse({}));
   });
 }
 
@@ -180,15 +193,7 @@ describe('SkillsTab — sticky skillsViewAgentId & toggleSkill race guard', () =
     seedStore({ currentAgentId: 'agent-a' });
 
     // Default mock: resolve any GET with an empty skill list.
-    fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/api/skills/external-paths')) {
-        return Promise.resolve(jsonResponse({ configured: [], discovered: [] }));
-      }
-      if (url.includes('/api/skills')) {
-        return Promise.resolve(jsonResponse({ skills: [] }));
-      }
-      return Promise.resolve(jsonResponse({}));
-    });
+    defaultFetchMock();
 
     render(<SkillsTab />);
     await flushMicrotasks();
@@ -209,15 +214,7 @@ describe('SkillsTab — sticky skillsViewAgentId & toggleSkill race guard', () =
   it('external currentAgentId change does NOT resync skillsViewAgentId (sticky)', async () => {
     seedStore({ currentAgentId: 'agent-a' });
 
-    fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/api/skills/external-paths')) {
-        return Promise.resolve(jsonResponse({ configured: [], discovered: [] }));
-      }
-      if (url.includes('/api/skills')) {
-        return Promise.resolve(jsonResponse({ skills: [] }));
-      }
-      return Promise.resolve(jsonResponse({}));
-    });
+    defaultFetchMock();
 
     render(<SkillsTab />);
     await flushMicrotasks();
@@ -227,10 +224,10 @@ describe('SkillsTab — sticky skillsViewAgentId & toggleSkill race guard', () =
     const callsBefore = fetchMock.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('agentId='),
     ).length;
-    const callsBefore_agentB = fetchMock.mock.calls.filter(
+    const agentBCallsBefore = fetchMock.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('agentId=agent-b'),
     ).length;
-    expect(callsBefore_agentB).toBe(0);
+    expect(agentBCallsBefore).toBe(0);
 
     // Simulate the chat focus agent changing externally (NOT via the selector).
     act(() => {
@@ -243,10 +240,10 @@ describe('SkillsTab — sticky skillsViewAgentId & toggleSkill race guard', () =
 
     // And crucially: no new skills GET fired for agent-b, because
     // skillsViewAgentId didn't change, so the loadSkills effect didn't re-run.
-    const callsAfter_agentB = fetchMock.mock.calls.filter(
+    const agentBCallsAfter = fetchMock.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('agentId=agent-b'),
     ).length;
-    expect(callsAfter_agentB).toBe(0);
+    expect(agentBCallsAfter).toBe(0);
 
     // Overall agentId-param call count should be stable (no extra loads).
     const callsAfter = fetchMock.mock.calls.filter(
@@ -259,15 +256,7 @@ describe('SkillsTab — sticky skillsViewAgentId & toggleSkill race guard', () =
   it('user changing AgentSelect re-fires loadSkills with the new agentId', async () => {
     seedStore({ currentAgentId: 'agent-a' });
 
-    fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/api/skills/external-paths')) {
-        return Promise.resolve(jsonResponse({ configured: [], discovered: [] }));
-      }
-      if (url.includes('/api/skills')) {
-        return Promise.resolve(jsonResponse({ skills: [] }));
-      }
-      return Promise.resolve(jsonResponse({}));
-    });
+    defaultFetchMock();
 
     render(<SkillsTab />);
     await flushMicrotasks();
@@ -381,11 +370,11 @@ describe('SkillsTab — sticky skillsViewAgentId & toggleSkill race guard', () =
           skills: [{ name: 'test-skill', enabled: false, source: 'user' }],
         }),
       );
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
     });
-    await flushMicrotasks();
+    // toggleSkill's await chain is 3 deep (await hanaFetch → await res.json →
+    // race-guard check → potential PUT → await res.json). Flush 6 ticks so the
+    // entire chain settles before we assert the PUT never fired.
+    await flushMicrotasks(6);
 
     // ── Assertion ────────────────────────────────────────────────────────────
     // The race guard must have prevented the PUT to /api/agents/agent-a/skills.
@@ -397,9 +386,9 @@ describe('SkillsTab — sticky skillsViewAgentId & toggleSkill race guard', () =
     );
     expect(putCallsToAgentA.length).toBe(0);
 
-    // Sanity: no success toast should have fired either (the guard skips past
-    // the showToast branch).
-    expect(useSettingsStore.getState().toastMessage).not.toBe('settings.autoSaved');
+    // Sanity: toast state remained at the seed baseline, proving the guard
+    // skipped past the showToast branch.
+    expect(useSettingsStore.getState().toastMessage).toBe('');
   });
 
   // ── Test 5: null → value transition DOES sync (initial seed semantics) ──────
@@ -410,15 +399,7 @@ describe('SkillsTab — sticky skillsViewAgentId & toggleSkill race guard', () =
     // Mount with no agent selected yet.
     seedStore({ currentAgentId: null });
 
-    fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/api/skills/external-paths')) {
-        return Promise.resolve(jsonResponse({ configured: [], discovered: [] }));
-      }
-      if (url.includes('/api/skills')) {
-        return Promise.resolve(jsonResponse({ skills: [] }));
-      }
-      return Promise.resolve(jsonResponse({}));
-    });
+    defaultFetchMock();
 
     render(<SkillsTab />);
     await flushMicrotasks();
