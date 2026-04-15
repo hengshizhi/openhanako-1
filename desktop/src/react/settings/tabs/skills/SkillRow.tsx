@@ -15,8 +15,10 @@ interface SkillRowProps {
   skill: SkillInfo;
   nameHint?: string;
   deletable?: boolean;
+  /** 传了就渲染 delete 按钮。Section 1 "技能管理" 传；Section 3 "Agent 配置" 不传。 */
   onDelete?: (name: string) => void;
-  onToggle: (name: string, enabled: boolean) => void;
+  /** 传了就渲染 toggle 按钮。Section 3 "Agent 配置" 传；Section 1 "技能管理" 不传。 */
+  onToggle?: (name: string, enabled: boolean) => void;
 }
 
 export function SkillRow({ skill, nameHint, deletable = true, onDelete, onToggle }: SkillRowProps) {
@@ -55,10 +57,12 @@ export function SkillRow({ skill, nameHint, deletable = true, onDelete, onToggle
             </svg>
           </button>
         )}
-        <button
-          className={`hana-toggle${skill.enabled ? ' on' : ''}`}
-          onClick={(e) => { e.stopPropagation(); onToggle(skill.name, !skill.enabled); }}
-        />
+        {onToggle && (
+          <button
+            className={`hana-toggle${skill.enabled ? ' on' : ''}`}
+            onClick={(e) => { e.stopPropagation(); onToggle(skill.name, !skill.enabled); }}
+          />
+        )}
       </div>
     </div>
   );

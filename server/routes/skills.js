@@ -200,24 +200,31 @@ export function createSkillsRoute(engine) {
         }
       }
 
-      // 重新加载 skills 并自动启用
+      // 重新加载 skills
       await engine.reloadSkills();
 
-      // 将新技能加入指定 agent 的 enabled 列表
+      // 可选：如果传了 agentId 就顺便加入该 agent 的 enabled 列表（历史行为）。
+      // 新布局下 SkillsTab 顶部"技能管理"区走全局安装（不传 agentId），只做
+      // 文件注册；用户自己到 Agent 配置区打开开关。原则：全局的管全局的。
       const agentId = c.req.query("agentId");
-      if (!agentId) return c.json({ error: "agentId query param is required" }, 400);
-      const configPath = path.join(engine.agentsDir, agentId, "config.yaml");
-      if (fs.existsSync(configPath)) {
-        const { loadConfig } = await import("../../lib/memory/config-loader.js");
-        const cfg = loadConfig(configPath);
-        const enabled = new Set(cfg?.skills?.enabled || []);
-        enabled.add(safeName);
-        // 走 ConfigCoordinator 路径：写盘 + syncAgentSkills 同步内存态
-        // 必须传 agentId，否则 fallback 到焦点 agent 会同步错对象 (#397)
-        await engine.updateConfig({ skills: { enabled: [...enabled] } }, { agentId });
+      if (agentId) {
+        const configPath = path.join(engine.agentsDir, agentId, "config.yaml");
+        if (fs.existsSync(configPath)) {
+          const { loadConfig } = await import("../../lib/memory/config-loader.js");
+          const cfg = loadConfig(configPath);
+          const enabled = new Set(cfg?.skills?.enabled || []);
+          enabled.add(safeName);
+          // 走 ConfigCoordinator 路径：写盘 + syncAgentSkills 同步内存态
+          // 必须传 agentId，否则 fallback 到焦点 agent 会同步错对象 (#397)
+          await engine.updateConfig({ skills: { enabled: [...enabled] } }, { agentId });
+        }
       }
 
-      const skill = engine.getAllSkills(agentId).find(s => s.name === safeName);
+      // 返回 skill 详情：有 agentId 就取该 agent 视角，没有就 fallback 到焦点
+      const viewAgentId = agentId || engine.currentAgentId || "";
+      const skill = viewAgentId
+        ? engine.getAllSkills(viewAgentId).find(s => s.name === safeName)
+        : null;
       return c.json({
         ok: true,
         skill: skill || { name: safeName, type: "user" },

@@ -1217,33 +1217,22 @@
 }
 
 /* ========================================
-   Agent Skill 配置大块（Section 2）
+   Agent Skill 配置（Section 3 — per-Agent 开关）
    ======================================== */
-.agent-skill-config-block {
-    background: var(--bg-hover, color-mix(in srgb, var(--bg-card) 94%, transparent));
-    border-radius: var(--radius-md);
-    padding: var(--space-md) var(--space-lg) var(--space-lg);
+
+/* Selector 容器：占满宽度，放在 section 标题下面作为第一元素 */
+.agent-skill-selector-wrap {
+    margin-bottom: var(--space-lg);
 }
 
-.agent-skill-config-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    margin-top: calc(var(--space-sm) * -1);
-    margin-bottom: var(--space-sm);
+.agent-skill-selector-wrap .bridge-agent-select {
+    margin-bottom: 0;
+    width: 100%;
 }
 
-.agent-skill-config-label {
-    font-size: 0.78rem;
-    color: var(--text-light);
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-}
-
-.agent-skill-config-divider {
-    height: 1px;
-    background: var(--border);
-    margin: var(--space-md) 0 var(--space-lg);
+.agent-skill-selector-wrap .bridge-agent-select .sdw-wrapper,
+.agent-skill-selector-wrap .bridge-agent-select .sdw-trigger {
+    width: 100%;
 }
 
 .agent-skill-sub-block + .agent-skill-sub-block {

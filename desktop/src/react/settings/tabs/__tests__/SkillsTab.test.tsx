@@ -62,21 +62,38 @@ vi.mock('../bridge/AgentSelect', () => ({
 
 // SkillRow: tiny stub that exposes the skill's name/enabled as data-* attrs
 // and a toggle button the tests can click.
+// SkillRow mock: mirrors production's conditional rendering — toggle/delete
+// are only rendered when their respective callbacks are provided. This is
+// critical post-refactor because the same skill can appear in two sections
+// (Section 1 with onDelete only, Section 3 with onToggle only); an
+// unconditional render would produce duplicate testids.
 vi.mock('../skills/SkillRow', () => ({
   SkillRow: ({
     skill,
     onToggle,
+    onDelete,
   }: {
     skill: { name: string; enabled: boolean };
-    onToggle: (name: string, enabled: boolean) => void;
+    onToggle?: (name: string, enabled: boolean) => void;
+    onDelete?: (name: string) => void;
   }) => (
     <div data-skill-name={skill.name} data-enabled={String(skill.enabled)}>
-      <button
-        data-testid={`skill-toggle-${skill.name}`}
-        onClick={() => onToggle(skill.name, !skill.enabled)}
-      >
-        toggle
-      </button>
+      {onToggle && (
+        <button
+          data-testid={`skill-toggle-${skill.name}`}
+          onClick={() => onToggle(skill.name, !skill.enabled)}
+        >
+          toggle
+        </button>
+      )}
+      {onDelete && (
+        <button
+          data-testid={`skill-delete-${skill.name}`}
+          onClick={() => onDelete(skill.name)}
+        >
+          delete
+        </button>
+      )}
     </div>
   ),
 }));

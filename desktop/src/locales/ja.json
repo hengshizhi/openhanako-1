@@ -839,6 +839,7 @@
     "skills": {
       "title": "スキル",
       "desc": "このエージェントのスキルを有効または無効にできます。有効にすると、会話の中で該当するスキルを自動的に認識して使用します。",
+      "manageTitle": "Installed Skills",
       "agentConfigTitle": "Agent Skill Configuration",
       "configureFor": "Configuring:",
       "userSkillsTitle": "User Skills",

@@ -839,6 +839,7 @@
     "skills": {
       "title": "스킬",
       "desc": "이 에이전트의 스킬을 켜거나 끌 수 있어요. 활성화하면 에이전트가 대화에서 자동으로 해당 스킬을 인식하고 사용해요.",
+      "manageTitle": "Installed Skills",
       "agentConfigTitle": "Agent Skill Configuration",
       "configureFor": "Configuring:",
       "userSkillsTitle": "User Skills",

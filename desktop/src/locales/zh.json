@@ -869,6 +869,7 @@
     "skills": {
       "title": "技能管理",
       "desc": "启用或关闭助手的技能。启用后，助手在相关对话中会自动识别并使用对应技能。",
+      "manageTitle": "已装技能",
       "agentConfigTitle": "Agent Skill 配置",
       "configureFor": "正在配置:",
       "userSkillsTitle": "用户级 Skill",

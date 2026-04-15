@@ -91,14 +91,11 @@ export function SkillsTab() {
       .catch(err => console.warn('[skills] translate failed:', err));
   }, [visible.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 全局安装：只注册 skill 到 engine.skillsDir，不自动对任何 agent 启用。
+  // 原则：全局的管全局的。装完后用户到 Section 3 "Agent 配置" 自己打开开关。
   const installSkillFromPath = async (filePath: string) => {
-    const agentId = skillsViewAgentIdRef.current;
-    if (!agentId) {
-      showToast(t('settings.skills.installError') + ': no agent selected', 'error');
-      return;
-    }
     try {
-      const res = await hanaFetch(`/api/skills/install?agentId=${encodeURIComponent(agentId)}`, {
+      const res = await hanaFetch('/api/skills/install', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: filePath }),
@@ -234,53 +231,72 @@ export function SkillsTab() {
     <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="skills">
 
       {/* ═════════════════════════════════════════════ */}
-      {/* Section 1: 全局能力(跟 Selector 无关)        */}
+      {/* Section 1: 技能管理(全局视角 — 装 / 列 / 删)   */}
+      {/* ═════════════════════════════════════════════ */}
+      <section className={styles['settings-section']}>
+        <h2 className={styles['settings-section-title']}>
+          {t('settings.skills.manageTitle')}
+        </h2>
+
+        <div
+          className={styles['skills-dropzone']}
+          onClick={installSkill}
+          onDragOver={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).classList.add(styles['drag-over']); }}
+          onDragLeave={(e) => (e.currentTarget as HTMLElement).classList.remove(styles['drag-over'])}
+          onDrop={handleDrop}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          <span>{t('settings.skills.dropzone')}</span>
+        </div>
+
+        {userSkills.length === 0 ? (
+          <p className={`${styles['settings-desc']} ${styles['skills-empty']}`}>{t('settings.skills.noUser')}</p>
+        ) : (
+          <div className={styles['skills-list-block']}>
+            {userSkills.map(skill => (
+              <SkillRow
+                key={skill.name}
+                skill={skill}
+                nameHint={nameHints[skill.name]}
+                onDelete={deleteSkill}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ═════════════════════════════════════════════ */}
+      {/* Section 2: 全局能力(跟 Selector 无关)        */}
       {/* ═════════════════════════════════════════════ */}
       <SkillCapabilities learnCfg={learnCfg} />
 
       {/* ═════════════════════════════════════════════ */}
-      {/* Section 2: Agent Skill 配置(大块,跟随 Selector)*/}
+      {/* Section 3: Agent 配置(per-Agent 开关)         */}
       {/* ═════════════════════════════════════════════ */}
-      <section className={`${styles['settings-section']} ${styles['agent-skill-config-block']}`}>
+      <section className={styles['settings-section']}>
         <h2 className={styles['settings-section-title']}>
           {t('settings.skills.agentConfigTitle')}
         </h2>
 
-        <div className={styles['agent-skill-config-header']}>
-          <span className={styles['agent-skill-config-label']}>
-            {t('settings.skills.configureFor')}
-          </span>
+        <div className={styles['agent-skill-selector-wrap']}>
           <AgentSelect
             value={skillsViewAgentId}
             onChange={setSkillsViewAgentId}
           />
         </div>
 
-        <div className={styles['agent-skill-config-divider']} />
-
-        {/* 子块 1: 用户级 Skill */}
+        {/* 子块 1: 用户级 Skill — 只开关,不能删(删去 Section 1) */}
         <div className={styles['agent-skill-sub-block']}>
           <h3 className={styles['agent-skill-sub-title']}>
             {t('settings.skills.userSkillsTitle')}
           </h3>
 
-          <div
-            className={styles['skills-dropzone']}
-            onClick={installSkill}
-            onDragOver={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).classList.add(styles['drag-over']); }}
-            onDragLeave={(e) => (e.currentTarget as HTMLElement).classList.remove(styles['drag-over'])}
-            onDrop={handleDrop}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            <span>{t('settings.skills.dropzone')}</span>
-          </div>
-
           {userSkills.length === 0 ? (
-            <p className={`${styles['settings-desc']} ${styles['skills-empty']}`}>{t('settings.skills.noUser')}</p>
+            <p className={styles['agent-skill-empty']}>{t('settings.skills.noUser')}</p>
           ) : (
             <div className={styles['skills-list-block']}>
               {userSkills.map(skill => (
@@ -288,7 +304,6 @@ export function SkillsTab() {
                   key={skill.name}
                   skill={skill}
                   nameHint={nameHints[skill.name]}
-                  onDelete={deleteSkill}
                   onToggle={toggleSkill}
                 />
               ))}
@@ -296,7 +311,7 @@ export function SkillsTab() {
           )}
         </div>
 
-        {/* 子块 2: 自学 Skill */}
+        {/* 子块 2: 自学 Skill — per-Agent 资产,保持 toggle + delete */}
         <LearnedSkillsBlock
           learnedSkills={learnedSkills}
           nameHints={nameHints}
@@ -306,7 +321,7 @@ export function SkillsTab() {
       </section>
 
       {/* ═════════════════════════════════════════════ */}
-      {/* Section 3: 外部兼容(路径全局,skill 跟随 Selector)*/}
+      {/* Section 4: 外部兼容(路径全局,skill 跟随 Selector)*/}
       {/* ═════════════════════════════════════════════ */}
       <section className={styles['settings-section']}>
         <h2 className={styles['settings-section-title']}>{t('settings.skills.compatTitle')}</h2>
