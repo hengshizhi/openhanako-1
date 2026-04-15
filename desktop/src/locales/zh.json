@@ -872,7 +872,7 @@
       "manageTitle": "已装技能",
       "agentConfigTitle": "Agent Skill 配置",
       "configureFor": "正在配置:",
-      "userSkillsTitle": "用户级 Skill",
+      "userSkillsTitle": "Agents skill 开关",
       "learnedSkillsTitle": "自学 Skill",
       "learnedEmpty": "该助手还没有自学过技能",
       "user": "用户技能",

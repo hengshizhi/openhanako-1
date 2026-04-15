@@ -867,7 +867,7 @@
       "manageTitle": "Installed Skills",
       "agentConfigTitle": "Agent Skill Configuration",
       "configureFor": "Configuring:",
-      "userSkillsTitle": "User Skills",
+      "userSkillsTitle": "Agent Skill Toggles",
       "learnedSkillsTitle": "Learned Skills",
       "learnedEmpty": "This agent hasn't learned any skills yet",
       "user": "User Skills",

@@ -842,7 +842,7 @@
       "manageTitle": "已裝技能",
       "agentConfigTitle": "Agent Skill 設定",
       "configureFor": "正在設定:",
-      "userSkillsTitle": "使用者 Skill",
+      "userSkillsTitle": "Agents skill 開關",
       "learnedSkillsTitle": "自學 Skill",
       "learnedEmpty": "此助手還沒有自學過技能",
       "user": "使用者技能",
